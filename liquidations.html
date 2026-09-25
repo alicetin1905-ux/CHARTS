@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+<title>BTC Liquidation Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  /* Single deliberate look: a dark instrument panel. */
+  :root {
+    color-scheme: dark;
+    --void: #05070d;
+    --deck: #0a0f1c;
+    --deck-2: #0e1526;
+    --edge: #1a2a44;
+    --edge-hot: #2c4a78;
+    --ink: #d8e6ff;
+    --ink-2: #8aa0c4;
+    --ink-3: #56698c;
+    --cyan: #19e6ff;     /* up candles, short liquidations (above price) */
+    --magenta: #ff3d8b;  /* down candles, long liquidations (below price) */
+    --amber: #ffc24a;    /* current price */
+    --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 70% -10%, rgba(25,230,255,.08), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(255,61,139,.07), transparent 60%),
+      var(--void);
+    color: var(--ink);
+    font: 13px/1.45 var(--mono);
+    padding: 16px;
+    min-height: 100%;
+  }
+  .wrap { max-width: 1480px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+
+  /* ---- Header ---- */
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; }
+  .id { display: flex; flex-direction: column; gap: 2px; }
+  .id h1 {
+    margin: 0; font-family: var(--display); font-weight: 700; font-size: 22px;
+    letter-spacing: .12em; text-transform: uppercase; text-wrap: balance;
+  }
+  .id h1 em { font-style: normal; color: var(--cyan); text-shadow: 0 0 12px rgba(25,230,255,.55); }
+  .id small { color: var(--ink-3); letter-spacing: .14em; text-transform: uppercase; font-size: 10px; }
+  .px { display: flex; align-items: baseline; gap: 12px; font-variant-numeric: tabular-nums; }
+  .px b { font-size: 30px; font-weight: 700; color: var(--amber); text-shadow: 0 0 18px rgba(255,194,74,.45); }
+  .px span { font-weight: 500; }
+  .up { color: var(--cyan); } .down { color: var(--magenta); }
+  .grow { flex: 1; }
+  .seg { display: inline-flex; border: 1px solid var(--edge); background: var(--deck); }
+  .seg button {
+    font: 500 12px var(--mono); letter-spacing: .08em; color: var(--ink-2);
+    background: none; border: 0; padding: 7px 11px; cursor: pointer;
+  }
+  .seg button + button { border-left: 1px solid var(--edge); }
+  .seg button:hover { color: var(--ink); }
+  .seg button:focus-visible { outline: 1px solid var(--cyan); outline-offset: -2px; }
+  .seg button.on { color: var(--void); background: var(--cyan); box-shadow: 0 0 14px rgba(25,230,255,.5); }
+  .seg.lev button.on { background: var(--ink); box-shadow: none; }
+  .ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .ctl label { color: var(--ink-3); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+
+  /* ---- Readouts ---- */
+  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+  .ro { position: relative; background: linear-gradient(180deg, var(--deck-2), var(--deck)); border: 1px solid var(--edge); padding: 10px 12px; }
+  .ro .k { color: var(--ink-3); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+  .ro .v { font-size: 17px; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .ro .s { color: var(--ink-2); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .meter { height: 4px; background: var(--edge); margin-top: 8px; display: flex; }
+  .meter i { display: block; height: 100%; }
+
+  /* ---- Main instrument ---- */
+  .frame { position: relative; border: 1px solid var(--edge); background: rgba(10,15,28,.75); }
+  .frame::before, .frame::after {
+    content: ""; position: absolute; width: 14px; height: 14px; border-color: var(--cyan); border-style: solid; pointer-events: none;
+  }
+  .frame::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+  .frame::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+  .bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding: 9px 12px; border-bottom: 1px solid var(--edge); }
+  .bar b { font-family: var(--display); letter-spacing: .12em; text-transform: uppercase; font-size: 13px; }
+  .bar .ohlc { color: var(--ink-2); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .bar .legend { margin-left: auto; display: flex; gap: 14px; font-size: 11px; color: var(--ink-2); }
+  .bar .legend span { white-space: nowrap; }
+  .sw { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; }
+
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 230px; height: 560px;
+    background-image:
+      linear-gradient(rgba(44,74,120,.12) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(44,74,120,.12) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  #chart { position: relative; min-width: 0; }
+  .liq { position: relative; border-left: 1px solid var(--edge-hot); overflow: hidden; cursor: crosshair; }
+  .liq canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .liq .hdr {
+    position: absolute; top: 4px; left: 8px; right: 8px; display: flex; justify-content: space-between;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); pointer-events: none; height: 18px; align-items: center;
+  }
+  .scan { position: absolute; left: 0; right: 0; height: 60px; top: -60px; pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgba(25,230,255,.07), transparent);
+    animation: scan 6s linear infinite; }
+  @keyframes scan { to { top: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .scan { display: none; } }
+
+  .tip {
+    position: absolute; pointer-events: none; z-index: 5; min-width: 190px;
+    background: rgba(5,7,13,.94); border: 1px solid var(--edge-hot); padding: 8px 10px; font-size: 11px;
+    box-shadow: 0 0 20px rgba(25,230,255,.12); font-variant-numeric: tabular-nums;
+  }
+  .tip .r { display: flex; justify-content: space-between; gap: 12px; }
+  .tip .h { color: var(--ink-3); letter-spacing: .1em; margin-bottom: 4px; }
+
+  footer { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--ink-3); font-size: 11px; }
+  footer .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: var(--ink-3); }
+  footer .dot.live { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+  footer .dot.demo { background: var(--amber); }
+  .note { max-width: 90ch; }
+
+  @media (max-width: 760px) {
+    .stage { grid-template-columns: minmax(0, 1fr) 110px; height: 460px; }
+    .bar .legend { margin-left: 0; flex-wrap: wrap; gap: 4px 12px; }
+    #liq-max { display: none; }
+    .px b { font-size: 24px; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="id">
+      <h1>BTC <em>Liquidation</em> Radar</h1>
+      <small id="instr">BTC perpetual</small>
+    </div>
+    <div class="px"><b id="price">—</b><span id="chg">—</span></div>
+    <div class="grow"></div>
+    <div class="ctl">
+      <label for="tf">Chart</label>
+      <div class="seg" id="tf">
+        <button data-v="5m">5M</button>
+        <button data-v="15m" class="on">15M</button>
+        <button data-v="1h">1H</button>
+        <button data-v="4h">4H</button>
+      </div>
+      <label for="lev">Leverage</label>
+      <div class="seg lev" id="lev">
+        <button data-v="10" class="on">10×</button>
+        <button data-v="25" class="on">25×</button>
+        <button data-v="50" class="on">50×</button>
+        <button data-v="100" class="on">100×</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="readouts">
+    <div class="ro"><div class="k">Longs at risk · −2%</div><div class="v down" id="r-long">—</div><div class="s" id="r-long-s">est. notional</div></div>
+    <div class="ro"><div class="k">Shorts at risk · +2%</div><div class="v up" id="r-short">—</div><div class="s" id="r-short-s">est. notional</div></div>
+    <div class="ro"><div class="k">Largest long cluster</div><div class="v" id="r-lc">—</div><div class="s" id="r-lc-s">—</div></div>
+    <div class="ro"><div class="k">Largest short cluster</div><div class="v" id="r-sc">—</div><div class="s" id="r-sc-s">—</div></div>
+    <div class="ro"><div class="k">Pressure ±2%</div><div class="v" id="r-bias">—</div>
+      <div class="meter"><i id="m-long" style="background:var(--magenta);width:50%"></i><i id="m-short" style="background:var(--cyan);width:50%"></i></div></div>
+    <div class="ro"><div class="k">Open interest</div><div class="v" id="r-oi">—</div><div class="s" id="r-oi-s">—</div></div>
+  </section>
+
+  <section class="frame">
+    <div class="bar">
+      <b id="ttl">Price · 15M</b>
+      <span class="ohlc" id="ohlc"></span>
+      <span class="legend">
+        <span><i class="sw" style="background:var(--magenta)"></i>Long liquidations</span>
+        <span><i class="sw" style="background:var(--cyan)"></i>Short liquidations</span>
+        <span><i class="sw" style="background:var(--amber)"></i>Price</span>
+      </span>
+    </div>
+    <div class="stage">
+      <div id="chart"></div>
+      <div class="liq" id="liq">
+        <canvas id="liqc"></canvas>
+        <div class="scan"></div>
+        <div class="hdr"><span>Liq map</span><span id="liq-max"></span></div>
+      </div>
+    </div>
+    <div class="tip" id="tip" hidden></div>
+  </section>
+
+  <footer>
+    <span><span class="dot" id="dot"></span><span id="src">Connecting…</span></span>
+    <span id="upd"></span>
+    <span class="note">Liquidation levels are an estimate, not exchange data: each 1H/4H bar's volume is treated as new positions at its average price, spread over 10/25/50/100× leverage (0.5% maintenance margin). Levels that price has already crossed are removed. The map shares the chart's price scale; drag the price axis to zoom both.</span>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const LWC = window.LightweightCharts;
+  const $ = (id) => document.getElementById(id);
+
+  // ---- Model parameters ------------------------------------------------------
+  const LEVERAGE = [ { l: 10, w: 0.30 }, { l: 25, w: 0.30 }, { l: 50, w: 0.25 }, { l: 100, w: 0.15 } ];
+  const MMR = 0.005;          // maintenance margin rate
+  const NEW_SHARE = 0.10;     // share of traded notional assumed to open leveraged positions
+  const C = { cyan: '#19e6ff', magenta: '#ff3d8b', amber: '#ffc24a', ink2: '#8aa0c4', ink3: '#56698c', edge: '#1a2a44' };
+
+  // ---- State -----------------------------------------------------------------
+  let tf = '15m';
+  const lev = new Set([10, 25, 50, 100]);
+  const bars = { disp: [], h1: [], h4: [] };
+  let ticker = null, mode = null, lastErr = null, updatedAt = null;
+  let buckets = new Map(), bucketSize = 100, levelsVersion = 0;
+  let hoverY = null;
+
+  // ---- Formatting ------------------------------------------------------------
+  const fP = (v) => v == null || !isFinite(v) ? '—' : v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const fP0 = (v) => v == null || !isFinite(v) ? '—' : Math.round(v).toLocaleString('en-US');
+  const fUSD = (v) => !isFinite(v) ? '—' : v >= 1e9 ? '$' + (v / 1e9).toFixed(2) + 'B' : v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? '$' + (v / 1e3).toFixed(0) + 'K' : '$' + v.toFixed(0);
+  const fPct = (v) => (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+
+  // ---- Chart -----------------------------------------------------------------
+  const chart = LWC.createChart($('chart'), {
+    autoSize: true,
+    layout: { background: { type: 'solid', color: 'transparent' }, textColor: C.ink2, fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 11 },
+    grid: { vertLines: { color: 'rgba(44,74,120,.18)' }, horzLines: { color: 'rgba(44,74,120,.18)' } },
+    rightPriceScale: { borderColor: '#2c4a78', scaleMargins: { top: 0.06, bottom: 0.16 } },
+    timeScale: { borderColor: '#2c4a78', timeVisible: true, secondsVisible: false, rightOffset: 6 },
+    crosshair: {
+      mode: LWC.CrosshairMode.Normal,
+      vertLine: { color: 'rgba(25,230,255,.45)', labelBackgroundColor: '#0e1526' },
+      horzLine: { color: 'rgba(25,230,255,.45)', labelBackgroundColor: '#0e1526' },
+    },
+    localization: { priceFormatter: fP },
+  });
+  const candle = chart.addCandlestickSeries({
+    upColor: 'rgba(25,230,255,.18)', downColor: C.magenta,
+    borderUpColor: C.cyan, borderDownColor: C.magenta, wickUpColor: C.cyan, wickDownColor: C.magenta,
+    priceLineColor: C.amber, priceLineStyle: LWC.LineStyle.Dashed,
+    // Widen the auto-scaled range so the largest nearby clusters stay in view on both panes.
+    autoscaleInfoProvider: (orig) => {
+      const r = orig();
+      if (!r || !r.priceRange) return r;
+      let { minValue, maxValue } = r.priceRange;
+      for (const v of focusPrices) { minValue = Math.min(minValue, v); maxValue = Math.max(maxValue, v); }
+      return { ...r, priceRange: { minValue, maxValue } };
+    },
+  });
+  let focusPrices = [];
+  const vol = chart.addHistogramSeries({ priceScaleId: 'vol', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false });
+  chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.86, bottom: 0 } });
+  let clusterLines = [];
+
+  chart.subscribeCrosshairMove((p) => {
+    hoverY = p && p.point ? p.point.y : null;
+    const d = p && p.seriesData ? p.seriesData.get(candle) : null;
+    showOHLC(d);
+  });
+
+  function showOHLC(d) {
+    if (!d) d = bars.disp[bars.disp.length - 1];
+    if (!d) { $('ohlc').textContent = ''; return; }
+    $('ohlc').textContent = `O ${fP(d.open)}  H ${fP(d.high)}  L ${fP(d.low)}  C ${fP(d.close)}`;
+  }
+
+  // ---- Liquidation model -----------------------------------------------------
+  function historyBars() {
+    // 4H bars cover older history, 1H bars the recent part.
+    const h1 = bars.h1, h4 = bars.h4;
+    if (!h1.length) return h4.slice();
+    const cut = h1[0].time;
+    return h4.filter(b => b.time + 14400 <= cut).concat(h1);
+  }
+
+  function niceStep(x) {
+    const m = Math.pow(10, Math.floor(Math.log10(x)));
+    const n = x / m;
+    return (n < 1.5 ? 1 : n < 3.5 ? 2.5 : n < 7.5 ? 5 : 10) * m;
+  }
+
+  function rebuildLevels() {
+    const hist = historyBars();
+    const last = currentPrice();
+    buckets = new Map();
+    if (!hist.length || !last) { levelsVersion++; return; }
+    bucketSize = niceStep(last * 0.0012);
+
+    // Lowest low / highest high after each bar, including the live chart bars.
+    const n = hist.length;
+    const sufLo = new Array(n + 1), sufHi = new Array(n + 1);
+    const recentLo = Math.min(last, ...bars.disp.slice(-3).map(b => b.low));
+    const recentHi = Math.max(last, ...bars.disp.slice(-3).map(b => b.high));
+    sufLo[n] = recentLo; sufHi[n] = recentHi;
+    for (let i = n - 1; i >= 0; i--) { sufLo[i] = Math.min(sufLo[i + 1], hist[i].low); sufHi[i] = Math.max(sufHi[i + 1], hist[i].high); }
+
+    const add = (price, usd, side) => {
+      const k = Math.floor(price / bucketSize);
+      let b = buckets.get(k);
+      if (!b) { b = { k, long: 0, short: 0, levs: {} }; buckets.set(k, b); }
+      b[side] += usd;
+    };
+
+    hist.forEach((b, i) => {
+      const tp = (b.high + b.low + b.close) / 3;
+      const notional = b.volume * tp * NEW_SHARE / 2; // per side
+      for (const { l, w } of LEVERAGE) {
+        if (!lev.has(l)) continue;
+        const longLiq = tp * (1 - 1 / l + MMR);
+        const shortLiq = tp * (1 + 1 / l - MMR);
+        if (longLiq < sufLo[i + 1]) add(longLiq, notional * w, 'long');
+        if (shortLiq > sufHi[i + 1]) add(shortLiq, notional * w, 'short');
+      }
+    });
+    levelsVersion++;
+    renderReadouts();
+    renderClusterLines();
+  }
+
+  function currentPrice() {
+    if (mode === 'mcp' && ticker && isFinite(+ticker.last)) return +ticker.last;
+    const d = bars.disp[bars.disp.length - 1];
+    return d ? d.close : null;
+  }
+
+  function sumWithin(side, pct) {
+    const p = currentPrice(); let s = 0;
+    for (const b of buckets.values()) {
+      const mid = (b.k + 0.5) * bucketSize;
+      if (side === 'long' && mid <= p && mid >= p * (1 - pct)) s += b.long;
+      if (side === 'short' && mid >= p && mid <= p * (1 + pct)) s += b.short;
+    }
+    return s;
+  }
+
+  function topClusters(side, count, pct = 0.06) {
+    const p = currentPrice();
+    return [...buckets.values()]
+      .filter(b => b[side] > 0 && Math.abs((b.k + 0.5) * bucketSize - p) / p <= pct)
+      .sort((a, b) => b[side] - a[side]).slice(0, count);
+  }
+
+  function renderReadouts() {
+    const p = currentPrice(); if (!p) return;
+    const L = sumWithin('long', 0.02), S = sumWithin('short', 0.02);
+    $('r-long').textContent = fUSD(L);
+    $('r-short').textContent = fUSD(S);
+    $('r-long-s').textContent = `${fP0(p * 0.98)} → ${fP0(p)}`;
+    $('r-short-s').textContent = `${fP0(p)} → ${fP0(p * 1.02)}`;
+    const lc = topClusters('long', 1)[0], sc = topClusters('short', 1)[0];
+    if (lc) { const m = (lc.k + 0.5) * bucketSize; $('r-lc').textContent = fP0(m); $('r-lc-s').textContent = `${fUSD(lc.long)} · ${fPct((m - p) / p * 100)}`; }
+    else { $('r-lc').textContent = '—'; $('r-lc-s').textContent = 'none within 6%'; }
+    if (sc) { const m = (sc.k + 0.5) * bucketSize; $('r-sc').textContent = fP0(m); $('r-sc-s').textContent = `${fUSD(sc.short)} · ${fPct((m - p) / p * 100)}`; }
+    else { $('r-sc').textContent = '—'; $('r-sc-s').textContent = 'none within 6%'; }
+    const tot = L + S, lp = tot ? L / tot * 100 : 50;
+    $('m-long').style.width = lp + '%'; $('m-short').style.width = (100 - lp) + '%';
+    const bias = $('r-bias');
+    if (!tot) { bias.textContent = '—'; bias.className = 'v'; }
+    else if (lp > 55) { bias.textContent = `Longs ${lp.toFixed(0)}%`; bias.className = 'v down'; }
+    else if (lp < 45) { bias.textContent = `Shorts ${(100 - lp).toFixed(0)}%`; bias.className = 'v up'; }
+    else { bias.textContent = 'Balanced'; bias.className = 'v'; }
+  }
+
+  function renderClusterLines() {
+    clusterLines.forEach(l => candle.removePriceLine(l)); clusterLines = [];
+    focusPrices = [];
+    for (const [side, color, tag] of [['long', C.magenta, 'L-LIQ'], ['short', C.cyan, 'S-LIQ']]) {
+      for (const b of topClusters(side, 2)) {
+        focusPrices.push((b.k + 0.5) * bucketSize);
+        clusterLines.push(candle.createPriceLine({
+          price: (b.k + 0.5) * bucketSize, color, lineWidth: 1, lineStyle: LWC.LineStyle.SparseDotted,
+          axisLabelVisible: true, title: `${tag} ${fUSD(b[side])}`,
+        }));
+      }
+    }
+  }
+
+  // ---- Liquidation map canvas (shares the candle series' price scale) -------
+  const liqEl = $('liq'), cv = $('liqc'), ctx = cv.getContext('2d');
+  let sig = '';
+
+  function drawLiq() {
+    const W = liqEl.clientWidth, H = liqEl.clientHeight, dpr = window.devicePixelRatio || 1;
+    const yA = candle.priceToCoordinate(50000), yB = candle.priceToCoordinate(100000);
+    const s = [W, H, dpr, yA, yB, levelsVersion, hoverY, bars.disp.length && bars.disp[bars.disp.length - 1].close].join('|');
+    if (s === sig) return;
+    sig = s;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    // Plot height excludes the time axis under the chart pane.
+    const plotH = chart.timeScale().height ? H - chart.timeScale().height() : H;
+    const rows = [];
+    let maxV = 0;
+    for (const b of buckets.values()) {
+      const yTop = candle.priceToCoordinate((b.k + 1) * bucketSize), yBot = candle.priceToCoordinate(b.k * bucketSize);
+      if (yTop == null || yBot == null || yBot < 0 || yTop > plotH) continue;
+      rows.push({ b, y: yTop, h: Math.max(1, yBot - yTop - (yBot - yTop > 3 ? 1 : 0)) });
+      maxV = Math.max(maxV, b.long, b.short);
+    }
+    $('liq-max').textContent = maxV ? 'max ' + fUSD(maxV) : '';
+    const x0 = 6, span = W - x0 - 8;
+
+    // Faint ruler
+    ctx.strokeStyle = 'rgba(44,74,120,.35)'; ctx.lineWidth = 1;
+    for (const f of [0.25, 0.5, 0.75]) { ctx.beginPath(); ctx.moveTo(x0 + span * f + .5, 22); ctx.lineTo(x0 + span * f + .5, plotH); ctx.stroke(); }
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 24, W, plotH - 24); ctx.clip();
+    for (const { b, y, h } of rows) {
+      for (const side of ['long', 'short']) {
+        const v = b[side]; if (!v) continue;
+        const t = v / maxV, w = Math.max(1, t * span);
+        const col = side === 'long' ? '255,61,139' : '25,230,255';
+        const g = ctx.createLinearGradient(x0, 0, x0 + w, 0);
+        g.addColorStop(0, `rgba(${col},${0.15 + 0.35 * t})`);
+        g.addColorStop(1, `rgba(${col},${0.45 + 0.55 * t})`);
+        ctx.fillStyle = g;
+        if (t > 0.6) { ctx.shadowColor = `rgba(${col},.9)`; ctx.shadowBlur = 10 * t; } else ctx.shadowBlur = 0;
+        ctx.fillRect(x0, y, w, h);
+      }
+    }
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // Current price marker, aligned with the chart's price line.
+    const p = currentPrice(), py = p ? candle.priceToCoordinate(p) : null;
+    if (py != null) {
+      ctx.strokeStyle = C.amber; ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, Math.round(py) + .5); ctx.lineTo(W, Math.round(py) + .5); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // Crosshair echo
+    if (hoverY != null && hoverY <= plotH) {
+      ctx.strokeStyle = 'rgba(25,230,255,.45)'; ctx.setLineDash([2, 3]);
+      ctx.beginPath(); ctx.moveTo(0, Math.round(hoverY) + .5); ctx.lineTo(W, Math.round(hoverY) + .5); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // Scale labels
+    ctx.strokeStyle = '#2c4a78'; ctx.beginPath(); ctx.moveTo(0, plotH + .5); ctx.lineTo(W, plotH + .5); ctx.stroke();
+    ctx.fillStyle = C.ink3; ctx.font = '10px JetBrains Mono, ui-monospace, monospace';
+    if (maxV && W > 150) {
+      ctx.textAlign = 'right'; ctx.fillText(fUSD(maxV), x0 + span, plotH + 17);
+      ctx.textAlign = 'left'; ctx.fillText('$0', x0, plotH + 17);
+    }
+  }
+
+  (function loop() { try { drawLiq(); } catch (e) { /* keep looping */ } requestAnimationFrame(loop); })();
+
+  // Tooltip over the map
+  const tip = $('tip');
+  liqEl.addEventListener('mousemove', (e) => {
+    const r = liqEl.getBoundingClientRect(), y = e.clientY - r.top;
+    hoverY = y;
+    const price = candle.coordinateToPrice(y);
+    if (price == null) { tip.hidden = true; return; }
+    const k = Math.floor(price / bucketSize), b = buckets.get(k);
+    const lo = k * bucketSize, hi = lo + bucketSize, p = currentPrice();
+    tip.innerHTML = `<div class="h">${fP0(lo)} – ${fP0(hi)} · ${fPct(((lo + hi) / 2 - p) / p * 100)}</div>
+      <div class="r"><span class="down">Long liqs</span><span>${fUSD(b ? b.long : 0)}</span></div>
+      <div class="r"><span class="up">Short liqs</span><span>${fUSD(b ? b.short : 0)}</span></div>`;
+    tip.hidden = false;
+    const fr = liqEl.parentElement.parentElement.getBoundingClientRect();
+    const tw = tip.offsetWidth;
+    tip.style.left = Math.max(8, r.left - fr.left - tw - 8) + 'px';
+    tip.style.top = Math.max(40, e.clientY - fr.top - 20) + 'px';
+  });
+  liqEl.addEventListener('mouseleave', () => { tip.hidden = true; hoverY = null; });
+
+  // Scroll/drag on the map zooms the shared price scale feel: forward wheel to the chart.
+  liqEl.addEventListener('wheel', (e) => {
+    const ts = chart.timeScale(), r = ts.getVisibleLogicalRange(); if (!r) return;
+    e.preventDefault();
+    const f = e.deltaY > 0 ? 1.1 : 0.9, mid = r.to, len = (r.to - r.from) * f;
+    ts.setVisibleLogicalRange({ from: mid - len, to: mid });
+  }, { passive: false });
+
+  // ---- Rendering -------------------------------------------------------------
+  let fitted = false;
+  function renderChart() {
+    const d = bars.disp;
+    if (!d.length) return;
+    candle.setData(d);
+    vol.setData(d.map(b => ({ time: b.time, value: b.volume, color: b.close >= b.open ? 'rgba(25,230,255,.28)' : 'rgba(255,61,139,.28)' })));
+    if (!fitted) {
+      chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, d.length - 110), to: d.length + 6 });
+      fitted = true;
+    }
+    showOHLC(null);
+    renderHeader();
+  }
+
+  function renderHeader() {
+    const p = currentPrice(); if (!p) return;
+    $('price').textContent = fP(p);
+    let chg = null;
+    if (mode === 'mcp' && ticker && isFinite(+ticker.change)) chg = +ticker.change * 100;
+    else if (bars.h1.length > 24) { const o = bars.h1[bars.h1.length - 24].open; chg = (p - o) / o * 100; }
+    const c = $('chg');
+    c.textContent = chg == null ? '' : fPct(chg) + ' 24h';
+    c.className = chg == null ? '' : chg >= 0 ? 'up' : 'down';
+    if (mode === 'mcp' && ticker && isFinite(+ticker.open_interest)) {
+      const oi = +ticker.open_interest;
+      $('r-oi').textContent = oi.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' BTC';
+      $('r-oi-s').textContent = '≈ ' + fUSD(oi * p);
+    } else if (oiFetched) {
+      $('r-oi').textContent = oiFetched.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' BTC';
+      $('r-oi-s').textContent = '≈ ' + fUSD(oiFetched * p);
+    }
+  }
+
+  function setStatus() {
+    const names = {
+      mcp: 'Live · Crypto.com BTCUSD-PERP · refresh ≈30 s',
+      binance: 'Live · Binance USDⓈ-M BTCUSDT perpetual · refresh 5 s',
+      okx: 'Live · OKX BTC-USDT-SWAP · refresh 5 s',
+      demo: 'Demo data, not real prices',
+    };
+    const src = mode === 'fetch' ? fetchSrc : mode;
+    $('dot').className = 'dot ' + (src === 'demo' || lastErr ? 'demo' : 'live');
+    $('src').textContent = lastErr ? lastErr : names[src] || 'Connecting…';
+    $('instr').textContent = src === 'mcp' ? 'BTCUSD-PERP · Crypto.com' : src === 'binance' ? 'BTCUSDT.P · Binance Futures' : src === 'okx' ? 'BTC-USDT-SWAP · OKX' : 'BTC perpetual · demo';
+    $('upd').textContent = updatedAt ? 'Updated ' + new Date(updatedAt).toLocaleTimeString() : '';
+  }
+
+  function onData(kind, list, stamp) {
+    bars[kind] = list;
+    updatedAt = stamp || Date.now();
+    if (kind === 'disp') renderChart();
+    rebuildLevels();
+    renderHeader();
+    setStatus();
+  }
+
+  // ---- Data: Crypto.com connector (hosted page) ------------------------------
+  const SERVER = 'Crypto.com', INSTR = 'BTCUSD-PERP';
+  const ERR_COPY = {
+    server_not_connected: 'Add the Crypto.com connector in claude.ai Settings → Connectors for live prices.',
+    needs_reauth: 'Reconnect Crypto.com in claude.ai Settings → Connectors to resume live prices.',
+    selection_required: 'Choose which Crypto.com connector this page should use.',
+    not_in_manifest: 'Crypto.com is turned off for this page. Allow it for live prices.',
+    blocked_by_policy: 'Your organization blocks the Crypto.com connector here.',
+    approval_required: 'Your organization requires approval for Crypto.com calls, which this page cannot ask for.',
+    server_unavailable: 'Crypto.com is not answering. Showing the last prices received.',
+    tool_error: 'Crypto.com returned an error. Showing the last prices received.',
+  };
+  const DENIALS = ['needs_reauth', 'server_not_connected', 'blocked_by_policy', 'approval_required', 'not_in_manifest', 'selection_required', 'not_granted', 'capability_disabled', 'capability_removed'];
+  let mcp = null, unwatch = [];
+
+  function parseCdc(payload) {
+    const rows = payload && Array.isArray(payload.data) ? payload.data : [];
+    return rows.map(k => ({ time: Math.floor(Date.parse(k.timestamp) / 1000), open: +k.open, high: +k.high, low: +k.low, close: +k.close, volume: +k.volume }))
+      .filter(b => isFinite(b.time) && isFinite(b.close)).sort((a, b) => a.time - b.time);
+  }
+
+  function watchCdc(kind, timeframe) {
+    return mcp.watchTool(SERVER, 'get_candlestick', { instrument_name: INSTR, timeframe }, (ev) => {
+      if (ev.type === 'error') return onMcpError(ev.error);
+      const list = parseCdc(ev.result.payload);
+      if (!list.length) return onMcpError({ code: 'tool_error' });
+      if (mode !== 'mcp') { mode = 'mcp'; fitted = false; }
+      lastErr = null;
+      onData(kind, list, ev.result.cache ? ev.result.cache.storedAt : Date.now());
+    }, { refetchInterval: 30000 });
+  }
+
+  function onMcpError(err) {
+    const code = err && err.code;
+    lastErr = ERR_COPY[code] || `Live prices unavailable (${code || 'error'}).`;
+    if (DENIALS.includes(code) || !bars.disp.length) startDemo(lastErr);
+    else setStatus();
+  }
+
+  function startMcp() {
+    unwatch.forEach(u => u()); unwatch = [];
+    mode = 'mcp';
+    unwatch.push(watchCdc('disp', tf));
+    unwatch.push(watchCdc('h1', '1h'));
+    unwatch.push(watchCdc('h4', '4h'));
+    unwatch.push(mcp.watchTool(SERVER, 'get_ticker', { instrument_name: INSTR }, (ev) => {
+      if (ev.type !== 'data') return;
+      ticker = ev.result.payload;
+      rebuildLevels(); renderHeader();
+    }, { refetchInterval: 30000 }));
+  }
+
+  // ---- Data: direct exchange APIs (file opened in a normal browser) ---------
+  const OKX_BAR = { '5m': '5m', '15m': '15m', '1h': '1H', '4h': '4H' };
+  let fetchSrc = null, timers = [], oiFetched = null;
+
+  async function getJSON(url) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 7000);
+    try { const r = await fetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error(r.status); return await r.json(); }
+    finally { clearTimeout(t); }
+  }
+  const binance = async (i, n) => (await getJSON(`https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=${i}&limit=${n}`))
+    .map(k => ({ time: k[0] / 1000, open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] }));
+  const okx = async (i, n) => {
+    const d = await getJSON(`https://www.okx.com/api/v5/market/candles?instId=BTC-USDT-SWAP&bar=${OKX_BAR[i]}&limit=${Math.min(n, 300)}`);
+    if (d.code !== '0') throw new Error('okx');
+    return d.data.map(k => ({ time: k[0] / 1000, open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[6] })).reverse();
+  };
+
+  async function fetchBars(i, n) {
+    const order = fetchSrc === 'okx' ? [['okx', okx], ['binance', binance]] : [['binance', binance], ['okx', okx]];
+    for (const [name, fn] of order) {
+      try { const d = await fn(i, n); if (d.length) { fetchSrc = name; return d; } } catch (e) { /* next */ }
+    }
+    throw new Error('unreachable');
+  }
+
+  async function fetchOI() {
+    try {
+      if (fetchSrc === 'binance') oiFetched = +(await getJSON('https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT')).openInterest;
+      else if (fetchSrc === 'okx') { const d = await getJSON('https://www.okx.com/api/v5/public/open-interest?instType=SWAP&instId=BTC-USDT-SWAP'); oiFetched = +d.data[0].oiCcy; }
+    } catch (e) { /* optional */ }
+  }
+
+  async function startFetch() {
+    timers.forEach(clearInterval); timers = [];
+    try {
+      const [d, h1, h4] = await Promise.all([fetchBars(tf, 300), fetchBars('1h', 300), fetchBars('4h', 300)]);
+      mode = 'fetch'; lastErr = null; fitted = false;
+      bars.h1 = h1; bars.h4 = h4;
+      await fetchOI();
+      onData('disp', d);
+    } catch (e) {
+      return false;
+    }
+    timers.push(setInterval(async () => {
+      try {
+        const fresh = await fetchBars(tf, 3), d = bars.disp;
+        for (const k of fresh) {
+          if (d.length && k.time === d[d.length - 1].time) d[d.length - 1] = k;
+          else if (!d.length || k.time > d[d.length - 1].time) { d.push(k); if (d.length > 300) d.shift(); }
+        }
+        lastErr = null; onData('disp', d);
+      } catch (e) { lastErr = 'Exchange not answering. Showing the last prices received.'; setStatus(); }
+    }, 5000));
+    timers.push(setInterval(async () => {
+      try { bars.h1 = await fetchBars('1h', 300); bars.h4 = await fetchBars('4h', 300); await fetchOI(); rebuildLevels(); renderHeader(); } catch (e) { /* keep last */ }
+    }, 60000));
+    return true;
+  }
+
+  // ---- Demo fallback ---------------------------------------------------------
+  function synth(step, n, endPrice, seed) {
+    let x = seed; const rnd = () => (x = (x * 16807) % 2147483647) / 2147483647;
+    const end = Math.floor(Date.now() / 1000 / step) * step, out = [];
+    let p = endPrice;
+    for (let i = 0; i < n; i++) {
+      const c = p, o = c / (1 + (rnd() - 0.5) * 0.004 * Math.sqrt(step / 900));
+      const h = Math.max(o, c) * (1 + rnd() * 0.0015 * Math.sqrt(step / 900));
+      const l = Math.min(o, c) * (1 - rnd() * 0.0015 * Math.sqrt(step / 900));
+      out.push({ time: end - i * step, open: o, high: h, low: l, close: c, volume: (40 + rnd() * 160) * step / 900 });
+      p = o;
+    }
+    return out.reverse();
+  }
+  function startDemo(reason) {
+    mode = 'demo'; lastErr = reason || null; ticker = null; fitted = false;
+    const step = { '5m': 300, '15m': 900, '1h': 3600, '4h': 14400 }[tf];
+    bars.h1 = synth(3600, 200, 65000, 7); bars.h4 = synth(14400, 200, bars.h1[0].open, 11);
+    bars.disp = synth(step, 200, 65000, 3);
+    onData('disp', bars.disp);
+    $('src').textContent = (reason ? reason + ' ' : '') + 'Showing demo data, not real prices.';
+  }
+
+  // ---- Boot / controls -------------------------------------------------------
+  async function start() {
+    fitted = false;
+    $('ttl').textContent = 'Price · ' + tf.toUpperCase();
+    if (mcp) return startMcp();
+    if (await startFetch()) return;
+    startDemo(window.claude ? 'Live prices need the Crypto.com connector, which this view cannot reach.' : 'Exchange APIs unreachable from this network.');
+  }
+
+  $('tf').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b || b.dataset.v === tf) return;
+    tf = b.dataset.v;
+    document.querySelectorAll('#tf button').forEach(x => x.classList.toggle('on', x === b));
+    bars.disp = [];
+    start();
+  });
+  $('lev').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    const v = +b.dataset.v;
+    if (lev.has(v) && lev.size === 1) return; // keep at least one tier
+    lev.has(v) ? lev.delete(v) : lev.add(v);
+    b.classList.toggle('on', lev.has(v));
+    rebuildLevels();
+  });
+
+  const cl = window.claude;
+  if (cl && typeof cl.use === 'function') {
+    cl.use('mcp').then((m) => { mcp = m; start(); }).catch(() => start());
+  } else {
+    start();
+  }
+})();
+</script>
+</body>
+</html>
