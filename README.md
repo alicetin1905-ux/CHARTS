@@ -28,3 +28,13 @@ drawn on the chart's own price scale, so every bar lines up with the price next 
 The levels are estimates, not exchange data. Each 1H/4H candle's volume is treated as new positions at
 that candle's average price, split across 10/25/50/100× leverage with 0.5% maintenance margin. Levels
 that price has already crossed are removed.
+
+### ETF flows panel
+
+Under the chart: daily net flows for the US spot Bitcoin ETFs (all funds combined), cumulative net inflow,
+5- and 20-day totals, net assets, BTC held, and a per-fund table (IBIT, FBTC, GBTC, ...). Data comes from
+SoSoValue's public API.
+
+- Opened as a file, the page reads SoSoValue directly and checks for new data every 30 minutes.
+- On the hosted claude.ai page, which cannot reach SoSoValue, a daily scheduled job runs
+  `scripts/etf_flows.py`'s logic and saves the result to the page's `etf/btc` database document.

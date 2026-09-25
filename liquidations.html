@@ -123,6 +123,26 @@
   .tip .r { display: flex; justify-content: space-between; gap: 12px; }
   .tip .h { color: var(--ink-3); letter-spacing: .1em; margin-bottom: 4px; }
 
+  /* ---- ETF flows ---- */
+  .etf .readouts { padding: 10px 12px 0; }
+  .etf-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 0; }
+  .etf-charts { min-width: 0; border-right: 1px solid var(--edge); }
+  .etf-sub { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px 0; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  .etf-sub .val { margin-left: auto; letter-spacing: 0; text-transform: none; font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  #etf-daily { height: 250px; }
+  #etf-cum { height: 150px; }
+  .funds { overflow-x: auto; }
+  .funds table { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .funds th { text-align: right; font-weight: 500; color: var(--ink-3); letter-spacing: .1em; text-transform: uppercase; font-size: 10px; padding: 9px 10px 6px; white-space: nowrap; border-bottom: 1px solid var(--edge); }
+  .funds th:first-child, .funds td:first-child { text-align: left; }
+  .funds td { text-align: right; padding: 7px 10px; border-bottom: 1px solid rgba(26,42,68,.6); white-space: nowrap; }
+  .funds td small { color: var(--ink-3); margin-left: 6px; }
+  .funds .flowcell { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+  .funds .fb { width: 56px; height: 6px; background: rgba(26,42,68,.6); position: relative; }
+  .funds .fb i { position: absolute; top: 0; bottom: 0; }
+  .etf-msg { padding: 14px 12px; color: var(--ink-2); }
+  @media (max-width: 980px) { .etf-grid { grid-template-columns: minmax(0, 1fr); } .etf-charts { border-right: 0; border-bottom: 1px solid var(--edge); } }
+
   footer { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--ink-3); font-size: 11px; }
   footer .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: var(--ink-3); }
   footer .dot.live { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
@@ -196,6 +216,40 @@
       </div>
     </div>
     <div class="tip" id="tip" hidden></div>
+  </section>
+
+  <section class="frame etf" id="etf">
+    <div class="bar">
+      <b>Spot BTC ETF flows · US</b>
+      <span class="ohlc" id="etf-asof">Loading…</span>
+      <span class="legend">
+        <span><i class="sw" style="background:var(--cyan)"></i>Net inflow</span>
+        <span><i class="sw" style="background:var(--magenta)"></i>Net outflow</span>
+      </span>
+    </div>
+    <div class="readouts">
+      <div class="ro"><div class="k" id="e-last-k">Latest day</div><div class="v" id="e-last">—</div><div class="s" id="e-last-s">—</div></div>
+      <div class="ro"><div class="k">Last 5 days</div><div class="v" id="e-5">—</div><div class="s" id="e-5-s">—</div></div>
+      <div class="ro"><div class="k">Last 20 days</div><div class="v" id="e-20">—</div><div class="s" id="e-20-s">—</div></div>
+      <div class="ro"><div class="k">Net inflow since launch</div><div class="v" id="e-cum">—</div><div class="s">all funds, cumulative</div></div>
+      <div class="ro"><div class="k">Net assets</div><div class="v" id="e-aum">—</div><div class="s" id="e-aum-s">—</div></div>
+      <div class="ro"><div class="k">BTC held</div><div class="v" id="e-btc">—</div><div class="s" id="e-btc-s">—</div></div>
+    </div>
+    <div class="etf-grid">
+      <div class="etf-charts">
+        <div class="etf-sub"><span>Daily net flow</span><span class="val" id="etf-daily-v"></span></div>
+        <div id="etf-daily"></div>
+        <div class="etf-sub"><span>Cumulative net inflow</span><span class="val" id="etf-cum-v"></span></div>
+        <div id="etf-cum"></div>
+      </div>
+      <div class="funds">
+        <table>
+          <thead><tr><th>Fund</th><th>Day flow</th><th>Net assets</th><th>Cum. flow</th></tr></thead>
+          <tbody id="funds"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="etf-msg" id="etf-msg" hidden></div>
   </section>
 
   <footer>
@@ -761,6 +815,135 @@
     $('src').textContent = (reason ? reason + ' ' : '') + 'Showing demo data, not real prices.';
   }
 
+  // ---- ETF flows (SoSoValue) -------------------------------------------------
+  // Opened as a file: read SoSoValue directly. Hosted on claude.ai: the page cannot reach it,
+  // so a daily job saves the same data to this page's `etf/btc` document.
+  const ETF_API = 'https://api.sosovalue.xyz/openapi/v2/etf/';
+  let etfCharts = null, etfTimer = null;
+  const fSigned = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + fUSD(Math.abs(v));
+  const flowCls = (v) => v > 0 ? 'v up' : v < 0 ? 'v down' : 'v';
+
+  async function etfPost(path) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 10000);
+    try {
+      const r = await fetch(ETF_API + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'us-btc-spot' }), signal: ctl.signal });
+      const j = await r.json();
+      if (j.code !== 0) throw new Error(j.msg || 'sosovalue');
+      return j.data;
+    } finally { clearTimeout(t); }
+  }
+  const nv = (x) => { const v = x && typeof x === 'object' ? x.value : x; const n = parseFloat(v); return isFinite(n) ? n : null; };
+
+  async function fetchETFDirect() {
+    const [hist, cur] = await Promise.all([etfPost('historicalInflowChart'), etfPost('currentEtfDataMetrics')]);
+    return {
+      asOf: cur.dailyNetInflow.lastUpdateDate, updatedAt: Date.now(),
+      tot: { a: nv(cur.totalNetAssets), f: nv(cur.dailyNetInflow), c: nv(cur.cumNetInflow), v: nv(cur.dailyTotalValueTraded), h: nv(cur.totalTokenHoldings) },
+      history: hist.map(r => ({ d: r.date, f: nv(r.totalNetInflow), c: nv(r.cumNetInflow), a: nv(r.totalNetAssets), v: nv(r.totalValueTraded) })).sort((a, b) => a.d < b.d ? -1 : 1),
+      funds: (cur.list || []).map(e => ({ t: e.ticker, i: (e.institute || '').trim(), f: nv(e.dailyNetInflow), a: nv(e.netAssets), c: nv(e.cumNetInflow), p: nv(e.discountPremiumRate) })),
+    };
+  }
+
+  function makeETFCharts() {
+    const base = {
+      autoSize: true,
+      layout: { background: { type: 'solid', color: 'transparent' }, textColor: C.ink2, fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 11 },
+      grid: { vertLines: { visible: false }, horzLines: { color: 'rgba(44,74,120,.18)' } },
+      rightPriceScale: { borderColor: '#2c4a78' },
+      timeScale: { borderColor: '#2c4a78', rightOffset: 2 },
+      crosshair: { mode: LWC.CrosshairMode.Magnet, vertLine: { color: 'rgba(25,230,255,.45)', labelBackgroundColor: '#0e1526' }, horzLine: { color: 'rgba(25,230,255,.45)', labelBackgroundColor: '#0e1526' } },
+      localization: { priceFormatter: (v) => fSigned(v) },
+    };
+    const daily = LWC.createChart($('etf-daily'), base);
+    const bars = daily.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false, base: 0 });
+    const cum = LWC.createChart($('etf-cum'), { ...base, localization: { priceFormatter: (v) => fUSD(v) } });
+    const line = cum.addAreaSeries({ lineColor: C.cyan, topColor: 'rgba(25,230,255,.25)', bottomColor: 'rgba(25,230,255,0)', lineWidth: 2, priceLineVisible: false });
+    let syncing = false;
+    for (const [a, b] of [[daily, cum], [cum, daily]]) {
+      a.timeScale().subscribeVisibleLogicalRangeChange((r) => { if (syncing || !r) return; syncing = true; b.timeScale().setVisibleLogicalRange(r); syncing = false; });
+    }
+    return { daily, bars, cum, line, fitted: false, byDate: new Map() };
+  }
+
+  function renderETF(e) {
+    if (!e || !Array.isArray(e.history) || !e.history.length) return false;
+    $('etf-msg').hidden = true;
+    if (!etfCharts) {
+      etfCharts = makeETFCharts();
+      const hover = (p) => {
+        const r = p && p.time ? etfCharts.byDate.get(typeof p.time === 'string' ? p.time : `${p.time.year}-${String(p.time.month).padStart(2, '0')}-${String(p.time.day).padStart(2, '0')}`) : null;
+        showETFHover(r);
+      };
+      etfCharts.daily.subscribeCrosshairMove(hover);
+      etfCharts.cum.subscribeCrosshairMove(hover);
+    }
+    const h = e.history.filter(r => r.f != null);
+    etfCharts.byDate = new Map(h.map(r => [r.d, r]));
+    etfCharts.bars.setData(h.map(r => ({ time: r.d, value: r.f, color: r.f >= 0 ? 'rgba(25,230,255,.85)' : 'rgba(255,61,139,.9)' })));
+    etfCharts.line.setData(h.filter(r => r.c != null).map(r => ({ time: r.d, value: r.c })));
+    if (!etfCharts.fitted) { etfCharts.daily.timeScale().setVisibleLogicalRange({ from: Math.max(0, h.length - 90), to: h.length + 1 }); etfCharts.fitted = true; }
+    etfLatest = h[h.length - 1];
+    showETFHover(null);
+
+    const sum = (n) => h.slice(-n).reduce((s, r) => s + r.f, 0);
+    const posDays = (n) => h.slice(-n).filter(r => r.f > 0).length;
+    const last = h[h.length - 1], tot = e.tot || {};
+    const setV = (id, v) => { $(id).textContent = fSigned(v); $(id).className = flowCls(v); };
+    $('e-last-k').textContent = 'Latest day · ' + fmtDate(last.d);
+    setV('e-last', last.f);
+    $('e-last-s').textContent = tot.v ? `${fUSD(tot.v)} traded` : '';
+    setV('e-5', sum(5)); $('e-5-s').textContent = `${posDays(5)} of 5 days inflow`;
+    setV('e-20', sum(20)); $('e-20-s').textContent = `${posDays(20)} of 20 days inflow`;
+    $('e-cum').textContent = fUSD(tot.c != null ? tot.c : last.c);
+    $('e-aum').textContent = fUSD(tot.a != null ? tot.a : last.a);
+    const prevA = h.length > 1 ? h[h.length - 2].a : null, aNow = tot.a != null ? tot.a : last.a;
+    $('e-aum-s').textContent = prevA ? `${fPct((aNow - prevA) / prevA * 100)} on the day` : '';
+    if (tot.h) {
+      $('e-btc').textContent = Math.round(tot.h).toLocaleString('en-US') + ' BTC';
+      $('e-btc-s').textContent = `≈ ${(tot.h / 21e6 * 100).toFixed(2)}% of the 21M supply`;
+    }
+
+    const funds = (e.funds || []).filter(f => f.a != null).sort((a, b) => b.a - a.a);
+    const maxF = Math.max(1, ...funds.map(f => Math.abs(f.f || 0)));
+    $('funds').innerHTML = funds.map(f => {
+      const v = f.f || 0, w = Math.abs(v) / maxF * 50;
+      const bar = v === 0 ? '' : `<i style="${v > 0 ? 'left:50%' : 'right:50%'};width:${w}%;background:${v > 0 ? C.cyan : C.magenta}"></i>`;
+      return `<tr><td title="${f.i}"><b>${f.t}</b></td>
+        <td><span class="flowcell"><span class="${v > 0 ? 'up' : v < 0 ? 'down' : ''}">${v ? fSigned(v) : '$0'}</span><span class="fb">${bar}</span></span></td>
+        <td>${fUSD(f.a)}</td><td class="${(f.c || 0) < 0 ? 'down' : ''}">${fSigned(f.c || 0)}</td></tr>`;
+    }).join('');
+    const when = e.updatedAt ? new Date(e.updatedAt).toLocaleString() : '';
+    $('etf-asof').textContent = `Data for ${fmtDate(e.asOf || last.d)} · SoSoValue · ${etfSource}${when ? ' · fetched ' + when : ''}`;
+    return true;
+  }
+
+  let etfLatest = null, etfSource = '';
+  function showETFHover(r) {
+    r = r || etfLatest; if (!r) return;
+    $('etf-daily-v').innerHTML = `${fmtDate(r.d)} <span class="${r.f >= 0 ? 'up' : 'down'}">${fSigned(r.f)}</span>`;
+    $('etf-cum-v').textContent = `${fmtDate(r.d)} ${fUSD(r.c)}`;
+  }
+  function fmtDate(d) { const [y, m, dd] = d.split('-').map(Number); return new Date(Date.UTC(y, m - 1, dd)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }); }
+
+  function etfMessage(text) { const m = $('etf-msg'); m.textContent = text; m.hidden = false; if (!etfCharts) $('etf-asof').textContent = ''; }
+
+  async function startETF() {
+    try {
+      etfSource = 'live';
+      renderETF(await fetchETFDirect());
+      clearInterval(etfTimer);
+      etfTimer = setInterval(async () => { try { renderETF(await fetchETFDirect()); } catch (e) { /* keep last */ } }, 30 * 60 * 1000);
+      return;
+    } catch (e) { /* not reachable from here: try the page's stored copy */ }
+    const cl = window.claude;
+    const db = cl && typeof cl.use === 'function' ? await cl.use('db').catch(() => null) : null;
+    if (!db) { etfMessage('ETF flows could not be loaded: SoSoValue is not reachable from this network.'); return; }
+    etfSource = 'updated daily';
+    db.doc('etf/btc').onSnapshot((snap) => {
+      if (!snap.exists || !renderETF(snap.data())) etfMessage('No ETF flow data saved yet. It appears after the next daily update.');
+    }, (err) => etfMessage(err && err.code === 'not_granted' ? 'This view cannot read the saved ETF flows.' : 'The saved ETF flows could not be read right now.'));
+  }
+
   // ---- Boot / controls -------------------------------------------------------
   async function start() {
     fitted = false;
@@ -790,6 +973,7 @@
     rebuildLevels();
   });
 
+  startETF();
   const cl = window.claude;
   if (cl && typeof cl.use === 'function') {
     cl.use('mcp').then((m) => { mcp = m; start(); }).catch(() => start());
