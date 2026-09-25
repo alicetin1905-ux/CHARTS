@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BTC/USDT.P Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --border: #e3e6eb;
+    --text: #15181d;
+    --text-2: #545b66;
+    --muted: #8a919c;
+    --grid: #eef0f3;
+    --up: #089981;
+    --down: #e0364b;
+    --line: #2962ff;
+    --accent: #2962ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117;
+      --panel: #151a22;
+      --border: #262d38;
+      --text: #e8ebef;
+      --text-2: #a4acb8;
+      --muted: #6f7885;
+      --grid: #1d232c;
+      --up: #22ab94;
+      --down: #f23645;
+      --line: #5b8cff;
+      --accent: #5b8cff;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117;
+    --panel: #151a22;
+    --border: #262d38;
+    --text: #e8ebef;
+    --text-2: #a4acb8;
+    --muted: #6f7885;
+    --grid: #1d232c;
+    --up: #22ab94;
+    --down: #f23645;
+    --line: #5b8cff;
+    --accent: #5b8cff;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 16px;
+  }
+  .wrap { max-width: 1440px; margin: 0 auto; }
+
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px;
+    margin-bottom: 16px;
+  }
+  .sym { display: flex; align-items: baseline; gap: 10px; }
+  .sym h1 { font-size: 20px; margin: 0; letter-spacing: .2px; }
+  .sym .tag {
+    font-size: 11px; color: var(--text-2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 6px;
+  }
+  .price { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .chg { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .chg.up { color: var(--up); } .chg.down { color: var(--down); }
+  .spacer { flex: 1; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--panel); }
+  .seg button {
+    background: none; border: 0; color: var(--text-2); padding: 6px 10px; cursor: pointer;
+    font: inherit; font-size: 13px;
+  }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .seg button:hover:not(.on) { color: var(--text); }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;
+    margin-bottom: 16px;
+  }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .stat .k { font-size: 12px; color: var(--muted); }
+  .stat .v { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .grid .wide { grid-column: 1 / -1; }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .panel .hd {
+    display: flex; align-items: baseline; gap: 8px; padding: 10px 12px 4px;
+  }
+  .panel .hd b { font-size: 14px; }
+  .panel .hd span { font-size: 12px; color: var(--muted); }
+  .panel .hd .legend { margin-left: auto; font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chart { height: 300px; }
+  .wide .chart { height: 420px; }
+
+  footer { margin-top: 16px; color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 6px; vertical-align: middle; }
+  .dot.live { background: var(--up); }
+  .dot.demo { background: #e8a33d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="sym">
+      <h1>BTC/USDT.P</h1>
+      <span class="tag">Perpetual</span>
+    </div>
+    <div class="price" id="price">—</div>
+    <div class="chg" id="chg">—</div>
+    <div class="spacer"></div>
+    <div class="controls">
+      <div class="seg" id="intervals">
+        <button data-i="1m">1m</button>
+        <button data-i="5m">5m</button>
+        <button data-i="15m" class="on">15m</button>
+        <button data-i="1h">1h</button>
+        <button data-i="4h">4h</button>
+        <button data-i="1d">1D</button>
+      </div>
+      <div class="seg" id="theme">
+        <button data-t="auto" class="on">Auto</button>
+        <button data-t="light">Light</button>
+        <button data-t="dark">Dark</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="stats">
+    <div class="stat"><div class="k">Range high</div><div class="v" id="s-high">—</div></div>
+    <div class="stat"><div class="k">Range low</div><div class="v" id="s-low">—</div></div>
+    <div class="stat"><div class="k">Range change</div><div class="v" id="s-chg">—</div></div>
+    <div class="stat"><div class="k">Volume (BTC)</div><div class="v" id="s-vol">—</div></div>
+    <div class="stat"><div class="k">Bars</div><div class="v" id="s-bars">—</div></div>
+  </section>
+
+  <main class="grid" id="grid"></main>
+
+  <footer>
+    <span><span class="dot" id="src-dot"></span><span id="src">Connecting…</span></span>
+    <span id="updated"></span>
+    <span>Drag or zoom any chart — the others follow (except Renko, which has its own time axis).</span>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const LWC = window.LightweightCharts;
+
+  // ---- Panel definitions: one per chart style --------------------------------
+  const PANELS = [
+    { id: 'candles', title: 'Candlestick', sub: 'with volume', wide: true },
+    { id: 'hollow',  title: 'Hollow candles', sub: 'hollow = close > open' },
+    { id: 'heikin',  title: 'Heikin Ashi', sub: 'smoothed trend' },
+    { id: 'bars',    title: 'OHLC bars', sub: 'open/close ticks' },
+    { id: 'line',    title: 'Line', sub: 'close + EMA 20 / 50' },
+    { id: 'area',    title: 'Area', sub: 'close' },
+    { id: 'baseline',title: 'Baseline', sub: 'vs. range average' },
+    { id: 'step',    title: 'Step line', sub: 'close' },
+    { id: 'renko',   title: 'Renko', sub: 'ATR(14) box size' },
+  ];
+
+  // ---- State -----------------------------------------------------------------
+  let interval = '15m';
+  let candles = [];          // {time, open, high, low, close, volume}
+  let source = null;         // 'binance' | 'okx' | 'demo'
+  let pollTimer = null;
+  const charts = {};         // id -> { chart, series: {}, el }
+
+  // ---- Theme helpers ---------------------------------------------------------
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const alpha = (hex, a) => {
+    const n = parseInt(hex.replace('#', ''), 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  };
+  function palette() {
+    return {
+      panel: css('--panel'), text: css('--text-2'), grid: css('--grid'), border: css('--border'),
+      up: css('--up'), down: css('--down'), line: css('--line'), muted: css('--muted'),
+    };
+  }
+
+  // ---- Formatting ------------------------------------------------------------
+  const fmtP = (v) => v == null || isNaN(v) ? '—' : v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const fmtV = (v) => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : v.toFixed(1);
+  const fmtPct = (v) => (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+
+  // ---- Data sources ----------------------------------------------------------
+  const OKX_BAR = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1Dutc' };
+  const SEC = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400 };
+
+  async function fetchJSON(url) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.json();
+    } finally { clearTimeout(t); }
+  }
+
+  async function fromBinance(limit) {
+    const d = await fetchJSON(`https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=${interval}&limit=${limit}`);
+    if (!Array.isArray(d)) throw new Error('bad binance response');
+    return d.map(k => ({ time: k[0] / 1000, open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] }));
+  }
+
+  async function fromOKX(limit) {
+    const d = await fetchJSON(`https://www.okx.com/api/v5/market/candles?instId=BTC-USDT-SWAP&bar=${OKX_BAR[interval]}&limit=${Math.min(limit, 300)}`);
+    if (d.code !== '0' || !Array.isArray(d.data)) throw new Error('bad okx response');
+    return d.data.map(k => ({ time: k[0] / 1000, open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[6] })).reverse();
+  }
+
+  function demoData(n) {
+    const step = SEC[interval];
+    const end = Math.floor(Date.now() / 1000 / step) * step;
+    let p = 65000, out = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const o = p;
+      const c = o * (1 + (Math.random() - 0.49) * 0.006);
+      const h = Math.max(o, c) * (1 + Math.random() * 0.002);
+      const l = Math.min(o, c) * (1 - Math.random() * 0.002);
+      out.push({ time: end - i * step, open: o, high: h, low: l, close: c, volume: 200 + Math.random() * 800 });
+      p = c;
+    }
+    return out;
+  }
+
+  async function load(limit = 300) {
+    const order = source === 'okx' ? [['okx', fromOKX], ['binance', fromBinance]] : [['binance', fromBinance], ['okx', fromOKX]];
+    for (const [name, fn] of order) {
+      try { const d = await fn(limit); if (d.length) { source = name; return d; } } catch (e) { /* try next */ }
+    }
+    source = 'demo';
+    return null;
+  }
+
+  // ---- Derived series --------------------------------------------------------
+  function heikinAshi(src) {
+    const out = [];
+    src.forEach((c, i) => {
+      const close = (c.open + c.high + c.low + c.close) / 4;
+      const open = i === 0 ? (c.open + c.close) / 2 : (out[i - 1].open + out[i - 1].close) / 2;
+      out.push({ time: c.time, open, close, high: Math.max(c.high, open, close), low: Math.min(c.low, open, close) });
+    });
+    return out;
+  }
+
+  function ema(src, n) {
+    const k = 2 / (n + 1); let prev; const out = [];
+    src.forEach((c, i) => {
+      prev = i === 0 ? c.close : c.close * k + prev * (1 - k);
+      if (i >= n - 1) out.push({ time: c.time, value: prev });
+    });
+    return out;
+  }
+
+  function atr(src, n = 14) {
+    if (src.length < 2) return 0;
+    let sum = 0, cnt = 0;
+    for (let i = Math.max(1, src.length - n); i < src.length; i++) {
+      const c = src[i], p = src[i - 1];
+      sum += Math.max(c.high - c.low, Math.abs(c.high - p.close), Math.abs(c.low - p.close)); cnt++;
+    }
+    return sum / cnt;
+  }
+
+  function renko(src) {
+    if (!src.length) return { bricks: [], box: 0 };
+    const raw = atr(src, 14);
+    const mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+    const box = Math.max(mag, Math.round(raw / mag) * mag);
+    const bricks = [];
+    let base = Math.floor(src[0].close / box) * box, dir = 0;
+    for (const c of src) {
+      const p = c.close;
+      while (true) {
+        if (dir >= 0 && p >= base + box) { bricks.push({ open: base, close: base + box, up: true }); base += box; dir = 1; }
+        else if (dir <= 0 && p <= base - box) { bricks.push({ open: base, close: base - box, up: false }); base -= box; dir = -1; }
+        else if (dir === 1 && p <= base - 2 * box) { base -= box; bricks.push({ open: base, close: base - box, up: false }); base -= box; dir = -1; }
+        else if (dir === -1 && p >= base + 2 * box) { base += box; bricks.push({ open: base, close: base + box, up: true }); base += box; dir = 1; }
+        else break;
+      }
+    }
+    // Renko has no real time axis — give bricks evenly spaced synthetic times.
+    const step = SEC[interval], t0 = src[src.length - 1].time - bricks.length * step;
+    return {
+      box,
+      bricks: bricks.map((b, i) => ({
+        time: t0 + (i + 1) * step,
+        open: b.open, close: b.close,
+        high: Math.max(b.open, b.close), low: Math.min(b.open, b.close),
+      })),
+    };
+  }
+
+  // ---- Chart construction ----------------------------------------------------
+  function baseOptions(p) {
+    return {
+      autoSize: true,
+      layout: { background: { type: 'solid', color: p.panel }, textColor: p.text, fontSize: 11 },
+      grid: { vertLines: { color: p.grid }, horzLines: { color: p.grid } },
+      rightPriceScale: { borderColor: p.border },
+      timeScale: { borderColor: p.border, timeVisible: true, secondsVisible: false, rightOffset: 4 },
+      crosshair: { mode: LWC.CrosshairMode.Normal },
+      localization: { priceFormatter: fmtP },
+    };
+  }
+
+  function buildPanels() {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    for (const def of PANELS) {
+      const el = document.createElement('section');
+      el.className = 'panel' + (def.wide ? ' wide' : '');
+      el.innerHTML = `<div class="hd"><b>${def.title}</b><span id="sub-${def.id}">${def.sub}</span><div class="legend" id="lg-${def.id}"></div></div><div class="chart"></div>`;
+      grid.appendChild(el);
+      charts[def.id] = { el: el.querySelector('.chart'), series: {} };
+    }
+  }
+
+  function createAll() {
+    for (const id in charts) if (charts[id].chart) { charts[id].chart.remove(); charts[id].chart = null; charts[id].series = {}; }
+    const p = palette();
+    const candleOpts = { upColor: p.up, downColor: p.down, borderUpColor: p.up, borderDownColor: p.down, wickUpColor: p.up, wickDownColor: p.down };
+
+    const mk = (id) => (charts[id].chart = LWC.createChart(charts[id].el, baseOptions(p)));
+
+    // Candlestick + volume
+    let c = mk('candles');
+    charts.candles.series.main = c.addCandlestickSeries(candleOpts);
+    charts.candles.series.vol = c.addHistogramSeries({ priceScaleId: 'vol', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false });
+    c.priceScale('vol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+    charts.candles.series.main.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.25 } });
+
+    c = mk('hollow');
+    charts.hollow.series.main = c.addCandlestickSeries(candleOpts);
+
+    c = mk('heikin');
+    charts.heikin.series.main = c.addCandlestickSeries(candleOpts);
+
+    c = mk('bars');
+    charts.bars.series.main = c.addBarSeries({ upColor: p.up, downColor: p.down, thinBars: false });
+
+    c = mk('line');
+    charts.line.series.main = c.addLineSeries({ color: p.line, lineWidth: 2 });
+    charts.line.series.ema20 = c.addLineSeries({ color: '#e8a33d', lineWidth: 1, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false });
+    charts.line.series.ema50 = c.addLineSeries({ color: '#a05bd5', lineWidth: 1, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false });
+
+    c = mk('area');
+    charts.area.series.main = c.addAreaSeries({ lineColor: p.line, topColor: alpha(p.line, 0.35), bottomColor: alpha(p.line, 0.02), lineWidth: 2 });
+
+    c = mk('baseline');
+    charts.baseline.series.main = c.addBaselineSeries({
+      topLineColor: p.up, topFillColor1: alpha(p.up, 0.28), topFillColor2: alpha(p.up, 0.04),
+      bottomLineColor: p.down, bottomFillColor1: alpha(p.down, 0.04), bottomFillColor2: alpha(p.down, 0.28), lineWidth: 2,
+    });
+
+    c = mk('step');
+    charts.step.series.main = c.addLineSeries({ color: p.line, lineWidth: 2, lineType: LWC.LineType.WithSteps });
+
+    c = mk('renko');
+    charts.renko.series.main = c.addCandlestickSeries({ ...candleOpts, wickVisible: false });
+    c.applyOptions({ timeScale: { visible: false } });
+
+    wireSyncAndLegends();
+  }
+
+  // ---- Time-scale sync + hover legends --------------------------------------
+  let syncing = false;
+  function wireSyncAndLegends() {
+    const synced = PANELS.map(d => d.id).filter(id => id !== 'renko');
+    for (const id of synced) {
+      charts[id].chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+        if (syncing || !range) return;
+        syncing = true;
+        for (const other of synced) if (other !== id) charts[other].chart.timeScale().setVisibleLogicalRange(range);
+        syncing = false;
+      });
+    }
+    for (const def of PANELS) {
+      const { chart, series } = charts[def.id];
+      chart.subscribeCrosshairMove((param) => {
+        const d = param && param.seriesData ? param.seriesData.get(series.main) : null;
+        setLegend(def.id, d);
+      });
+    }
+  }
+
+  function setLegend(id, d) {
+    const el = document.getElementById('lg-' + id);
+    if (!d) {
+      const last = lastPoint(id);
+      if (!last) { el.textContent = ''; return; }
+      d = last;
+    }
+    if ('open' in d) {
+      el.textContent = `O ${fmtP(d.open)}  H ${fmtP(d.high)}  L ${fmtP(d.low)}  C ${fmtP(d.close)}`;
+    } else {
+      el.textContent = `C ${fmtP(d.value)}`;
+    }
+  }
+
+  const lastData = {};
+  const lastPoint = (id) => { const a = lastData[id]; return a && a.length ? a[a.length - 1] : null; };
+
+  // ---- Render ----------------------------------------------------------------
+  function render(fit) {
+    if (!candles.length) return;
+    const p = palette();
+    const closes = candles.map(c => ({ time: c.time, value: c.close }));
+
+    lastData.candles = candles;
+    charts.candles.series.main.setData(candles);
+    charts.candles.series.vol.setData(candles.map(c => ({ time: c.time, value: c.volume, color: alpha(c.close >= c.open ? p.up : p.down, 0.45) })));
+
+    const hollow = candles.map(c => {
+      const up = c.close >= c.open, col = up ? p.up : p.down;
+      return { ...c, color: up ? 'rgba(0,0,0,0)' : col, borderColor: col, wickColor: col };
+    });
+    lastData.hollow = hollow;
+    charts.hollow.series.main.setData(hollow);
+
+    const ha = heikinAshi(candles);
+    lastData.heikin = ha;
+    charts.heikin.series.main.setData(ha);
+
+    lastData.bars = candles;
+    charts.bars.series.main.setData(candles);
+
+    lastData.line = closes; lastData.area = closes; lastData.baseline = closes; lastData.step = closes;
+    charts.line.series.main.setData(closes);
+    charts.line.series.ema20.setData(ema(candles, 20));
+    charts.line.series.ema50.setData(ema(candles, 50));
+    charts.area.series.main.setData(closes);
+    charts.step.series.main.setData(closes);
+
+    const avg = closes.reduce((s, c) => s + c.value, 0) / closes.length;
+    charts.baseline.series.main.applyOptions({ baseValue: { type: 'price', price: avg } });
+    charts.baseline.series.main.setData(closes);
+    document.getElementById('sub-baseline').textContent = `vs. range average ${fmtP(avg)}`;
+
+    const rk = renko(candles);
+    lastData.renko = rk.bricks;
+    charts.renko.series.main.setData(rk.bricks);
+    document.getElementById('sub-renko').textContent = `box ${fmtP(rk.box)} · ${rk.bricks.length} bricks`;
+
+    for (const d of PANELS) setLegend(d.id, null);
+
+    if (fit) {
+      const n = candles.length;
+      const range = { from: Math.max(0, n - 120), to: n + 3 };
+      charts.candles.chart.timeScale().setVisibleLogicalRange(range);
+      charts.renko.chart.timeScale().fitContent();
+    }
+
+    renderStats();
+  }
+
+  function renderStats() {
+    const last = candles[candles.length - 1], first = candles[0];
+    const hi = Math.max(...candles.map(c => c.high)), lo = Math.min(...candles.map(c => c.low));
+    const vol = candles.reduce((s, c) => s + c.volume, 0);
+    const chg = (last.close - first.open) / first.open * 100;
+    const barChg = last.close - candles[Math.max(0, candles.length - 2)].close;
+
+    const priceEl = document.getElementById('price');
+    priceEl.textContent = fmtP(last.close);
+    priceEl.style.color = barChg >= 0 ? 'var(--up)' : 'var(--down)';
+    const chgEl = document.getElementById('chg');
+    chgEl.textContent = fmtPct(chg);
+    chgEl.className = 'chg ' + (chg >= 0 ? 'up' : 'down');
+    document.getElementById('s-high').textContent = fmtP(hi);
+    document.getElementById('s-low').textContent = fmtP(lo);
+    const sc = document.getElementById('s-chg');
+    sc.textContent = fmtPct(chg);
+    sc.style.color = chg >= 0 ? 'var(--up)' : 'var(--down)';
+    document.getElementById('s-vol').textContent = fmtV(vol);
+    document.getElementById('s-bars').textContent = `${candles.length} × ${interval}`;
+    document.title = `${fmtP(last.close)} · BTC/USDT.P`;
+  }
+
+  function setSource() {
+    const dot = document.getElementById('src-dot'), src = document.getElementById('src');
+    const names = { binance: 'Live · Binance USDⓈ-M Futures (BTCUSDT perpetual)', okx: 'Live · OKX (BTC-USDT-SWAP perpetual)', demo: 'Demo data — exchange APIs unreachable from this network' };
+    dot.className = 'dot ' + (source === 'demo' ? 'demo' : 'live');
+    src.textContent = names[source];
+    document.getElementById('updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  }
+
+  // ---- Live updates (polling works for both exchanges, no websocket needed) --
+  async function poll() {
+    if (source === 'demo') {
+      const last = candles[candles.length - 1];
+      const c = last.close * (1 + (Math.random() - 0.5) * 0.001);
+      last.close = c; last.high = Math.max(last.high, c); last.low = Math.min(last.low, c);
+      render(false); setSource(); return;
+    }
+    const fresh = await load(3);
+    if (!fresh) return;
+    for (const k of fresh) {
+      const last = candles[candles.length - 1];
+      if (k.time === last.time) candles[candles.length - 1] = k;
+      else if (k.time > last.time) { candles.push(k); if (candles.length > 300) candles.shift(); }
+    }
+    render(false); setSource();
+  }
+
+  async function start() {
+    clearInterval(pollTimer);
+    document.getElementById('src').textContent = 'Loading…';
+    candles = (await load(300)) || demoData(300);
+    render(true); setSource();
+    pollTimer = setInterval(poll, 3000);
+  }
+
+  // ---- Controls --------------------------------------------------------------
+  document.getElementById('intervals').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('#intervals button').forEach(x => x.classList.toggle('on', x === b));
+    interval = b.dataset.i;
+    start();
+  });
+
+  function applyTheme(t) {
+    if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', t);
+    document.querySelectorAll('#theme button').forEach(x => x.classList.toggle('on', x.dataset.t === t));
+    try { localStorage.setItem('btc-dash-theme', t); } catch (e) {}
+    if (charts.candles && charts.candles.chart) {
+      const range = charts.candles.chart.timeScale().getVisibleLogicalRange();
+      createAll(); render(false);
+      if (range) charts.candles.chart.timeScale().setVisibleLogicalRange(range);
+      charts.renko.chart.timeScale().fitContent();
+    }
+  }
+  document.getElementById('theme').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (b) applyTheme(b.dataset.t);
+  });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (!document.documentElement.hasAttribute('data-theme')) applyTheme('auto');
+  });
+
+  // ---- Boot ------------------------------------------------------------------
+  let saved = 'auto';
+  try { saved = localStorage.getItem('btc-dash-theme') || 'auto'; } catch (e) {}
+  if (saved !== 'auto') document.documentElement.setAttribute('data-theme', saved);
+  document.querySelectorAll('#theme button').forEach(x => x.classList.toggle('on', x.dataset.t === saved));
+
+  buildPanels();
+  createAll();
+  start();
+})();
+</script>
+</body>
+</html>
