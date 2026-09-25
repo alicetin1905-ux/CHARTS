@@ -16,6 +16,9 @@ Open `index.html` in a browser — no build step. Charts use TradingView Lightwe
 A dark, neon-style BTC perpetual chart with an estimated liquidation map on the right. The map is
 drawn on the chart's own price scale, so every bar lines up with the price next to it.
 
+- A VPVR (volume profile of the visible range) sits inside the chart: blue = volume from candles that
+  closed up, yellow = closed down, brighter rows = 70% value area, red line = point of control (POC).
+  Toggle it with the VPVR button.
 - Magenta bars below the price are long liquidations; cyan bars above are short liquidations.
 - The two biggest clusters on each side are also marked on the chart as dotted lines.
 - The boxes at the top show how much is estimated to be liquidated within 2% of the price, the largest

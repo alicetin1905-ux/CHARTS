@@ -24,7 +24,10 @@
     --ink-3: #56698c;
     --cyan: #19e6ff;     /* up candles, short liquidations (above price) */
     --magenta: #ff3d8b;  /* down candles, long liquidations (below price) */
-    --amber: #ffc24a;    /* current price */
+    --price: #f4f8ff;    /* current price */
+    --warn: #ffc24a;     /* demo / stale status */
+    --vp-up: #2f86ff;    /* VPVR up volume */
+    --vp-down: #f5b82e;  /* VPVR down volume */
     --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
     --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
@@ -52,7 +55,7 @@
   .id h1 em { font-style: normal; color: var(--cyan); text-shadow: 0 0 12px rgba(25,230,255,.55); }
   .id small { color: var(--ink-3); letter-spacing: .14em; text-transform: uppercase; font-size: 10px; }
   .px { display: flex; align-items: baseline; gap: 12px; font-variant-numeric: tabular-nums; }
-  .px b { font-size: 30px; font-weight: 700; color: var(--amber); text-shadow: 0 0 18px rgba(255,194,74,.45); }
+  .px b { font-size: 30px; font-weight: 700; color: var(--price); text-shadow: 0 0 18px rgba(160,200,255,.45); }
   .px span { font-weight: 500; }
   .up { color: var(--cyan); } .down { color: var(--magenta); }
   .grow { flex: 1; }
@@ -99,6 +102,7 @@
     background-size: 40px 40px;
   }
   #chart { position: relative; min-width: 0; }
+  .vpc { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 3; }
   .liq { position: relative; border-left: 1px solid var(--edge-hot); overflow: hidden; cursor: crosshair; }
   .liq canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
   .liq .hdr {
@@ -122,7 +126,7 @@
   footer { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--ink-3); font-size: 11px; }
   footer .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: var(--ink-3); }
   footer .dot.live { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
-  footer .dot.demo { background: var(--amber); }
+  footer .dot.demo { background: var(--warn); }
   .note { max-width: 90ch; }
 
   @media (max-width: 760px) {
@@ -149,6 +153,7 @@
         <button data-v="1h">1H</button>
         <button data-v="4h">4H</button>
       </div>
+      <div class="seg" id="vp"><button data-v="vpvr" class="on" aria-pressed="true">VPVR</button></div>
       <label for="lev">Leverage</label>
       <div class="seg lev" id="lev">
         <button data-v="10" class="on">10×</button>
@@ -173,14 +178,17 @@
     <div class="bar">
       <b id="ttl">Price · 15M</b>
       <span class="ohlc" id="ohlc"></span>
+      <span class="ohlc" id="vpinfo"></span>
       <span class="legend">
         <span><i class="sw" style="background:var(--magenta)"></i>Long liquidations</span>
         <span><i class="sw" style="background:var(--cyan)"></i>Short liquidations</span>
-        <span><i class="sw" style="background:var(--amber)"></i>Price</span>
+        <span><i class="sw" style="background:var(--vp-up)"></i>VPVR up vol</span>
+        <span><i class="sw" style="background:var(--vp-down)"></i>VPVR down vol</span>
+        <span><i class="sw" style="background:var(--price)"></i>Price</span>
       </span>
     </div>
     <div class="stage">
-      <div id="chart"></div>
+      <div id="chart"><canvas id="vpc" class="vpc"></canvas></div>
       <div class="liq" id="liq">
         <canvas id="liqc"></canvas>
         <div class="scan"></div>
@@ -193,7 +201,7 @@
   <footer>
     <span><span class="dot" id="dot"></span><span id="src">Connecting…</span></span>
     <span id="upd"></span>
-    <span class="note">Liquidation levels are an estimate, not exchange data: each 1H/4H bar's volume is treated as new positions at its average price, spread over 10/25/50/100× leverage (0.5% maintenance margin). Levels that price has already crossed are removed. The map shares the chart's price scale; drag the price axis to zoom both.</span>
+    <span class="note">VPVR shows real traded volume for the candles on screen (blue = candles that closed up, yellow = closed down; brighter = 70% value area; red line = point of control). Liquidation levels are an estimate, not exchange data: each 1H/4H bar's volume is treated as new positions at its average price, spread over 10/25/50/100× leverage (0.5% maintenance margin). Levels that price has already crossed are removed. The map shares the chart's price scale; drag the price axis to zoom both.</span>
   </footer>
 </div>
 
@@ -206,7 +214,7 @@
   const LEVERAGE = [ { l: 10, w: 0.30 }, { l: 25, w: 0.30 }, { l: 50, w: 0.25 }, { l: 100, w: 0.15 } ];
   const MMR = 0.005;          // maintenance margin rate
   const NEW_SHARE = 0.10;     // share of traded notional assumed to open leveraged positions
-  const C = { cyan: '#19e6ff', magenta: '#ff3d8b', amber: '#ffc24a', ink2: '#8aa0c4', ink3: '#56698c', edge: '#1a2a44' };
+  const C = { cyan: '#19e6ff', magenta: '#ff3d8b', price: '#f4f8ff', vpUp: '47,134,255', vpDown: '245,184,46', ink2: '#8aa0c4', ink3: '#56698c', edge: '#1a2a44' };
 
   // ---- State -----------------------------------------------------------------
   let tf = '15m';
@@ -239,7 +247,7 @@
   const candle = chart.addCandlestickSeries({
     upColor: 'rgba(25,230,255,.18)', downColor: C.magenta,
     borderUpColor: C.cyan, borderDownColor: C.magenta, wickUpColor: C.cyan, wickDownColor: C.magenta,
-    priceLineColor: C.amber, priceLineStyle: LWC.LineStyle.Dashed,
+    priceLineColor: C.price, priceLineStyle: LWC.LineStyle.Dashed,
     // Widen the auto-scaled range so the largest nearby clusters stay in view on both panes.
     autoscaleInfoProvider: (orig) => {
       const r = orig();
@@ -368,7 +376,8 @@
     focusPrices = [];
     for (const [side, color, tag] of [['long', C.magenta, 'L-LIQ'], ['short', C.cyan, 'S-LIQ']]) {
       for (const b of topClusters(side, 2)) {
-        focusPrices.push((b.k + 0.5) * bucketSize);
+        const mid = (b.k + 0.5) * bucketSize, p = currentPrice();
+        if (Math.abs(mid - p) / p <= 0.025) focusPrices.push(mid); // keep candles readable
         clusterLines.push(candle.createPriceLine({
           price: (b.k + 0.5) * bucketSize, color, lineWidth: 1, lineStyle: LWC.LineStyle.SparseDotted,
           axisLabelVisible: true, title: `${tag} ${fUSD(b[side])}`,
@@ -429,7 +438,7 @@
     // Current price marker, aligned with the chart's price line.
     const p = currentPrice(), py = p ? candle.priceToCoordinate(p) : null;
     if (py != null) {
-      ctx.strokeStyle = C.amber; ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
+      ctx.strokeStyle = C.price; ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(0, Math.round(py) + .5); ctx.lineTo(W, Math.round(py) + .5); ctx.stroke(); ctx.setLineDash([]);
     }
     // Crosshair echo
@@ -446,7 +455,92 @@
     }
   }
 
-  (function loop() { try { drawLiq(); } catch (e) { /* keep looping */ } requestAnimationFrame(loop); })();
+  // ---- VPVR: volume profile of the visible range, drawn inside the price pane --
+  const VP_ROWS = 60, VA_SHARE = 0.70;
+  let vpOn = true, vpSig = '';
+  const vpc = $('vpc'), vctx = vpc.getContext('2d');
+
+  function computeVP() {
+    const d = bars.disp, r = chart.timeScale().getVisibleLogicalRange();
+    if (!d.length || !r) return null;
+    const from = Math.max(0, Math.ceil(r.from)), to = Math.min(d.length - 1, Math.floor(r.to));
+    if (to < from) return null;
+    let lo = Infinity, hi = -Infinity;
+    for (let i = from; i <= to; i++) { lo = Math.min(lo, d[i].low); hi = Math.max(hi, d[i].high); }
+    if (!(hi > lo)) return null;
+    const step = (hi - lo) / VP_ROWS;
+    const up = new Float64Array(VP_ROWS), dn = new Float64Array(VP_ROWS);
+    for (let i = from; i <= to; i++) {
+      const b = d[i], isUp = b.close >= b.open;
+      // Spread each candle's volume evenly over the rows its high–low range touches.
+      const a = Math.min(VP_ROWS - 1, Math.floor((b.low - lo) / step)), z = Math.min(VP_ROWS - 1, Math.floor((b.high - lo) / step));
+      const share = b.volume / (z - a + 1);
+      for (let k = a; k <= z; k++) (isUp ? up : dn)[k] += share;
+    }
+    const tot = new Float64Array(VP_ROWS); let sum = 0, poc = 0;
+    for (let k = 0; k < VP_ROWS; k++) { tot[k] = up[k] + dn[k]; sum += tot[k]; if (tot[k] > tot[poc]) poc = k; }
+    // Value area: grow outward from the POC, taking the heavier neighbour first, until 70% of volume.
+    let vaLo = poc, vaHi = poc, acc = tot[poc];
+    while (acc < sum * VA_SHARE && (vaLo > 0 || vaHi < VP_ROWS - 1)) {
+      const below = vaLo > 0 ? tot[vaLo - 1] : -1, above = vaHi < VP_ROWS - 1 ? tot[vaHi + 1] : -1;
+      if (above >= below) acc += tot[++vaHi]; else acc += tot[--vaLo];
+    }
+    return { lo, step, up, dn, tot, poc, vaLo, vaHi, max: tot[poc], from, to };
+  }
+
+  function drawVP() {
+    const el = $('chart'), W = el.clientWidth, H = el.clientHeight, dpr = window.devicePixelRatio || 1;
+    const r = chart.timeScale().getVisibleLogicalRange();
+    const last = bars.disp[bars.disp.length - 1];
+    const s = [vpOn, W, H, dpr, candle.priceToCoordinate(50000), candle.priceToCoordinate(100000), r && r.from.toFixed(2), r && r.to.toFixed(2), bars.disp.length, last && last.close, last && last.volume].join('|');
+    if (s === vpSig) return;
+    vpSig = s;
+    const paneW = W - chart.priceScale('right').width(), paneH = H - chart.timeScale().height();
+    if (vpc.width !== Math.round(paneW * dpr) || vpc.height !== Math.round(paneH * dpr)) {
+      vpc.width = Math.round(paneW * dpr); vpc.height = Math.round(paneH * dpr);
+      vpc.style.width = paneW + 'px'; vpc.style.height = paneH + 'px';
+    }
+    vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    vctx.clearRect(0, 0, paneW, paneH);
+    const vp = vpOn ? computeVP() : null;
+    if (!vp) { $('vpinfo').textContent = ''; return; }
+
+    const maxW = paneW * 0.3, xR = paneW - 2;
+    for (let k = 0; k < VP_ROWS; k++) {
+      if (!vp.tot[k]) continue;
+      const yT = candle.priceToCoordinate(vp.lo + (k + 1) * vp.step), yB = candle.priceToCoordinate(vp.lo + k * vp.step);
+      if (yT == null || yB == null) continue;
+      const h = Math.max(1, yB - yT - 1), inVA = k >= vp.vaLo && k <= vp.vaHi;
+      const wUp = vp.up[k] / vp.max * maxW, wDn = vp.dn[k] / vp.max * maxW;
+      // Up volume sits on the right edge, down volume stacked to its left.
+      vctx.fillStyle = `rgba(${C.vpUp},${inVA ? 0.78 : 0.3})`;
+      vctx.fillRect(xR - wUp, yT, wUp, h);
+      vctx.fillStyle = `rgba(${C.vpDown},${inVA ? 0.78 : 0.3})`;
+      vctx.fillRect(xR - wUp - wDn, yT, wDn, h);
+    }
+    // POC line and value-area edges
+    const pocP = vp.lo + (vp.poc + 0.5) * vp.step, vaL = vp.lo + vp.vaLo * vp.step, vaH = vp.lo + (vp.vaHi + 1) * vp.step;
+    const py = candle.priceToCoordinate(pocP);
+    if (py != null) {
+      vctx.strokeStyle = 'rgba(255,90,90,.9)'; vctx.lineWidth = 1;
+      vctx.beginPath(); vctx.moveTo(0, Math.round(py) + .5); vctx.lineTo(paneW, Math.round(py) + .5); vctx.stroke();
+      vctx.fillStyle = 'rgba(255,90,90,.95)'; vctx.font = '10px JetBrains Mono, ui-monospace, monospace'; vctx.textAlign = 'left';
+      vctx.textAlign = 'right'; vctx.fillText('POC ' + fP0(pocP), paneW - maxW - 14, Math.round(py) - 4);
+    }
+    vctx.strokeStyle = 'rgba(244,248,255,.18)'; vctx.setLineDash([2, 4]);
+    for (const v of [vaL, vaH]) {
+      const y = candle.priceToCoordinate(v); if (y == null) continue;
+      vctx.beginPath(); vctx.moveTo(paneW - maxW - 10, Math.round(y) + .5); vctx.lineTo(paneW, Math.round(y) + .5); vctx.stroke();
+    }
+    vctx.setLineDash([]);
+    $('vpinfo').textContent = `VPVR  POC ${fP0(pocP)}  VA ${fP0(vaL)}–${fP0(vaH)}`;
+  }
+
+  (function loop() {
+    try { drawLiq(); } catch (e) { /* keep looping */ }
+    try { drawVP(); } catch (e) { /* keep looping */ }
+    requestAnimationFrame(loop);
+  })();
 
   // Tooltip over the map
   const tip = $('tip');
@@ -682,6 +776,10 @@
     document.querySelectorAll('#tf button').forEach(x => x.classList.toggle('on', x === b));
     bars.disp = [];
     start();
+  });
+  $('vp').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    vpOn = !vpOn; b.classList.toggle('on', vpOn); b.setAttribute('aria-pressed', String(vpOn));
   });
   $('lev').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
