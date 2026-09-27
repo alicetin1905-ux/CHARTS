@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Crypto ETF Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --border: #e3e6eb;
+    --text: #15181d;
+    --text-2: #545b66;
+    --muted: #8a919c;
+    --grid: #eef0f3;
+    --up: #089981;
+    --down: #e0364b;
+    --accent: #2962ff;
+    --c-btc: #eb6834; --c-eth: #2a78d6; --c-sol: #1baf7a; --c-xrp: #eda100;
+    --c-ltc: #e87ba4; --c-hbar: #008300; --c-doge: #4a3aa7; --c-link: #e34948;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117; --panel: #151a22; --border: #262d38; --text: #e8ebef; --text-2: #a4acb8;
+      --muted: #6f7885; --grid: #1d232c; --up: #22ab94; --down: #f23645; --accent: #5b8cff;
+      --c-btc: #d95926; --c-eth: #3987e5; --c-sol: #199e70; --c-xrp: #c98500;
+      --c-ltc: #d55181; --c-hbar: #008300; --c-doge: #9085e9; --c-link: #e66767;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117; --panel: #151a22; --border: #262d38; --text: #e8ebef; --text-2: #a4acb8;
+    --muted: #6f7885; --grid: #1d232c; --up: #22ab94; --down: #f23645; --accent: #5b8cff;
+    --c-btc: #d95926; --c-eth: #3987e5; --c-sol: #199e70; --c-xrp: #c98500;
+    --c-ltc: #d55181; --c-hbar: #008300; --c-doge: #9085e9; --c-link: #e66767;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 16px;
+  }
+  .wrap { max-width: 1440px; margin: 0 auto; }
+  .num { font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); } .down { color: var(--down); }
+
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-bottom: 16px; }
+  header h1 { font-size: 20px; margin: 0; }
+  header .sub { color: var(--text-2); font-size: 12px; }
+  .spacer { flex: 1; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--panel); }
+  .seg button { background: none; border: 0; color: var(--text-2); padding: 6px 10px; cursor: pointer; font: inherit; font-size: 13px; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .seg button:hover:not(.on) { color: var(--text); }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; }
+  .panel h2 { font-size: 14px; margin: 0 0 10px; font-weight: 600; }
+  .panel h2 small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .stat .k { font-size: 12px; color: var(--muted); }
+  .stat .v { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .stat .s { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+  /* AUM share bar */
+  .share { display: flex; gap: 2px; height: 14px; margin: 4px 0 10px; }
+  .share i { display: block; height: 100%; border-radius: 3px; min-width: 3px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--text-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+
+  /* Coin cards */
+  .coins { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .coin {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px;
+    cursor: pointer; text-align: left; font: inherit; color: inherit; position: relative;
+  }
+  .coin:hover { border-color: var(--muted); }
+  .coin.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .coin .hd { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .coin .hd b { font-size: 15px; }
+  .coin .hd .n { color: var(--muted); font-size: 12px; }
+  .coin .hd .cnt { margin-left: auto; font-size: 11px; color: var(--text-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+  .coin dl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 0; }
+  .coin dt { font-size: 11px; color: var(--muted); }
+  .coin dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* Charts */
+  .chead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 10px; }
+  .chead h2 { margin: 0; }
+  .readout { font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; min-height: 18px; }
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .charts .lbl { font-size: 12px; color: var(--muted); margin-bottom: 4px; display: flex; justify-content: space-between; gap: 8px; }
+  .charts .lbl span:last-child { color: var(--text); font-variant-numeric: tabular-nums; }
+  .chart { height: 300px; }
+  @media (max-width: 860px) { .charts { grid-template-columns: 1fr; } .chart { height: 240px; } }
+
+  /* Tables */
+  .tscroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+  th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { font-size: 12px; font-weight: 500; color: var(--muted); }
+  th:first-child, td:first-child { text-align: left; }
+  tbody tr:hover { background: var(--grid); }
+  td .iss { color: var(--muted); font-size: 12px; margin-left: 6px; }
+  .flowcell { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .fb { position: relative; width: 80px; height: 8px; background: var(--grid); border-radius: 2px; }
+  .fb::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); }
+  .fb i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+  tr.tot td { font-weight: 600; }
+
+  .note { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .msg { padding: 24px; text-align: center; color: var(--text-2); }
+  footer { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  @media (max-width: 560px) { body { padding: 16px 12px; } .stat .v { font-size: 17px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Crypto ETF Tracker</h1>
+      <div class="sub" id="asof">Loading US spot ETF data…</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="seg" id="theme" role="group" aria-label="Theme">
+      <button data-t="light">Light</button><button data-t="dark">Dark</button><button data-t="auto">Auto</button>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Total ETF net assets</div><div class="v" id="t-aum">—</div><div class="s" id="t-aum-s"></div></div>
+    <div class="stat"><div class="k" id="t-day-k">Net flow, latest day</div><div class="v" id="t-day">—</div><div class="s" id="t-day-s"></div></div>
+    <div class="stat"><div class="k">Net flow, last 5 days</div><div class="v" id="t-5">—</div><div class="s">all coins combined</div></div>
+    <div class="stat"><div class="k">Net flow, last 20 days</div><div class="v" id="t-20">—</div><div class="s">all coins combined</div></div>
+    <div class="stat"><div class="k">Cumulative net inflow</div><div class="v" id="t-cum">—</div><div class="s">since each coin's launch</div></div>
+    <div class="stat"><div class="k">Daily value traded</div><div class="v" id="t-vol">—</div><div class="s">latest day</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Share of ETF net assets by coin</h2>
+    <div class="share" id="share"></div>
+    <div class="legend" id="share-legend"></div>
+  </div>
+
+  <div class="coins" id="coins"><div class="msg">Loading…</div></div>
+
+  <div class="panel">
+    <div class="chead">
+      <h2 id="c-title">Flows</h2>
+      <div class="spacer"></div>
+      <div class="seg" id="range" role="group" aria-label="Range">
+        <button data-v="30">1M</button><button data-v="90" class="on">3M</button><button data-v="180">6M</button><button data-v="365">1Y</button><button data-v="0">All</button>
+      </div>
+    </div>
+    <div class="charts">
+      <div><div class="lbl"><span>Daily net flow</span><span id="r-daily"></span></div><div class="chart" id="ch-daily"></div></div>
+      <div><div class="lbl"><span>Cumulative net inflow</span><span id="r-cum"></span></div><div class="chart" id="ch-cum"></div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 id="f-title">Funds</h2>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Fund</th><th>Daily net flow</th><th>Net assets</th><th>Share</th><th>Cumulative inflow</th><th>Premium / discount</th><th>Fee</th><th>Value traded</th></tr></thead>
+        <tbody id="funds"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Daily net flows by coin <small>last 15 trading days</small></h2>
+    <div class="tscroll">
+      <table>
+        <thead id="grid-h"></thead>
+        <tbody id="grid-b"></tbody>
+      </table>
+    </div>
+    <div class="note" id="missing"></div>
+  </div>
+
+  <footer id="foot">Data: SoSoValue · US spot ETFs · Flows are in US dollars, reported once per trading day after the US close.</footer>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+
+  // Every US spot crypto ETF category we know how to ask for. Coins with no data from the source are listed
+  // at the bottom instead of shown, so a new category lights up here as soon as the source starts reporting it.
+  const COINS = [
+    { k: 'btc', s: 'BTC', n: 'Bitcoin', t: 'us-btc-spot' },
+    { k: 'eth', s: 'ETH', n: 'Ethereum', t: 'us-eth-spot' },
+    { k: 'sol', s: 'SOL', n: 'Solana', t: 'us-sol-spot' },
+    { k: 'xrp', s: 'XRP', n: 'XRP', t: 'us-xrp-spot' },
+    { k: 'ltc', s: 'LTC', n: 'Litecoin', t: 'us-ltc-spot' },
+    { k: 'hbar', s: 'HBAR', n: 'Hedera', t: 'us-hbar-spot' },
+    { k: 'doge', s: 'DOGE', n: 'Dogecoin', t: 'us-doge-spot' },
+    { k: 'link', s: 'LINK', n: 'Chainlink', t: 'us-link-spot' },
+  ];
+  const API = 'https://api.sosovalue.xyz/openapi/v2/etf/';
+  const REFRESH_MS = 30 * 60 * 1000;
+
+  // ---- Formatting -------------------------------------------------------------
+  const fUSD = (v) => {
+    if (v == null || !isFinite(v)) return '—';
+    const a = Math.abs(v), s = v < 0 ? '−' : '';
+    return s + (a >= 1e12 ? '$' + (a / 1e12).toFixed(2) + 'T' : a >= 1e9 ? '$' + (a / 1e9).toFixed(2) + 'B'
+      : a >= 1e6 ? '$' + (a / 1e6).toFixed(1) + 'M' : a >= 1e3 ? '$' + (a / 1e3).toFixed(0) + 'K' : '$' + a.toFixed(0));
+  };
+  const fSigned = (v) => v == null || !isFinite(v) ? '—' : (v > 0 ? '+' : '') + fUSD(v);
+  const cls = (v) => v > 0 ? 'up' : v < 0 ? 'down' : '';
+  const fQty = (v) => v >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : Math.round(v).toLocaleString('en-US');
+  const fDate = (d, withYear = true) => {
+    const [y, m, dd] = d.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, dd)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC' });
+  };
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // ---- Data -------------------------------------------------------------------
+  // Same shape as scripts/etf_flows.py output (the `etf/<coin>` documents on the hosted page).
+  const nv = (x) => { const v = x && typeof x === 'object' ? x.value : x; const n = parseFloat(v); return isFinite(n) ? n : null; };
+  async function post(path, type) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 12000);
+    try {
+      const r = await fetch(API + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type }), signal: ctl.signal });
+      const j = await r.json();
+      if (j.code !== 0) throw new Error(j.msg || 'sosovalue');
+      return j.data;
+    } finally { clearTimeout(t); }
+  }
+  async function fetchCoin(c) {
+    const [hist, cur] = await Promise.all([post('historicalInflowChart', c.t), post('currentEtfDataMetrics', c.t)]);
+    if (!Array.isArray(hist) || !hist.length || !cur || !cur.dailyNetInflow || !cur.dailyNetInflow.lastUpdateDate) return null;
+    return {
+      asOf: cur.dailyNetInflow.lastUpdateDate, updatedAt: Date.now(),
+      tot: { a: nv(cur.totalNetAssets), f: nv(cur.dailyNetInflow), c: nv(cur.cumNetInflow), v: nv(cur.dailyTotalValueTraded),
+             h: nv(cur.totalTokenHoldings), p: nv(cur.totalNetAssetsPercentage) },
+      history: hist.map(r => ({ d: r.date, f: nv(r.totalNetInflow), c: nv(r.cumNetInflow), a: nv(r.totalNetAssets), v: nv(r.totalValueTraded) }))
+        .sort((a, b) => a.d < b.d ? -1 : 1),
+      funds: (cur.list || []).map(e => ({ t: e.ticker, i: (e.institute || '').trim(), f: nv(e.dailyNetInflow), a: nv(e.netAssets),
+        c: nv(e.cumNetInflow), p: nv(e.discountPremiumRate), fee: nv(e.fee), v: nv(e.dailyValueTraded) })),
+    };
+  }
+
+  const data = {};         // coin key -> dataset
+  let selected = 'btc', rangeDays = 90, source = '';
+
+  // ---- Overview ---------------------------------------------------------------
+  const live = () => COINS.filter(c => data[c.k]);
+  const flows = (e) => e.history.filter(r => r.f != null);
+  const sumLast = (e, n) => flows(e).slice(-n).reduce((s, r) => s + r.f, 0);
+  const aumOf = (e) => e.tot.a != null ? e.tot.a : (e.history[e.history.length - 1] || {}).a;
+
+  function renderOverview() {
+    const cs = live();
+    if (!cs.length) return;
+    const ds = cs.map(c => data[c.k]);
+    const totA = ds.reduce((s, e) => s + (aumOf(e) || 0), 0);
+    const latest = ds.map(e => e.asOf).sort().pop();
+    const onLatest = ds.filter(e => e.asOf === latest);
+    const dayF = onLatest.reduce((s, e) => s + (e.tot.f || 0), 0);
+    const setSigned = (id, v) => { $(id).textContent = fSigned(v); $(id).className = 'v ' + cls(v); };
+
+    $('t-aum').textContent = fUSD(totA);
+    const prevA = ds.reduce((s, e) => { const h = e.history; return s + ((h.length > 1 ? h[h.length - 2].a : aumOf(e)) || 0); }, 0);
+    $('t-aum-s').textContent = prevA ? `${((totA - prevA) / prevA * 100 >= 0 ? '+' : '')}${((totA - prevA) / prevA * 100).toFixed(2)}% on the day` : '';
+    $('t-day-k').textContent = 'Net flow · ' + fDate(latest);
+    setSigned('t-day', dayF);
+    $('t-day-s').textContent = onLatest.map(e => { const c = cs.find(c => data[c.k] === e); return `${c.s} ${fSigned(e.tot.f)}`; }).join(' · ');
+    setSigned('t-5', ds.reduce((s, e) => s + sumLast(e, 5), 0));
+    setSigned('t-20', ds.reduce((s, e) => s + sumLast(e, 20), 0));
+    $('t-cum').textContent = fUSD(ds.reduce((s, e) => s + (e.tot.c || 0), 0));
+    $('t-vol').textContent = fUSD(onLatest.reduce((s, e) => s + (e.tot.v || 0), 0));
+
+    // Share bar: sorted by size, but each coin keeps its own color.
+    const byA = cs.map(c => ({ c, a: aumOf(data[c.k]) || 0 })).sort((x, y) => y.a - x.a);
+    $('share').innerHTML = byA.map(({ c, a }) =>
+      `<i style="flex:${a} 0 0;background:var(--c-${c.k})" title="${c.n}: ${fUSD(a)} (${(a / totA * 100).toFixed(1)}%)"></i>`).join('');
+    $('share-legend').innerHTML = byA.map(({ c, a }) =>
+      `<span><i class="dot" style="background:var(--c-${c.k})"></i><b>${c.s}</b> ${fUSD(a)} · ${(a / totA * 100).toFixed(1)}%</span>`).join('');
+
+    // Coin cards
+    $('coins').innerHTML = cs.map(c => {
+      const e = data[c.k], h = flows(e), last = h[h.length - 1] || {};
+      const pct = e.tot.p != null ? (e.tot.p * 100).toFixed(2) + '% of market cap' : '';
+      return `<button class="coin${c.k === selected ? ' on' : ''}" data-k="${c.k}" aria-pressed="${c.k === selected}">
+        <div class="hd"><i class="dot" style="background:var(--c-${c.k})"></i><b>${c.s}</b><span class="n">${c.n}</span><span class="cnt">${(e.funds || []).length} ETFs</span></div>
+        <dl>
+          <div><dt>Net assets</dt><dd>${fUSD(aumOf(e))}</dd></div>
+          <div><dt>Flow · ${fDate(last.d || e.asOf, false)}</dt><dd class="${cls(last.f)}">${fSigned(last.f)}</dd></div>
+          <div><dt>5-day flow</dt><dd class="${cls(sumLast(e, 5))}">${fSigned(sumLast(e, 5))}</dd></div>
+          <div><dt>20-day flow</dt><dd class="${cls(sumLast(e, 20))}">${fSigned(sumLast(e, 20))}</dd></div>
+          <div><dt>Cumulative inflow</dt><dd class="${cls(e.tot.c)}">${fSigned(e.tot.c)}</dd></div>
+          <div><dt>Held</dt><dd title="${pct}">${e.tot.h ? fQty(e.tot.h) + ' ' + c.s : '—'}</dd></div>
+        </dl>
+      </button>`;
+    }).join('');
+
+    renderGrid(cs);
+    const missing = COINS.filter(c => !data[c.k] && tried.has(c.k));
+    $('missing').textContent = missing.length
+      ? `No US spot ETF data from the source yet for: ${missing.map(c => c.s).join(', ')}. They will appear here once it reports them.`
+      : '';
+    const when = Math.max(...ds.map(e => e.updatedAt || 0));
+    $('asof').textContent = `US spot ETFs · data for ${fDate(latest)} · ${source}${when ? ' · fetched ' + new Date(when).toLocaleString() : ''}`;
+  }
+
+  function renderGrid(cs) {
+    const dates = [...new Set(cs.flatMap(c => flows(data[c.k]).map(r => r.d)))].sort().slice(-15).reverse();
+    const maps = Object.fromEntries(cs.map(c => [c.k, new Map(flows(data[c.k]).map(r => [r.d, r.f]))]));
+    $('grid-h').innerHTML = `<tr><th>Date</th>${cs.map(c => `<th><i class="dot" style="background:var(--c-${c.k});margin-right:6px"></i>${c.s}</th>`).join('')}<th>Total</th></tr>`;
+    $('grid-b').innerHTML = dates.map(d => {
+      let t = 0;
+      const cells = cs.map(c => { const v = maps[c.k].get(d); if (v != null) t += v; return `<td class="${cls(v)}">${v == null ? '—' : fSigned(v)}</td>`; }).join('');
+      return `<tr><td>${fDate(d)}</td>${cells}<td class="${cls(t)}"><b>${fSigned(t)}</b></td></tr>`;
+    }).join('');
+  }
+
+  // ---- Selected coin: charts + funds ------------------------------------------
+  let charts = null;
+  function chartOpts() {
+    return {
+      autoSize: true,
+      layout: { background: { type: 'solid', color: 'transparent' }, textColor: css('--text-2'), fontSize: 11 },
+      grid: { vertLines: { visible: false }, horzLines: { color: css('--grid') } },
+      rightPriceScale: { borderVisible: false },
+      timeScale: { borderColor: css('--border'), rightOffset: 2 },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
+      localization: { locale: 'en-US' },
+    };
+  }
+  function makeCharts() {
+    const daily = LightweightCharts.createChart($('ch-daily'), { ...chartOpts(), localization: { locale: 'en-US', priceFormatter: fSigned } });
+    const bars = daily.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false, base: 0 });
+    const cum = LightweightCharts.createChart($('ch-cum'), { ...chartOpts(), localization: { locale: 'en-US', priceFormatter: fUSD } });
+    const line = cum.addAreaSeries({ lineWidth: 2, priceLineVisible: false });
+    let syncing = false;
+    for (const [a, b] of [[daily, cum], [cum, daily]]) {
+      a.timeScale().subscribeVisibleLogicalRangeChange((r) => { if (syncing || !r) return; syncing = true; b.timeScale().setVisibleLogicalRange(r); syncing = false; });
+    }
+    const c = { daily, bars, cum, line, byDate: new Map(), last: null };
+    const hover = (p) => {
+      const t = p && p.time;
+      const key = !t ? null : typeof t === 'string' ? t : `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`;
+      readout(key ? c.byDate.get(key) : null);
+    };
+    daily.subscribeCrosshairMove(hover); cum.subscribeCrosshairMove(hover);
+    return c;
+  }
+  function readout(r) {
+    r = r || (charts && charts.last); if (!r) return;
+    $('r-daily').innerHTML = `${fDate(r.d)} <span class="${cls(r.f)}">${fSigned(r.f)}</span>`;
+    $('r-cum').textContent = `${fDate(r.d)} ${fUSD(r.c)}`;
+  }
+  function styleCharts() {
+    if (!charts) return;
+    for (const ch of [charts.daily, charts.cum]) ch.applyOptions(chartOpts());
+    const col = css('--c-' + selected);
+    charts.line.applyOptions({ lineColor: col, topColor: col + '40', bottomColor: col + '00' });
+  }
+  function applyRange() {
+    if (!charts || !data[selected]) return;
+    const n = flows(data[selected]).length;
+    charts.daily.timeScale().setVisibleLogicalRange({ from: rangeDays ? Math.max(0, n - rangeDays) : 0, to: n + 1 });
+  }
+
+  function renderSelected() {
+    const c = COINS.find(c => c.k === selected), e = data[selected];
+    if (!e) return;
+    if (!charts) charts = makeCharts();
+    const h = flows(e), up = css('--up'), down = css('--down');
+    charts.byDate = new Map(h.map(r => [r.d, r]));
+    charts.bars.setData(h.map(r => ({ time: r.d, value: r.f, color: r.f >= 0 ? up : down })));
+    charts.line.setData(h.filter(r => r.c != null).map(r => ({ time: r.d, value: r.c })));
+    charts.last = h[h.length - 1];
+    styleCharts(); applyRange(); readout(null);
+    $('c-title').textContent = `${c.n} (${c.s}) ETF flows`;
+
+    const funds = (e.funds || []).filter(f => f.a != null).sort((a, b) => b.a - a.a);
+    const tA = funds.reduce((s, f) => s + f.a, 0);
+    const maxF = Math.max(1, ...funds.map(f => Math.abs(f.f || 0)));
+    const row = (f) => {
+      const v = f.f || 0, w = Math.abs(v) / maxF * 50;
+      const bar = v === 0 ? '' : `<i style="${v > 0 ? 'left:50%' : 'right:50%'};width:${w}%;background:var(--${v > 0 ? 'up' : 'down'})"></i>`;
+      return `<tr><td><b>${esc(f.t)}</b><span class="iss">${esc(f.i)}</span></td>
+        <td><span class="flowcell"><span class="${cls(v)}">${v ? fSigned(v) : '$0'}</span><span class="fb">${bar}</span></span></td>
+        <td>${fUSD(f.a)}</td><td>${tA ? (f.a / tA * 100).toFixed(1) + '%' : '—'}</td>
+        <td class="${cls(f.c)}">${fSigned(f.c)}</td>
+        <td class="${cls(f.p)}">${f.p == null ? '—' : (f.p >= 0 ? '+' : '') + (f.p * 100).toFixed(2) + '%'}</td>
+        <td>${f.fee == null ? '—' : (f.fee * 100).toFixed(2) + '%'}</td><td>${fUSD(f.v)}</td></tr>`;
+    };
+    const tot = e.tot;
+    $('funds').innerHTML = funds.map(row).join('') +
+      `<tr class="tot"><td>All ${c.s} ETFs</td><td class="${cls(tot.f)}">${fSigned(tot.f)}</td><td>${fUSD(aumOf(e))}</td><td>100%</td>
+        <td class="${cls(tot.c)}">${fSigned(tot.c)}</td><td></td><td></td><td>${fUSD(tot.v)}</td></tr>`;
+    $('f-title').textContent = `${c.n} ETFs · ${fDate(e.asOf)}`;
+  }
+
+  // ---- Loading ----------------------------------------------------------------
+  const tried = new Set();
+  function update(k, e) {
+    tried.add(k);
+    if (e && Array.isArray(e.history) && e.history.length) data[k] = e; else delete data[k];
+    if (!data[selected] && live().length) selected = live()[0].k;
+    renderOverview();
+    if (k === selected || !charts) renderSelected();
+  }
+  function fail(text) { $('coins').innerHTML = `<div class="msg">${esc(text)}</div>`; $('asof').textContent = ''; }
+
+  async function loadDirect() {
+    const res = await Promise.allSettled(COINS.map(c => fetchCoin(c)));
+    if (!res.some(r => r.status === 'fulfilled' && r.value)) throw new Error('unreachable');
+    source = 'SoSoValue, live';
+    res.forEach((r, i) => update(COINS[i].k, r.status === 'fulfilled' ? r.value : null));
+  }
+
+  async function start() {
+    try {
+      await loadDirect();
+      setInterval(() => loadDirect().catch(() => {}), REFRESH_MS);
+      return;
+    } catch (e) { /* not reachable from here (e.g. the hosted page): use the saved copies */ }
+    const cl = window.claude;
+    const db = cl && typeof cl.use === 'function' ? await cl.use('db').catch(() => null) : null;
+    if (!db) { fail('ETF data could not be loaded: SoSoValue is not reachable from this network.'); return; }
+    source = 'SoSoValue, updated daily';
+    let pending = COINS.length;
+    for (const c of COINS) {
+      let first = true;
+      db.doc('etf/' + c.k).onSnapshot((snap) => {
+        update(c.k, snap.exists ? snap.data() : null);
+        if (first && --pending === 0 && !live().length) fail('No ETF data saved yet. It appears after the next daily update.');
+        first = false;
+      }, () => { tried.add(c.k); if (first && --pending === 0 && !live().length) fail('The saved ETF data could not be read right now.'); first = false; });
+    }
+  }
+
+  // ---- Controls ---------------------------------------------------------------
+  $('coins').addEventListener('click', (ev) => {
+    const b = ev.target.closest('.coin'); if (!b || b.dataset.k === selected) return;
+    selected = b.dataset.k;
+    document.querySelectorAll('.coin').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+    renderSelected();
+  });
+  $('range').addEventListener('click', (ev) => {
+    const b = ev.target.closest('button'); if (!b) return;
+    rangeDays = +b.dataset.v;
+    document.querySelectorAll('#range button').forEach(x => x.classList.toggle('on', x === b));
+    applyRange();
+  });
+
+  function applyTheme(t) {
+    if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', t);
+    document.querySelectorAll('#theme button').forEach(x => x.classList.toggle('on', x.dataset.t === t));
+    try { localStorage.setItem('etf-dash-theme', t); } catch (e) {}
+    if (data[selected]) renderSelected();
+  }
+  $('theme').addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (b) applyTheme(b.dataset.t); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (data[selected]) renderSelected(); });
+  let saved = 'auto';
+  try { saved = localStorage.getItem('etf-dash-theme') || 'auto'; } catch (e) {}
+  applyTheme(saved);
+
+  start();
+})();
+</script>
+</body>
+</html>

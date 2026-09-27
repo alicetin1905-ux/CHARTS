@@ -38,3 +38,23 @@ SoSoValue's public API.
 - Opened as a file, the page reads SoSoValue directly and checks for new data every 30 minutes.
 - On the hosted claude.ai page, which cannot reach SoSoValue, a daily scheduled job runs
   `scripts/etf_flows.py`'s logic and saves the result to the page's `etf/btc` database document.
+
+## Crypto ETF Tracker (`etfs.html`)
+
+One page for every US spot crypto ETF category: Bitcoin, Ethereum and Solana today, with XRP, Litecoin,
+Hedera, Dogecoin and Chainlink checked on every load. They show up on their own once SoSoValue starts
+reporting them. Until then, they're listed at the bottom as having no data yet.
+
+- Top row: total ETF net assets across all coins, the latest day's combined net flow (split by coin),
+  5- and 20-day flows, cumulative net inflow and value traded.
+- A bar that shows each coin's share of total ETF net assets.
+- A card per coin with net assets, the latest day's flow, 5-day, 20-day and cumulative flows, and coins held.
+  Click a card to select that coin.
+- For the selected coin: daily net flow bars and a cumulative net inflow chart that pan together, with
+  1M/3M/6M/1Y/All ranges. Under them, a fund table (flow, net assets, share, cumulative inflow,
+  premium/discount, fee, value traded).
+- A table of the last 15 trading days of net flows, with a column per coin and a total.
+
+Data comes from SoSoValue's public API and refreshes every 30 minutes. The page uses the same fallback as the
+Liquidation Radar: where SoSoValue can't be reached, it reads the `etf/<coin>` database documents
+(`etf/btc`, `etf/eth`, `etf/sol`, ...). You can build those documents with `scripts/etf_flows.py us-<coin>-spot`.
