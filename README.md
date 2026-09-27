@@ -59,5 +59,5 @@ Data comes from SoSoValue's public API and refreshes every 30 minutes. The page 
 Liquidation Radar: where SoSoValue can't be reached, it reads the `etf/<coin>` database documents
 (`etf/btc`, `etf/eth`, `etf/sol`, ...). You can build those documents with `scripts/etf_flows.py us-<coin>-spot`.
 
-The hosted copy on claude.ai reads those documents. A scheduled job refreshes them at 03:22 UTC, Tuesday to Saturday,
-after each US trading day. It also checks the other coins and saves any that SoSoValue has started reporting.
+The hosted copy on claude.ai reads those documents. A scheduled job refreshes them at 12:52 UTC (8:52am New York time in summer), Tuesday to Saturday,
+the morning after each US trading day, once every fund has reported. It also checks the other coins and saves any that SoSoValue has started reporting.
