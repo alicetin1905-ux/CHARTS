@@ -125,9 +125,9 @@ footer #upd{font-family:var(--mono)}
   <div class="ctl">
     <div class="seg" id="tf" aria-label="Chart timeframe">
       <button data-v="5m">5m</button>
-      <button data-v="15m" class="on">15m</button>
+      <button data-v="15m">15m</button>
       <button data-v="1h">1H</button>
-      <button data-v="4h">4H</button>
+      <button data-v="4h" class="on">4H</button>
     </div>
     <div class="seg" id="vp"><button data-v="vpvr" class="on" aria-pressed="true">VPVR</button></div>
   </div>
@@ -143,7 +143,7 @@ footer #upd{font-family:var(--mono)}
 
   <section class="card">
     <div class="bar">
-      <h2 id="ttl">Price · 15M</h2>
+      <h2 id="ttl">Price · 4H</h2>
       <span class="ohlc" id="ohlc"></span>
       <span class="ohlc" id="vpinfo"></span>
       <span class="legend">
@@ -207,7 +207,7 @@ footer #upd{font-family:var(--mono)}
   const C = { cyan: '#35ffb0', magenta: '#ff4d6a', price: '#eef4f0', vpUp: '77,159,255', vpDown: '255,200,87', ink2: '#7c8f87', ink3: '#4a5852', edge: '#1b2320' };
 
   // ---- State -----------------------------------------------------------------
-  let tf = '15m';
+  let tf = '4h';
   const bars = { disp: [], h1: [] };
   let ticker = null, mode = null, lastErr = null, updatedAt = null;
 
