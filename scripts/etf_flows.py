@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Fetch US spot Bitcoin ETF flows from SoSoValue and print them as compact JSON.
+"""Fetch US spot Bitcoin or Ether ETF flows from SoSoValue and print them as compact JSON.
 
-The output shape is what liquidations.html reads (the `etf/btc` document on the hosted page):
+Usage: etf_flows.py [btc|eth]   (default btc)
+
+The output shape is what liquidations.html reads (the `etf/btc` or `etf/eth` document on the hosted page):
   {asOf, updatedAt, tot: {a, f, c, v, h}, history: [{d, f, c, a, v}], funds: [{t, i, f, a, c, p}]}
 """
 import json, sys, time, urllib.request
@@ -9,8 +11,8 @@ import json, sys, time, urllib.request
 API = "https://api.sosovalue.xyz/openapi/v2/etf/"
 
 
-def post(path):
-    req = urllib.request.Request(API + path, data=json.dumps({"type": "us-btc-spot"}).encode(),
+def post(path, asset):
+    req = urllib.request.Request(API + path, data=json.dumps({"type": f"us-{asset}-spot"}).encode(),
                                  headers={"content-type": "application/json", "user-agent": "etf-flows/1.0"})
     with urllib.request.urlopen(req, timeout=20) as r:
         body = json.load(r)
@@ -28,8 +30,11 @@ def num(x):
 
 
 def main():
-    hist = post("historicalInflowChart")
-    cur = post("currentEtfDataMetrics")
+    asset = (sys.argv[1] if len(sys.argv) > 1 else "btc").lower()
+    if asset not in ("btc", "eth"):
+        raise SystemExit("asset must be btc or eth")
+    hist = post("historicalInflowChart", asset)
+    cur = post("currentEtfDataMetrics", asset)
     history = sorted(({"d": r["date"], "f": num(r.get("totalNetInflow")), "c": num(r.get("cumNetInflow")),
                        "a": num(r.get("totalNetAssets")), "v": num(r.get("totalValueTraded"))} for r in hist),
                      key=lambda r: r["d"])

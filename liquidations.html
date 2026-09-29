@@ -220,7 +220,8 @@
 
   <section class="frame etf" id="etf">
     <div class="bar">
-      <b>Spot BTC ETF flows · US</b>
+      <b id="etf-ttl">Spot BTC ETF flows · US</b>
+      <div class="seg" id="etf-asset"><button data-v="btc" class="on" aria-pressed="true">BTC</button><button data-v="eth" aria-pressed="false">ETH</button></div>
       <span class="ohlc" id="etf-asof">Loading…</span>
       <span class="legend">
         <span><i class="sw" style="background:var(--cyan)"></i>Net inflow</span>
@@ -233,7 +234,7 @@
       <div class="ro"><div class="k">Last 20 days</div><div class="v" id="e-20">—</div><div class="s" id="e-20-s">—</div></div>
       <div class="ro"><div class="k">Net inflow since launch</div><div class="v" id="e-cum">—</div><div class="s">all funds, cumulative</div></div>
       <div class="ro"><div class="k">Net assets</div><div class="v" id="e-aum">—</div><div class="s" id="e-aum-s">—</div></div>
-      <div class="ro"><div class="k">BTC held</div><div class="v" id="e-btc">—</div><div class="s" id="e-btc-s">—</div></div>
+      <div class="ro"><div class="k" id="e-held-k">BTC held</div><div class="v" id="e-btc">—</div><div class="s" id="e-btc-s">—</div></div>
     </div>
     <div class="etf-grid">
       <div class="etf-charts">
@@ -826,7 +827,7 @@
   async function etfPost(path) {
     const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 10000);
     try {
-      const r = await fetch(ETF_API + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'us-btc-spot' }), signal: ctl.signal });
+      const r = await fetch(ETF_API + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: `us-${etfAsset}-spot` }), signal: ctl.signal });
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.msg || 'sosovalue');
       return j.data;
@@ -898,10 +899,14 @@
     $('e-aum').textContent = fUSD(tot.a != null ? tot.a : last.a);
     const prevA = h.length > 1 ? h[h.length - 2].a : null, aNow = tot.a != null ? tot.a : last.a;
     $('e-aum-s').textContent = prevA ? `${fPct((aNow - prevA) / prevA * 100)} on the day` : '';
+    const sym = etfAsset.toUpperCase();
+    $('e-held-k').textContent = sym + ' held';
     if (tot.h) {
-      $('e-btc').textContent = Math.round(tot.h).toLocaleString('en-US') + ' BTC';
-      $('e-btc-s').textContent = `≈ ${(tot.h / 21e6 * 100).toFixed(2)}% of the 21M supply`;
-    }
+      $('e-btc').textContent = Math.round(tot.h).toLocaleString('en-US') + ' ' + sym;
+      $('e-btc-s').textContent = etfAsset === 'btc'
+        ? `≈ ${(tot.h / 21e6 * 100).toFixed(2)}% of the 21M supply`
+        : `≈ $${fP0(tot.a / tot.h)} per ETH in the funds`;
+    } else { $('e-btc').textContent = '—'; $('e-btc-s').textContent = ''; }
 
     const funds = (e.funds || []).filter(f => f.a != null).sort((a, b) => b.a - a.a);
     const maxF = Math.max(1, ...funds.map(f => Math.abs(f.f || 0)));
@@ -927,22 +932,42 @@
 
   function etfMessage(text) { const m = $('etf-msg'); m.textContent = text; m.hidden = false; if (!etfCharts) $('etf-asof').textContent = ''; }
 
+  // One asset at a time; `etfRun` drops results from a request made before the last switch.
+  let etfAsset = 'btc', etfRun = 0, etfUnsub = null, etfDirect = null;
+
   async function startETF() {
-    try {
-      etfSource = 'live';
-      renderETF(await fetchETFDirect());
-      clearInterval(etfTimer);
-      etfTimer = setInterval(async () => { try { renderETF(await fetchETFDirect()); } catch (e) { /* keep last */ } }, 30 * 60 * 1000);
-      return;
-    } catch (e) { /* not reachable from here: try the page's stored copy */ }
+    const run = ++etfRun, asset = etfAsset;
+    clearInterval(etfTimer); if (etfUnsub) { etfUnsub(); etfUnsub = null; }
+    $('etf-ttl').textContent = `Spot ${asset.toUpperCase()} ETF flows · US`;
+    if (etfCharts) etfCharts.fitted = false;
+    if (etfDirect !== false) {
+      try {
+        const data = await fetchETFDirect();
+        if (run !== etfRun) return;
+        etfDirect = true; etfSource = 'live';
+        renderETF(data);
+        etfTimer = setInterval(async () => { try { const d = await fetchETFDirect(); if (run === etfRun) renderETF(d); } catch (e) { /* keep last */ } }, 30 * 60 * 1000);
+        return;
+      } catch (e) { if (etfDirect === null) etfDirect = false; /* not reachable from here: use the page's stored copy */ }
+      if (run !== etfRun) return;
+    }
     const cl = window.claude;
     const db = cl && typeof cl.use === 'function' ? await cl.use('db').catch(() => null) : null;
+    if (run !== etfRun) return;
     if (!db) { etfMessage('ETF flows could not be loaded: SoSoValue is not reachable from this network.'); return; }
     etfSource = 'updated daily';
-    db.doc('etf/btc').onSnapshot((snap) => {
-      if (!snap.exists || !renderETF(snap.data())) etfMessage('No ETF flow data saved yet. It appears after the next daily update.');
+    etfUnsub = db.doc('etf/' + asset).onSnapshot((snap) => {
+      if (run !== etfRun) return;
+      if (!snap.exists || !renderETF(snap.data())) etfMessage(`No ${asset.toUpperCase()} ETF data saved yet. It appears after the next daily update.`);
     }, (err) => etfMessage(err && err.code === 'not_granted' ? 'This view cannot read the saved ETF flows.' : 'The saved ETF flows could not be read right now.'));
   }
+
+  $('etf-asset').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b || b.dataset.v === etfAsset) return;
+    etfAsset = b.dataset.v;
+    document.querySelectorAll('#etf-asset button').forEach(x => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); });
+    startETF();
+  });
 
   // ---- Boot / controls -------------------------------------------------------
   async function start() {

@@ -31,10 +31,11 @@ that price has already crossed are removed.
 
 ### ETF flows panel
 
-Under the chart: daily net flows for the US spot Bitcoin ETFs (all funds combined), cumulative net inflow,
-5- and 20-day totals, net assets, BTC held, and a per-fund table (IBIT, FBTC, GBTC, ...). Data comes from
+Under the chart, with a BTC / ETH switch: daily net flows for the US spot Bitcoin or Ether ETFs (all funds combined), cumulative net inflow,
+5- and 20-day totals, net assets, coins held, and a per-fund table (IBIT, FBTC, ... or ETHA, FETH, ...). Data comes from
 SoSoValue's public API.
 
 - Opened as a file, the page reads SoSoValue directly and checks for new data every 30 minutes.
 - On the hosted claude.ai page, which cannot reach SoSoValue, a daily scheduled job runs
-  `scripts/etf_flows.py`'s logic and saves the result to the page's `etf/btc` database document.
+  `scripts/etf_flows.py btc` and `scripts/etf_flows.py eth` and saves the results to the page's `etf/btc` and
+  `etf/eth` database documents.
