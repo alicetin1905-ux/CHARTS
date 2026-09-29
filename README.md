@@ -38,3 +38,29 @@ SoSoValue's public API.
 - Opened as a file, the page reads SoSoValue directly and checks for new data every 30 minutes.
 - On the hosted claude.ai page, which cannot reach SoSoValue, a daily scheduled job runs
   `scripts/etf_flows.py`'s logic and saves the result to the page's `etf/btc` database document.
+
+## EMA Ribbon flip backtest (`scripts/ribbon_backtest.py`)
+
+Backtest of trading BTCUSDT.P on the flips of the **EMA Ribbon [Krypt]** (EMAs 20–55): long when all 8 EMAs
+turn bullish in order, short when they turn bearish, reversed on the opposite flip. Tested on 5m, 15m, 30m, 1H,
+2H, 4H, 6H, 12H and 1D, in four variants. Full tables: [`backtests/ema_ribbon_flip.md`](backtests/ema_ribbon_flip.md).
+
+Squeeze variant (flip after the EMAs were on one line, 2.5 × ATR stop), 1×, after fees:
+
+| Chart | Last 2 years | Aug 2020 – Sep 2026 | Trades / year | Worst year | Max drawdown (2020–26) |
+|---|---|---|---|---|---|
+| 5m – 2H | −42% to −97% | — | 55 – 1,300 | — | — |
+| 4H | +102% | +371% | ~24 | −8% | 45% |
+| 6H | +57% | +1,168% | ~16 | −34% (2022) | 35% |
+| **12H** | **+97%** | **+912%** | **~9** | **−9% (2022)** | **40%** |
+| 1D | +15% | +384% | ~4 | −18% (2024) | 49% |
+| Buy & hold | +32% | +607% | | −64% (2022) | |
+
+- Below 4H the strategy loses money. Fees eat the edge (5m: +63% before costs, −97% after).
+- 12H is the most consistent: highest profit per unit of loss (profit factor 3.25) and small losing years.
+- Daily flips too late on 20–55-day EMAs and gives only ~4 trades a year.
+- Much of the 2020–26 gain came from the late-2020 rally; from 2021 on, 12H made about +220% vs +191% for holding.
+- The variant was picked after seeing the results, so expect worse live. Past results do not predict future ones.
+
+Run it: `python3 scripts/ribbon_backtest.py` (downloads candles into `data/`, ~10 minutes the first time).
+
