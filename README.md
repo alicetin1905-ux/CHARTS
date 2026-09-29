@@ -11,7 +11,7 @@ step line and Renko.
 
 Open `index.html` in a browser — no build step. Charts use TradingView Lightweight Charts from a CDN.
 
-## BTC Flow Radar (`flow-radar.html`)
+## ETF (`flow-radar.html`)
 
 A BTC perpetual chart with a VPVR volume profile and daily ETF inflow/outflow, styled to match the ATLAS Suite boards.
 
