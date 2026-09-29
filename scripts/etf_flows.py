@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Fetch US spot Bitcoin or Ether ETF flows from SoSoValue and print them as compact JSON.
+"""Fetch US spot Bitcoin, Ether or Solana ETF flows from SoSoValue and print them as compact JSON.
 
-Usage: etf_flows.py [btc|eth]   (default btc)
+Usage: etf_flows.py [btc|eth|sol]   (default btc)
 
-The output shape is what liquidations.html reads (the `etf/btc` or `etf/eth` document on the hosted page):
+The output shape is what liquidations.html reads (the `etf/btc`, `etf/eth` or `etf/sol` document on the hosted page):
   {asOf, updatedAt, tot: {a, f, c, v, h}, history: [{d, f, c, a, v}], funds: [{t, i, f, a, c, p}]}
 """
 import json, sys, time, urllib.request
@@ -31,8 +31,8 @@ def num(x):
 
 def main():
     asset = (sys.argv[1] if len(sys.argv) > 1 else "btc").lower()
-    if asset not in ("btc", "eth"):
-        raise SystemExit("asset must be btc or eth")
+    if asset not in ("btc", "eth", "sol"):
+        raise SystemExit("asset must be btc, eth or sol")
     hist = post("historicalInflowChart", asset)
     cur = post("currentEtfDataMetrics", asset)
     history = sorted(({"d": r["date"], "f": num(r.get("totalNetInflow")), "c": num(r.get("cumNetInflow")),

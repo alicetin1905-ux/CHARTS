@@ -221,7 +221,7 @@
   <section class="frame etf" id="etf">
     <div class="bar">
       <b id="etf-ttl">Spot BTC ETF flows · US</b>
-      <div class="seg" id="etf-asset"><button data-v="btc" class="on" aria-pressed="true">BTC</button><button data-v="eth" aria-pressed="false">ETH</button></div>
+      <div class="seg" id="etf-asset"><button data-v="btc" class="on" aria-pressed="true">BTC</button><button data-v="eth" aria-pressed="false">ETH</button><button data-v="sol" aria-pressed="false">SOL</button></div>
       <span class="ohlc" id="etf-asof">Loading…</span>
       <span class="legend">
         <span><i class="sw" style="background:var(--cyan)"></i>Net inflow</span>
@@ -905,7 +905,7 @@
       $('e-btc').textContent = Math.round(tot.h).toLocaleString('en-US') + ' ' + sym;
       $('e-btc-s').textContent = etfAsset === 'btc'
         ? `≈ ${(tot.h / 21e6 * 100).toFixed(2)}% of the 21M supply`
-        : `≈ $${fP0(tot.a / tot.h)} per ETH in the funds`;
+        : `≈ $${fP0(tot.a / tot.h)} per ${sym} in the funds`;
     } else { $('e-btc').textContent = '—'; $('e-btc-s').textContent = ''; }
 
     const funds = (e.funds || []).filter(f => f.a != null).sort((a, b) => b.a - a.a);
