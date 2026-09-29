@@ -13,7 +13,7 @@ Open `index.html` in a browser — no build step. Charts use TradingView Lightwe
 
 ## BTC Flow Radar (`flow-radar.html`)
 
-A dark, neon-style BTC perpetual chart with a VPVR volume profile and daily ETF inflow/outflow.
+A BTC perpetual chart with a VPVR volume profile and daily ETF inflow/outflow, styled to match the ATLAS Suite boards.
 
 - A VPVR (volume profile of the visible range) sits inside the chart: blue = volume from candles that
   closed up, yellow = closed down, brighter rows = 70% value area, red line = point of control (POC).

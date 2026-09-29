@@ -2,176 +2,154 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 </head>
 <body>
 <title>BTC Flow Radar</title>
+<meta name="theme-color" content="#070a09">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
-  /* Single deliberate look: a dark instrument panel. */
-  :root {
-    color-scheme: dark;
-    --void: #05070d;
-    --deck: #0a0f1c;
-    --deck-2: #0e1526;
-    --edge: #1a2a44;
-    --edge-hot: #2c4a78;
-    --ink: #d8e6ff;
-    --ink-2: #8aa0c4;
-    --ink-3: #56698c;
-    --cyan: #19e6ff;     /* up candles, inflows */
-    --magenta: #ff3d8b;  /* down candles, outflows */
-    --price: #f4f8ff;    /* current price */
-    --warn: #ffc24a;     /* demo / stale status */
-    --vp-up: #2f86ff;    /* VPVR up volume */
-    --vp-down: #f5b82e;  /* VPVR down volume */
-    --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
-    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; }
-  body {
-    background:
-      radial-gradient(1200px 600px at 70% -10%, rgba(25,230,255,.08), transparent 60%),
-      radial-gradient(900px 500px at -10% 110%, rgba(255,61,139,.07), transparent 60%),
-      var(--void);
-    color: var(--ink);
-    font: 13px/1.45 var(--mono);
-    padding: 16px;
-    min-height: 100%;
-  }
-  .wrap { max-width: 1480px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+/* Palette + typography matched to the ATLAS Suite boards (BTCLiveBoard, ATLAS, Crucible)
+   so this page reads as one more app in that family. Single dark look by design. */
+:root{
+  color-scheme: dark;
+  --bg:#070a09; --panel:#0e1412; --panel2:#121a17; --line:#1b2320; --line2:#2a3630;
+  --txt:#eef4f0; --dim:#7c8f87; --faint:#4a5852;
+  --up:#35ffb0; --dn:#ff4d6a; --nt:#ffc857; --blue:#4d9fff;
+  --vp-up:#4d9fff;    /* VPVR volume from candles that closed up */
+  --vp-down:#ffc857;  /* VPVR volume from candles that closed down */
+  --trend-glow: rgba(255,200,87,0.04);
+  --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+  --sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--txt);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{font-size:13px;line-height:1.4;padding-bottom:env(safe-area-inset-bottom);position:relative;min-height:100%}
+.wash{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(ellipse 130% 80% at 50% -10%, var(--trend-glow), transparent 60%),
+    radial-gradient(ellipse 120% 70% at 50% 110%, var(--trend-glow), transparent 62%)}
+.scanlines{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;
+  background:repeating-linear-gradient(to bottom, rgba(255,255,255,0.014) 0 1px, transparent 1px 3px)}
+.up{color:var(--up)} .down,.dn{color:var(--dn)} .nt{color:var(--nt)}
+b,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
-  /* ---- Header ---- */
-  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; }
-  .id { display: flex; flex-direction: column; gap: 2px; }
-  .id h1 {
-    margin: 0; font-family: var(--display); font-weight: 700; font-size: 22px;
-    letter-spacing: .12em; text-transform: uppercase; text-wrap: balance;
-  }
-  .id h1 em { font-style: normal; color: var(--cyan); text-shadow: 0 0 12px rgba(25,230,255,.55); }
-  .id small { color: var(--ink-3); letter-spacing: .14em; text-transform: uppercase; font-size: 10px; }
-  .px { display: flex; align-items: baseline; gap: 12px; font-variant-numeric: tabular-nums; }
-  .px b { font-size: 30px; font-weight: 700; color: var(--price); text-shadow: 0 0 18px rgba(160,200,255,.45); }
-  .px span { font-weight: 500; }
-  .up { color: var(--cyan); } .down { color: var(--magenta); }
-  .grow { flex: 1; }
-  .seg { display: inline-flex; border: 1px solid var(--edge); background: var(--deck); }
-  .seg button {
-    font: 500 12px var(--mono); letter-spacing: .08em; color: var(--ink-2);
-    background: none; border: 0; padding: 7px 11px; cursor: pointer;
-  }
-  .seg button + button { border-left: 1px solid var(--edge); }
-  .seg button:hover { color: var(--ink); }
-  .seg button:focus-visible { outline: 1px solid var(--cyan); outline-offset: -2px; }
-  .seg button.on { color: var(--void); background: var(--cyan); box-shadow: 0 0 14px rgba(25,230,255,.5); }
-  .ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .ctl label { color: var(--ink-3); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+/* ---- top bar ---- */
+header.top{position:sticky;top:0;z-index:20;background:rgba(7,10,9,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top, 0px));
+  display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center}
+.mark{display:flex;align-items:baseline;gap:9px}
+.mark h1{font-size:15px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+.mark span{font-size:11px;color:var(--faint);font-family:var(--mono)}
+.px{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.px b{font-size:30px;font-weight:600;letter-spacing:-.02em;transition:color .25s}
+.px span{font-family:var(--mono);font-size:14px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:7px;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{background:none;border:0;color:var(--dim);font:inherit;font-size:12px;padding:6px 13px;cursor:pointer;flex-shrink:0}
+.seg button:hover{color:var(--txt)}
+.seg button.on{background:var(--panel2);color:var(--txt);box-shadow:inset 0 -2px 0 var(--blue)}
+button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
-  /* ---- Readouts ---- */
-  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
-  .ro { position: relative; background: linear-gradient(180deg, var(--deck-2), var(--deck)); border: 1px solid var(--edge); padding: 10px 12px; }
-  .ro .k { color: var(--ink-3); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
-  .ro .v { font-size: 17px; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
-  .ro .s { color: var(--ink-2); font-size: 11px; font-variant-numeric: tabular-nums; }
-  .meter { height: 4px; background: var(--edge); margin-top: 8px; display: flex; }
-  .meter i { display: block; height: 100%; }
+/* ---- layout ---- */
+main{display:grid;gap:12px;padding:12px 16px 28px;max-width:1480px;margin:0 auto}
+.readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.ro{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.ro .k{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.ro .v{font-family:var(--mono);font-size:16px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+.ro .s{font-family:var(--mono);font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+.meter{height:4px;background:var(--line);margin-top:8px;display:flex;border-radius:2px;overflow:hidden}
 
-  /* ---- Main instrument ---- */
-  .frame { position: relative; border: 1px solid var(--edge); background: rgba(10,15,28,.75); }
-  .frame::before, .frame::after {
-    content: ""; position: absolute; width: 14px; height: 14px; border-color: var(--cyan); border-style: solid; pointer-events: none;
-  }
-  .frame::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
-  .frame::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
-  .bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding: 9px 12px; border-bottom: 1px solid var(--edge); }
-  .bar b { font-family: var(--display); letter-spacing: .12em; text-transform: uppercase; font-size: 13px; }
-  .bar .ohlc { color: var(--ink-2); font-size: 11px; font-variant-numeric: tabular-nums; }
-  .bar .legend { margin-left: auto; display: flex; gap: 14px; font-size: 11px; color: var(--ink-2); }
-  .bar .legend span { white-space: nowrap; }
-  .sw { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; }
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:9px 14px;border-bottom:1px solid var(--line)}
+.bar h2{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:.08em;text-transform:uppercase}
+.bar .ohlc{color:var(--dim);font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums}
+.bar .legend{margin-left:auto;display:flex;gap:14px;font-size:11px;color:var(--dim)}
+.bar .legend span{white-space:nowrap}
+.sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:-1px}
 
-  .stage { display: grid; grid-template-columns: minmax(0, 1fr); height: 560px;
-    background-image:
-      linear-gradient(rgba(44,74,120,.12) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(44,74,120,.12) 1px, transparent 1px);
-    background-size: 40px 40px;
-  }
-  #chart { position: relative; min-width: 0; }
-  .vpc { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 3; }
+.stage{height:560px}
+#chart{position:relative;height:100%;min-width:0}
+.vpc{position:absolute;left:0;top:0;pointer-events:none;z-index:3}
 
-  /* ---- ETF flows ---- */
-  .etf .readouts { padding: 10px 12px 0; }
-  .etf-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 0; }
-  .etf-charts { min-width: 0; border-right: 1px solid var(--edge); }
-  .etf-sub { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px 0; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
-  .etf-sub .val { margin-left: auto; letter-spacing: 0; text-transform: none; font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-  #etf-daily { height: 250px; }
-  #etf-cum { height: 150px; }
-  .funds { overflow-x: auto; }
-  .funds table { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
-  .funds th { text-align: right; font-weight: 500; color: var(--ink-3); letter-spacing: .1em; text-transform: uppercase; font-size: 10px; padding: 9px 10px 6px; white-space: nowrap; border-bottom: 1px solid var(--edge); }
-  .funds th:first-child, .funds td:first-child { text-align: left; }
-  .funds td { text-align: right; padding: 7px 10px; border-bottom: 1px solid rgba(26,42,68,.6); white-space: nowrap; }
-  .funds td small { color: var(--ink-3); margin-left: 6px; }
-  .funds .flowcell { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
-  .funds .fb { width: 56px; height: 6px; background: rgba(26,42,68,.6); position: relative; }
-  .funds .fb i { position: absolute; top: 0; bottom: 0; }
-  .etf-msg { padding: 14px 12px; color: var(--ink-2); }
-  @media (max-width: 980px) { .etf-grid { grid-template-columns: minmax(0, 1fr); } .etf-charts { border-right: 0; border-bottom: 1px solid var(--edge); } }
+/* ---- ETF ---- */
+.etf .readouts{padding:12px 14px 0}
+.etf .ro{background:var(--panel2)}
+.etf-grid{display:grid;grid-template-columns:minmax(0,1fr) 380px}
+.etf-charts{min-width:0;border-right:1px solid var(--line)}
+.etf-sub{display:flex;align-items:baseline;gap:10px;padding:10px 14px 0;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.etf-sub .val{margin-left:auto;letter-spacing:0;text-transform:none;font-family:var(--mono);font-weight:500;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+#etf-daily{height:250px}
+#etf-cum{height:150px}
+.funds{overflow-x:auto}
+.funds table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.funds th{text-align:right;font-family:var(--sans);font-weight:600;color:var(--faint);letter-spacing:.08em;text-transform:uppercase;font-size:10px;padding:10px 12px 7px;border-bottom:1px solid var(--line);white-space:nowrap}
+.funds th:first-child,.funds td:first-child{text-align:left}
+.funds td{text-align:right;padding:7px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.funds td:first-child b{font-family:var(--sans);font-weight:600}
+.funds .flowcell{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.funds .fb{width:56px;height:6px;background:var(--line);position:relative;border-radius:3px;overflow:hidden}
+.funds .fb i{position:absolute;top:0;bottom:0}
+.etf-msg{padding:14px;color:var(--dim);font-family:var(--mono);font-size:12px}
 
-  footer { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--ink-3); font-size: 11px; }
-  footer .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: var(--ink-3); }
-  footer .dot.live { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
-  footer .dot.demo { background: var(--warn); }
-  .note { max-width: 90ch; }
+footer{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;color:var(--faint);font-size:11px}
+footer .status{font-family:var(--mono);padding:4px 9px;border-radius:20px;border:1px solid var(--line);color:var(--dim);display:inline-flex;align-items:center;gap:7px}
+footer .dot{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+footer .dot.live{background:var(--up)}
+footer .dot.demo{background:var(--nt)}
+footer #upd{font-family:var(--mono)}
+.note{max-width:90ch;line-height:1.55}
 
-  @media (max-width: 760px) {
-    .stage { height: 460px; }
-    .bar .legend { margin-left: 0; flex-wrap: wrap; gap: 4px 12px; }
-    .px b { font-size: 24px; }
-  }
+@media (max-width:980px){ .etf-grid{grid-template-columns:minmax(0,1fr)} .etf-charts{border-right:0;border-bottom:1px solid var(--line)} }
+@media (max-width:760px){
+  .stage{height:440px}
+  .bar .legend{margin-left:0;flex-wrap:wrap;gap:4px 12px}
+  .px b{font-size:24px}
+  main{padding:10px 12px 24px}
+}
 </style>
 
-<div class="wrap">
-  <header>
-    <div class="id">
-      <h1>BTC <em>Flow</em> Radar</h1>
-      <small id="instr">BTC perpetual</small>
-    </div>
-    <div class="px"><b id="price">—</b><span id="chg">—</span></div>
-    <div class="grow"></div>
-    <div class="ctl">
-      <label for="tf">Chart</label>
-      <div class="seg" id="tf">
-        <button data-v="5m">5M</button>
-        <button data-v="15m" class="on">15M</button>
-        <button data-v="1h">1H</button>
-        <button data-v="4h">4H</button>
-      </div>
-      <div class="seg" id="vp"><button data-v="vpvr" class="on" aria-pressed="true">VPVR</button></div>
-    </div>
-  </header>
+<div class="wash"></div>
+<div class="scanlines"></div>
 
+<header class="top">
+  <div class="mark">
+    <h1>Flow Radar</h1>
+    <span id="instr">BTC perpetual</span>
+  </div>
+  <div class="px"><b id="price">—</b><span id="chg">—</span></div>
+  <div class="ctl">
+    <div class="seg" id="tf" aria-label="Chart timeframe">
+      <button data-v="5m">5m</button>
+      <button data-v="15m" class="on">15m</button>
+      <button data-v="1h">1H</button>
+      <button data-v="4h">4H</button>
+    </div>
+    <div class="seg" id="vp"><button data-v="vpvr" class="on" aria-pressed="true">VPVR</button></div>
+  </div>
+</header>
+
+<main>
   <section class="readouts">
     <div class="ro"><div class="k">VPVR point of control</div><div class="v" id="r-poc">—</div><div class="s" id="r-poc-s">most traded price on screen</div></div>
     <div class="ro"><div class="k">Value area high</div><div class="v up" id="r-vah">—</div><div class="s" id="r-vah-s">top of the 70% volume zone</div></div>
-    <div class="ro"><div class="k">Value area low</div><div class="v down" id="r-val">—</div><div class="s" id="r-val-s">bottom of the 70% volume zone</div></div>
+    <div class="ro"><div class="k">Value area low</div><div class="v dn" id="r-val">—</div><div class="s" id="r-val-s">bottom of the 70% volume zone</div></div>
     <div class="ro"><div class="k">Open interest</div><div class="v" id="r-oi">—</div><div class="s" id="r-oi-s">—</div></div>
   </section>
 
-  <section class="frame">
+  <section class="card">
     <div class="bar">
-      <b id="ttl">Price · 15M</b>
+      <h2 id="ttl">Price · 15M</h2>
       <span class="ohlc" id="ohlc"></span>
       <span class="ohlc" id="vpinfo"></span>
       <span class="legend">
         <span><i class="sw" style="background:var(--vp-up)"></i>VPVR up vol</span>
         <span><i class="sw" style="background:var(--vp-down)"></i>VPVR down vol</span>
-        <span><i class="sw" style="background:var(--price)"></i>Price</span>
+        <span><i class="sw" style="background:var(--txt)"></i>Price</span>
       </span>
     </div>
     <div class="stage">
@@ -179,14 +157,14 @@
     </div>
   </section>
 
-  <section class="frame etf" id="etf">
+  <section class="card etf" id="etf">
     <div class="bar">
-      <b id="etf-ttl">ETF inflow/outflow</b>
+      <h2 id="etf-ttl">ETF inflow/outflow</h2>
       <div class="seg" id="etf-asset"><button data-v="btc" class="on" aria-pressed="true">BTC</button><button data-v="eth" aria-pressed="false">ETH</button><button data-v="sol" aria-pressed="false">SOL</button></div>
       <span class="ohlc" id="etf-asof">Loading…</span>
       <span class="legend">
-        <span><i class="sw" style="background:var(--cyan)"></i>Net inflow</span>
-        <span><i class="sw" style="background:var(--magenta)"></i>Net outflow</span>
+        <span><i class="sw" style="background:var(--up)"></i>Net inflow</span>
+        <span><i class="sw" style="background:var(--dn)"></i>Net outflow</span>
       </span>
     </div>
     <div class="readouts">
@@ -215,18 +193,18 @@
   </section>
 
   <footer>
-    <span><span class="dot" id="dot"></span><span id="src">Connecting…</span></span>
+    <span class="status"><span class="dot" id="dot"></span><span id="src">Connecting…</span></span>
     <span id="upd"></span>
     <span class="note">VPVR shows real traded volume for the candles on screen (blue = candles that closed up, yellow = closed down; brighter = 70% value area; red line = point of control). ETF numbers are reported daily net flows from SoSoValue.</span>
   </footer>
-</div>
+</main>
 
 <script>
 (() => {
   const LWC = window.LightweightCharts;
   const $ = (id) => document.getElementById(id);
 
-  const C = { cyan: '#19e6ff', magenta: '#ff3d8b', price: '#f4f8ff', vpUp: '47,134,255', vpDown: '245,184,46', ink2: '#8aa0c4', ink3: '#56698c', edge: '#1a2a44' };
+  const C = { cyan: '#35ffb0', magenta: '#ff4d6a', price: '#eef4f0', vpUp: '77,159,255', vpDown: '255,200,87', ink2: '#7c8f87', ink3: '#4a5852', edge: '#1b2320' };
 
   // ---- State -----------------------------------------------------------------
   let tf = '15m';
@@ -242,19 +220,19 @@
   // ---- Chart -----------------------------------------------------------------
   const chart = LWC.createChart($('chart'), {
     autoSize: true,
-    layout: { background: { type: 'solid', color: 'transparent' }, textColor: C.ink2, fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 11 },
-    grid: { vertLines: { color: 'rgba(44,74,120,.18)' }, horzLines: { color: 'rgba(44,74,120,.18)' } },
-    rightPriceScale: { borderColor: '#2c4a78', scaleMargins: { top: 0.06, bottom: 0.16 } },
-    timeScale: { borderColor: '#2c4a78', timeVisible: true, secondsVisible: false, rightOffset: 6 },
+    layout: { background: { type: 'solid', color: 'transparent' }, textColor: C.ink2, fontFamily: 'JetBrains Mono, SF Mono, Consolas, monospace', fontSize: 11 },
+    grid: { vertLines: { color: 'rgba(27,35,32,.9)' }, horzLines: { color: 'rgba(27,35,32,.9)' } },
+    rightPriceScale: { borderColor: '#1b2320', scaleMargins: { top: 0.06, bottom: 0.16 } },
+    timeScale: { borderColor: '#1b2320', timeVisible: true, secondsVisible: false, rightOffset: 6 },
     crosshair: {
       mode: LWC.CrosshairMode.Normal,
-      vertLine: { color: 'rgba(25,230,255,.45)', labelBackgroundColor: '#0e1526' },
-      horzLine: { color: 'rgba(25,230,255,.45)', labelBackgroundColor: '#0e1526' },
+      vertLine: { color: 'rgba(124,143,135,.55)', labelBackgroundColor: '#121a17' },
+      horzLine: { color: 'rgba(124,143,135,.55)', labelBackgroundColor: '#121a17' },
     },
     localization: { priceFormatter: fP },
   });
   const candle = chart.addCandlestickSeries({
-    upColor: 'rgba(25,230,255,.18)', downColor: C.magenta,
+    upColor: C.cyan, downColor: C.magenta,
     borderUpColor: C.cyan, borderDownColor: C.magenta, wickUpColor: C.cyan, wickDownColor: C.magenta,
     priceLineColor: C.price, priceLineStyle: LWC.LineStyle.Dashed,
   });
@@ -345,12 +323,12 @@
     const pocP = vp.lo + (vp.poc + 0.5) * vp.step, vaL = vp.lo + vp.vaLo * vp.step, vaH = vp.lo + (vp.vaHi + 1) * vp.step;
     const py = candle.priceToCoordinate(pocP);
     if (py != null) {
-      vctx.strokeStyle = 'rgba(255,90,90,.9)'; vctx.lineWidth = 1;
+      vctx.strokeStyle = 'rgba(255,77,106,.9)'; vctx.lineWidth = 1;
       vctx.beginPath(); vctx.moveTo(0, Math.round(py) + .5); vctx.lineTo(paneW, Math.round(py) + .5); vctx.stroke();
-      vctx.fillStyle = 'rgba(255,90,90,.95)'; vctx.font = '10px JetBrains Mono, ui-monospace, monospace'; vctx.textAlign = 'left';
+      vctx.fillStyle = 'rgba(255,77,106,.95)'; vctx.font = '10px JetBrains Mono, ui-monospace, monospace'; vctx.textAlign = 'left';
       vctx.textAlign = 'right'; vctx.fillText('POC ' + fP0(pocP), paneW - maxW - 14, Math.round(py) - 4);
     }
-    vctx.strokeStyle = 'rgba(244,248,255,.18)'; vctx.setLineDash([2, 4]);
+    vctx.strokeStyle = 'rgba(238,244,240,.18)'; vctx.setLineDash([2, 4]);
     for (const v of [vaL, vaH]) {
       const y = candle.priceToCoordinate(v); if (y == null) continue;
       vctx.beginPath(); vctx.moveTo(paneW - maxW - 10, Math.round(y) + .5); vctx.lineTo(paneW, Math.round(y) + .5); vctx.stroke();
@@ -374,7 +352,7 @@
     const d = bars.disp;
     if (!d.length) return;
     candle.setData(d);
-    vol.setData(d.map(b => ({ time: b.time, value: b.volume, color: b.close >= b.open ? 'rgba(25,230,255,.28)' : 'rgba(255,61,139,.28)' })));
+    vol.setData(d.map(b => ({ time: b.time, value: b.volume, color: b.close >= b.open ? 'rgba(53,255,176,.22)' : 'rgba(255,77,106,.22)' })));
     if (!fitted) {
       chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, d.length - 110), to: d.length + 6 });
       fitted = true;
@@ -589,17 +567,17 @@
   function makeETFCharts() {
     const base = {
       autoSize: true,
-      layout: { background: { type: 'solid', color: 'transparent' }, textColor: C.ink2, fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 11 },
-      grid: { vertLines: { visible: false }, horzLines: { color: 'rgba(44,74,120,.18)' } },
-      rightPriceScale: { borderColor: '#2c4a78' },
-      timeScale: { borderColor: '#2c4a78', rightOffset: 2 },
-      crosshair: { mode: LWC.CrosshairMode.Magnet, vertLine: { color: 'rgba(25,230,255,.45)', labelBackgroundColor: '#0e1526' }, horzLine: { color: 'rgba(25,230,255,.45)', labelBackgroundColor: '#0e1526' } },
+      layout: { background: { type: 'solid', color: 'transparent' }, textColor: C.ink2, fontFamily: 'JetBrains Mono, SF Mono, Consolas, monospace', fontSize: 11 },
+      grid: { vertLines: { visible: false }, horzLines: { color: 'rgba(27,35,32,.9)' } },
+      rightPriceScale: { borderColor: '#1b2320' },
+      timeScale: { borderColor: '#1b2320', rightOffset: 2 },
+      crosshair: { mode: LWC.CrosshairMode.Magnet, vertLine: { color: 'rgba(124,143,135,.55)', labelBackgroundColor: '#121a17' }, horzLine: { color: 'rgba(124,143,135,.55)', labelBackgroundColor: '#121a17' } },
       localization: { priceFormatter: (v) => fSigned(v) },
     };
     const daily = LWC.createChart($('etf-daily'), base);
     const bars = daily.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false, base: 0 });
     const cum = LWC.createChart($('etf-cum'), { ...base, localization: { priceFormatter: (v) => fUSD(v) } });
-    const line = cum.addAreaSeries({ lineColor: C.cyan, topColor: 'rgba(25,230,255,.25)', bottomColor: 'rgba(25,230,255,0)', lineWidth: 2, priceLineVisible: false });
+    const line = cum.addAreaSeries({ lineColor: C.cyan, topColor: 'rgba(53,255,176,.18)', bottomColor: 'rgba(53,255,176,0)', lineWidth: 2, priceLineVisible: false });
     let syncing = false;
     for (const [a, b] of [[daily, cum], [cum, daily]]) {
       a.timeScale().subscribeVisibleLogicalRangeChange((r) => { if (syncing || !r) return; syncing = true; b.timeScale().setVisibleLogicalRange(r); syncing = false; });
@@ -621,7 +599,7 @@
     }
     const h = e.history.filter(r => r.f != null);
     etfCharts.byDate = new Map(h.map(r => [r.d, r]));
-    etfCharts.bars.setData(h.map(r => ({ time: r.d, value: r.f, color: r.f >= 0 ? 'rgba(25,230,255,.85)' : 'rgba(255,61,139,.9)' })));
+    etfCharts.bars.setData(h.map(r => ({ time: r.d, value: r.f, color: r.f >= 0 ? 'rgba(53,255,176,.85)' : 'rgba(255,77,106,.9)' })));
     etfCharts.line.setData(h.filter(r => r.c != null).map(r => ({ time: r.d, value: r.c })));
     if (!etfCharts.fitted) { etfCharts.daily.timeScale().setVisibleLogicalRange({ from: Math.max(0, h.length - 90), to: h.length + 1 }); etfCharts.fitted = true; }
     etfLatest = h[h.length - 1];
