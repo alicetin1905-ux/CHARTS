@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
-<title>BTC Liquidation Radar</title>
+<title>BTC Flow Radar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
@@ -22,8 +22,8 @@
     --ink: #d8e6ff;
     --ink-2: #8aa0c4;
     --ink-3: #56698c;
-    --cyan: #19e6ff;     /* up candles, short liquidations (above price) */
-    --magenta: #ff3d8b;  /* down candles, long liquidations (below price) */
+    --cyan: #19e6ff;     /* up candles, inflows */
+    --magenta: #ff3d8b;  /* down candles, outflows */
     --price: #f4f8ff;    /* current price */
     --warn: #ffc24a;     /* demo / stale status */
     --vp-up: #2f86ff;    /* VPVR up volume */
@@ -68,7 +68,6 @@
   .seg button:hover { color: var(--ink); }
   .seg button:focus-visible { outline: 1px solid var(--cyan); outline-offset: -2px; }
   .seg button.on { color: var(--void); background: var(--cyan); box-shadow: 0 0 14px rgba(25,230,255,.5); }
-  .seg.lev button.on { background: var(--ink); box-shadow: none; }
   .ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .ctl label { color: var(--ink-3); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
 
@@ -95,7 +94,7 @@
   .bar .legend span { white-space: nowrap; }
   .sw { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; }
 
-  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 230px; height: 560px;
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr); height: 560px;
     background-image:
       linear-gradient(rgba(44,74,120,.12) 1px, transparent 1px),
       linear-gradient(90deg, rgba(44,74,120,.12) 1px, transparent 1px);
@@ -103,25 +102,6 @@
   }
   #chart { position: relative; min-width: 0; }
   .vpc { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 3; }
-  .liq { position: relative; border-left: 1px solid var(--edge-hot); overflow: hidden; cursor: crosshair; }
-  .liq canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .liq .hdr {
-    position: absolute; top: 4px; left: 8px; right: 8px; display: flex; justify-content: space-between;
-    font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); pointer-events: none; height: 18px; align-items: center;
-  }
-  .scan { position: absolute; left: 0; right: 0; height: 60px; top: -60px; pointer-events: none;
-    background: linear-gradient(180deg, transparent, rgba(25,230,255,.07), transparent);
-    animation: scan 6s linear infinite; }
-  @keyframes scan { to { top: 100%; } }
-  @media (prefers-reduced-motion: reduce) { .scan { display: none; } }
-
-  .tip {
-    position: absolute; pointer-events: none; z-index: 5; min-width: 190px;
-    background: rgba(5,7,13,.94); border: 1px solid var(--edge-hot); padding: 8px 10px; font-size: 11px;
-    box-shadow: 0 0 20px rgba(25,230,255,.12); font-variant-numeric: tabular-nums;
-  }
-  .tip .r { display: flex; justify-content: space-between; gap: 12px; }
-  .tip .h { color: var(--ink-3); letter-spacing: .1em; margin-bottom: 4px; }
 
   /* ---- ETF flows ---- */
   .etf .readouts { padding: 10px 12px 0; }
@@ -150,9 +130,8 @@
   .note { max-width: 90ch; }
 
   @media (max-width: 760px) {
-    .stage { grid-template-columns: minmax(0, 1fr) 110px; height: 460px; }
+    .stage { height: 460px; }
     .bar .legend { margin-left: 0; flex-wrap: wrap; gap: 4px 12px; }
-    #liq-max { display: none; }
     .px b { font-size: 24px; }
   }
 </style>
@@ -160,7 +139,7 @@
 <div class="wrap">
   <header>
     <div class="id">
-      <h1>BTC <em>Liquidation</em> Radar</h1>
+      <h1>BTC <em>Flow</em> Radar</h1>
       <small id="instr">BTC perpetual</small>
     </div>
     <div class="px"><b id="price">—</b><span id="chg">—</span></div>
@@ -174,23 +153,13 @@
         <button data-v="4h">4H</button>
       </div>
       <div class="seg" id="vp"><button data-v="vpvr" class="on" aria-pressed="true">VPVR</button></div>
-      <label for="lev">Leverage</label>
-      <div class="seg lev" id="lev">
-        <button data-v="10" class="on">10×</button>
-        <button data-v="25" class="on">25×</button>
-        <button data-v="50" class="on">50×</button>
-        <button data-v="100" class="on">100×</button>
-      </div>
     </div>
   </header>
 
   <section class="readouts">
-    <div class="ro"><div class="k">Longs at risk · −2%</div><div class="v down" id="r-long">—</div><div class="s" id="r-long-s">est. notional</div></div>
-    <div class="ro"><div class="k">Shorts at risk · +2%</div><div class="v up" id="r-short">—</div><div class="s" id="r-short-s">est. notional</div></div>
-    <div class="ro"><div class="k">Largest long cluster</div><div class="v" id="r-lc">—</div><div class="s" id="r-lc-s">—</div></div>
-    <div class="ro"><div class="k">Largest short cluster</div><div class="v" id="r-sc">—</div><div class="s" id="r-sc-s">—</div></div>
-    <div class="ro"><div class="k">Pressure ±2%</div><div class="v" id="r-bias">—</div>
-      <div class="meter"><i id="m-long" style="background:var(--magenta);width:50%"></i><i id="m-short" style="background:var(--cyan);width:50%"></i></div></div>
+    <div class="ro"><div class="k">VPVR point of control</div><div class="v" id="r-poc">—</div><div class="s" id="r-poc-s">most traded price on screen</div></div>
+    <div class="ro"><div class="k">Value area high</div><div class="v up" id="r-vah">—</div><div class="s" id="r-vah-s">top of the 70% volume zone</div></div>
+    <div class="ro"><div class="k">Value area low</div><div class="v down" id="r-val">—</div><div class="s" id="r-val-s">bottom of the 70% volume zone</div></div>
     <div class="ro"><div class="k">Open interest</div><div class="v" id="r-oi">—</div><div class="s" id="r-oi-s">—</div></div>
   </section>
 
@@ -200,8 +169,6 @@
       <span class="ohlc" id="ohlc"></span>
       <span class="ohlc" id="vpinfo"></span>
       <span class="legend">
-        <span><i class="sw" style="background:var(--magenta)"></i>Long liquidations</span>
-        <span><i class="sw" style="background:var(--cyan)"></i>Short liquidations</span>
         <span><i class="sw" style="background:var(--vp-up)"></i>VPVR up vol</span>
         <span><i class="sw" style="background:var(--vp-down)"></i>VPVR down vol</span>
         <span><i class="sw" style="background:var(--price)"></i>Price</span>
@@ -209,13 +176,7 @@
     </div>
     <div class="stage">
       <div id="chart"><canvas id="vpc" class="vpc"></canvas></div>
-      <div class="liq" id="liq">
-        <canvas id="liqc"></canvas>
-        <div class="scan"></div>
-        <div class="hdr"><span>Liq map</span><span id="liq-max"></span></div>
-      </div>
     </div>
-    <div class="tip" id="tip" hidden></div>
   </section>
 
   <section class="frame etf" id="etf">
@@ -256,7 +217,7 @@
   <footer>
     <span><span class="dot" id="dot"></span><span id="src">Connecting…</span></span>
     <span id="upd"></span>
-    <span class="note">VPVR shows real traded volume for the candles on screen (blue = candles that closed up, yellow = closed down; brighter = 70% value area; red line = point of control). Liquidation levels are an estimate, not exchange data: each 1H/4H bar's volume is treated as new positions at its average price, spread over 10/25/50/100× leverage (0.5% maintenance margin). Levels that price has already crossed are removed. The map shares the chart's price scale; drag the price axis to zoom both.</span>
+    <span class="note">VPVR shows real traded volume for the candles on screen (blue = candles that closed up, yellow = closed down; brighter = 70% value area; red line = point of control). ETF numbers are reported daily net flows from SoSoValue.</span>
   </footer>
 </div>
 
@@ -265,19 +226,12 @@
   const LWC = window.LightweightCharts;
   const $ = (id) => document.getElementById(id);
 
-  // ---- Model parameters ------------------------------------------------------
-  const LEVERAGE = [ { l: 10, w: 0.30 }, { l: 25, w: 0.30 }, { l: 50, w: 0.25 }, { l: 100, w: 0.15 } ];
-  const MMR = 0.005;          // maintenance margin rate
-  const NEW_SHARE = 0.10;     // share of traded notional assumed to open leveraged positions
   const C = { cyan: '#19e6ff', magenta: '#ff3d8b', price: '#f4f8ff', vpUp: '47,134,255', vpDown: '245,184,46', ink2: '#8aa0c4', ink3: '#56698c', edge: '#1a2a44' };
 
   // ---- State -----------------------------------------------------------------
   let tf = '15m';
-  const lev = new Set([10, 25, 50, 100]);
-  const bars = { disp: [], h1: [], h4: [] };
+  const bars = { disp: [], h1: [] };
   let ticker = null, mode = null, lastErr = null, updatedAt = null;
-  let buckets = new Map(), bucketSize = 100, levelsVersion = 0;
-  let hoverY = null;
 
   // ---- Formatting ------------------------------------------------------------
   const fP = (v) => v == null || !isFinite(v) ? '—' : v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -303,22 +257,11 @@
     upColor: 'rgba(25,230,255,.18)', downColor: C.magenta,
     borderUpColor: C.cyan, borderDownColor: C.magenta, wickUpColor: C.cyan, wickDownColor: C.magenta,
     priceLineColor: C.price, priceLineStyle: LWC.LineStyle.Dashed,
-    // Widen the auto-scaled range so the largest nearby clusters stay in view on both panes.
-    autoscaleInfoProvider: (orig) => {
-      const r = orig();
-      if (!r || !r.priceRange) return r;
-      let { minValue, maxValue } = r.priceRange;
-      for (const v of focusPrices) { minValue = Math.min(minValue, v); maxValue = Math.max(maxValue, v); }
-      return { ...r, priceRange: { minValue, maxValue } };
-    },
   });
-  let focusPrices = [];
   const vol = chart.addHistogramSeries({ priceScaleId: 'vol', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false });
   chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.86, bottom: 0 } });
-  let clusterLines = [];
 
   chart.subscribeCrosshairMove((p) => {
-    hoverY = p && p.point ? p.point.y : null;
     const d = p && p.seriesData ? p.seriesData.get(candle) : null;
     showOHLC(d);
   });
@@ -329,185 +272,10 @@
     $('ohlc').textContent = `O ${fP(d.open)}  H ${fP(d.high)}  L ${fP(d.low)}  C ${fP(d.close)}`;
   }
 
-  // ---- Liquidation model -----------------------------------------------------
-  function historyBars() {
-    // 4H bars cover older history, 1H bars the recent part.
-    const h1 = bars.h1, h4 = bars.h4;
-    if (!h1.length) return h4.slice();
-    const cut = h1[0].time;
-    return h4.filter(b => b.time + 14400 <= cut).concat(h1);
-  }
-
-  function niceStep(x) {
-    const m = Math.pow(10, Math.floor(Math.log10(x)));
-    const n = x / m;
-    return (n < 1.5 ? 1 : n < 3.5 ? 2.5 : n < 7.5 ? 5 : 10) * m;
-  }
-
-  function rebuildLevels() {
-    const hist = historyBars();
-    const last = currentPrice();
-    buckets = new Map();
-    if (!hist.length || !last) { levelsVersion++; return; }
-    bucketSize = niceStep(last * 0.0012);
-
-    // Lowest low / highest high after each bar, including the live chart bars.
-    const n = hist.length;
-    const sufLo = new Array(n + 1), sufHi = new Array(n + 1);
-    const recentLo = Math.min(last, ...bars.disp.slice(-3).map(b => b.low));
-    const recentHi = Math.max(last, ...bars.disp.slice(-3).map(b => b.high));
-    sufLo[n] = recentLo; sufHi[n] = recentHi;
-    for (let i = n - 1; i >= 0; i--) { sufLo[i] = Math.min(sufLo[i + 1], hist[i].low); sufHi[i] = Math.max(sufHi[i + 1], hist[i].high); }
-
-    const add = (price, usd, side) => {
-      const k = Math.floor(price / bucketSize);
-      let b = buckets.get(k);
-      if (!b) { b = { k, long: 0, short: 0, levs: {} }; buckets.set(k, b); }
-      b[side] += usd;
-    };
-
-    hist.forEach((b, i) => {
-      const tp = (b.high + b.low + b.close) / 3;
-      const notional = b.volume * tp * NEW_SHARE / 2; // per side
-      for (const { l, w } of LEVERAGE) {
-        if (!lev.has(l)) continue;
-        const longLiq = tp * (1 - 1 / l + MMR);
-        const shortLiq = tp * (1 + 1 / l - MMR);
-        if (longLiq < sufLo[i + 1]) add(longLiq, notional * w, 'long');
-        if (shortLiq > sufHi[i + 1]) add(shortLiq, notional * w, 'short');
-      }
-    });
-    levelsVersion++;
-    renderReadouts();
-    renderClusterLines();
-  }
-
   function currentPrice() {
     if (mode === 'mcp' && ticker && isFinite(+ticker.last)) return +ticker.last;
     const d = bars.disp[bars.disp.length - 1];
     return d ? d.close : null;
-  }
-
-  function sumWithin(side, pct) {
-    const p = currentPrice(); let s = 0;
-    for (const b of buckets.values()) {
-      const mid = (b.k + 0.5) * bucketSize;
-      if (side === 'long' && mid <= p && mid >= p * (1 - pct)) s += b.long;
-      if (side === 'short' && mid >= p && mid <= p * (1 + pct)) s += b.short;
-    }
-    return s;
-  }
-
-  function topClusters(side, count, pct = 0.06) {
-    const p = currentPrice();
-    return [...buckets.values()]
-      .filter(b => b[side] > 0 && Math.abs((b.k + 0.5) * bucketSize - p) / p <= pct)
-      .sort((a, b) => b[side] - a[side]).slice(0, count);
-  }
-
-  function renderReadouts() {
-    const p = currentPrice(); if (!p) return;
-    const L = sumWithin('long', 0.02), S = sumWithin('short', 0.02);
-    $('r-long').textContent = fUSD(L);
-    $('r-short').textContent = fUSD(S);
-    $('r-long-s').textContent = `${fP0(p * 0.98)} → ${fP0(p)}`;
-    $('r-short-s').textContent = `${fP0(p)} → ${fP0(p * 1.02)}`;
-    const lc = topClusters('long', 1)[0], sc = topClusters('short', 1)[0];
-    if (lc) { const m = (lc.k + 0.5) * bucketSize; $('r-lc').textContent = fP0(m); $('r-lc-s').textContent = `${fUSD(lc.long)} · ${fPct((m - p) / p * 100)}`; }
-    else { $('r-lc').textContent = '—'; $('r-lc-s').textContent = 'none within 6%'; }
-    if (sc) { const m = (sc.k + 0.5) * bucketSize; $('r-sc').textContent = fP0(m); $('r-sc-s').textContent = `${fUSD(sc.short)} · ${fPct((m - p) / p * 100)}`; }
-    else { $('r-sc').textContent = '—'; $('r-sc-s').textContent = 'none within 6%'; }
-    const tot = L + S, lp = tot ? L / tot * 100 : 50;
-    $('m-long').style.width = lp + '%'; $('m-short').style.width = (100 - lp) + '%';
-    const bias = $('r-bias');
-    if (!tot) { bias.textContent = '—'; bias.className = 'v'; }
-    else if (lp > 55) { bias.textContent = `Longs ${lp.toFixed(0)}%`; bias.className = 'v down'; }
-    else if (lp < 45) { bias.textContent = `Shorts ${(100 - lp).toFixed(0)}%`; bias.className = 'v up'; }
-    else { bias.textContent = 'Balanced'; bias.className = 'v'; }
-  }
-
-  function renderClusterLines() {
-    clusterLines.forEach(l => candle.removePriceLine(l)); clusterLines = [];
-    focusPrices = [];
-    for (const [side, color, tag] of [['long', C.magenta, 'L-LIQ'], ['short', C.cyan, 'S-LIQ']]) {
-      for (const b of topClusters(side, 2)) {
-        const mid = (b.k + 0.5) * bucketSize, p = currentPrice();
-        if (Math.abs(mid - p) / p <= 0.025) focusPrices.push(mid); // keep candles readable
-        clusterLines.push(candle.createPriceLine({
-          price: (b.k + 0.5) * bucketSize, color, lineWidth: 1, lineStyle: LWC.LineStyle.SparseDotted,
-          axisLabelVisible: true, title: `${tag} ${fUSD(b[side])}`,
-        }));
-      }
-    }
-  }
-
-  // ---- Liquidation map canvas (shares the candle series' price scale) -------
-  const liqEl = $('liq'), cv = $('liqc'), ctx = cv.getContext('2d');
-  let sig = '';
-
-  function drawLiq() {
-    const W = liqEl.clientWidth, H = liqEl.clientHeight, dpr = window.devicePixelRatio || 1;
-    const yA = candle.priceToCoordinate(50000), yB = candle.priceToCoordinate(100000);
-    const s = [W, H, dpr, yA, yB, levelsVersion, hoverY, bars.disp.length && bars.disp[bars.disp.length - 1].close].join('|');
-    if (s === sig) return;
-    sig = s;
-    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
-
-    // Plot height excludes the time axis under the chart pane.
-    const plotH = chart.timeScale().height ? H - chart.timeScale().height() : H;
-    const rows = [];
-    let maxV = 0;
-    for (const b of buckets.values()) {
-      const yTop = candle.priceToCoordinate((b.k + 1) * bucketSize), yBot = candle.priceToCoordinate(b.k * bucketSize);
-      if (yTop == null || yBot == null || yBot < 0 || yTop > plotH) continue;
-      rows.push({ b, y: yTop, h: Math.max(1, yBot - yTop - (yBot - yTop > 3 ? 1 : 0)) });
-      maxV = Math.max(maxV, b.long, b.short);
-    }
-    $('liq-max').textContent = maxV ? 'max ' + fUSD(maxV) : '';
-    const x0 = 6, span = W - x0 - 8;
-
-    // Faint ruler
-    ctx.strokeStyle = 'rgba(44,74,120,.35)'; ctx.lineWidth = 1;
-    for (const f of [0.25, 0.5, 0.75]) { ctx.beginPath(); ctx.moveTo(x0 + span * f + .5, 22); ctx.lineTo(x0 + span * f + .5, plotH); ctx.stroke(); }
-
-    ctx.save();
-    ctx.beginPath(); ctx.rect(0, 24, W, plotH - 24); ctx.clip();
-    for (const { b, y, h } of rows) {
-      for (const side of ['long', 'short']) {
-        const v = b[side]; if (!v) continue;
-        const t = v / maxV, w = Math.max(1, t * span);
-        const col = side === 'long' ? '255,61,139' : '25,230,255';
-        const g = ctx.createLinearGradient(x0, 0, x0 + w, 0);
-        g.addColorStop(0, `rgba(${col},${0.15 + 0.35 * t})`);
-        g.addColorStop(1, `rgba(${col},${0.45 + 0.55 * t})`);
-        ctx.fillStyle = g;
-        if (t > 0.6) { ctx.shadowColor = `rgba(${col},.9)`; ctx.shadowBlur = 10 * t; } else ctx.shadowBlur = 0;
-        ctx.fillRect(x0, y, w, h);
-      }
-    }
-    ctx.shadowBlur = 0;
-    ctx.restore();
-
-    // Current price marker, aligned with the chart's price line.
-    const p = currentPrice(), py = p ? candle.priceToCoordinate(p) : null;
-    if (py != null) {
-      ctx.strokeStyle = C.price; ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, Math.round(py) + .5); ctx.lineTo(W, Math.round(py) + .5); ctx.stroke(); ctx.setLineDash([]);
-    }
-    // Crosshair echo
-    if (hoverY != null && hoverY <= plotH) {
-      ctx.strokeStyle = 'rgba(25,230,255,.45)'; ctx.setLineDash([2, 3]);
-      ctx.beginPath(); ctx.moveTo(0, Math.round(hoverY) + .5); ctx.lineTo(W, Math.round(hoverY) + .5); ctx.stroke(); ctx.setLineDash([]);
-    }
-    // Scale labels
-    ctx.strokeStyle = '#2c4a78'; ctx.beginPath(); ctx.moveTo(0, plotH + .5); ctx.lineTo(W, plotH + .5); ctx.stroke();
-    ctx.fillStyle = C.ink3; ctx.font = '10px JetBrains Mono, ui-monospace, monospace';
-    if (maxV && W > 150) {
-      ctx.textAlign = 'right'; ctx.fillText(fUSD(maxV), x0 + span, plotH + 17);
-      ctx.textAlign = 'left'; ctx.fillText('$0', x0, plotH + 17);
-    }
   }
 
   // ---- VPVR: volume profile of the visible range, drawn inside the price pane --
@@ -589,41 +357,16 @@
     }
     vctx.setLineDash([]);
     $('vpinfo').textContent = `VPVR  POC ${fP0(pocP)}  VA ${fP0(vaL)}–${fP0(vaH)}`;
+    const p = currentPrice(), rel = (v) => p ? `${fPct((v - p) / p * 100)} from price` : '';
+    $('r-poc').textContent = fP0(pocP); $('r-poc-s').textContent = rel(pocP);
+    $('r-vah').textContent = fP0(vaH); $('r-vah-s').textContent = rel(vaH);
+    $('r-val').textContent = fP0(vaL); $('r-val-s').textContent = rel(vaL);
   }
 
   (function loop() {
-    try { drawLiq(); } catch (e) { /* keep looping */ }
     try { drawVP(); } catch (e) { /* keep looping */ }
     requestAnimationFrame(loop);
   })();
-
-  // Tooltip over the map
-  const tip = $('tip');
-  liqEl.addEventListener('mousemove', (e) => {
-    const r = liqEl.getBoundingClientRect(), y = e.clientY - r.top;
-    hoverY = y;
-    const price = candle.coordinateToPrice(y);
-    if (price == null) { tip.hidden = true; return; }
-    const k = Math.floor(price / bucketSize), b = buckets.get(k);
-    const lo = k * bucketSize, hi = lo + bucketSize, p = currentPrice();
-    tip.innerHTML = `<div class="h">${fP0(lo)} – ${fP0(hi)} · ${fPct(((lo + hi) / 2 - p) / p * 100)}</div>
-      <div class="r"><span class="down">Long liqs</span><span>${fUSD(b ? b.long : 0)}</span></div>
-      <div class="r"><span class="up">Short liqs</span><span>${fUSD(b ? b.short : 0)}</span></div>`;
-    tip.hidden = false;
-    const fr = liqEl.parentElement.parentElement.getBoundingClientRect();
-    const tw = tip.offsetWidth;
-    tip.style.left = Math.max(8, r.left - fr.left - tw - 8) + 'px';
-    tip.style.top = Math.max(40, e.clientY - fr.top - 20) + 'px';
-  });
-  liqEl.addEventListener('mouseleave', () => { tip.hidden = true; hoverY = null; });
-
-  // Scroll/drag on the map zooms the shared price scale feel: forward wheel to the chart.
-  liqEl.addEventListener('wheel', (e) => {
-    const ts = chart.timeScale(), r = ts.getVisibleLogicalRange(); if (!r) return;
-    e.preventDefault();
-    const f = e.deltaY > 0 ? 1.1 : 0.9, mid = r.to, len = (r.to - r.from) * f;
-    ts.setVisibleLogicalRange({ from: mid - len, to: mid });
-  }, { passive: false });
 
   // ---- Rendering -------------------------------------------------------------
   let fitted = false;
@@ -677,7 +420,6 @@
     bars[kind] = list;
     updatedAt = stamp || Date.now();
     if (kind === 'disp') renderChart();
-    rebuildLevels();
     renderHeader();
     setStatus();
   }
@@ -726,11 +468,10 @@
     mode = 'mcp';
     unwatch.push(watchCdc('disp', tf));
     unwatch.push(watchCdc('h1', '1h'));
-    unwatch.push(watchCdc('h4', '4h'));
     unwatch.push(mcp.watchTool(SERVER, 'get_ticker', { instrument_name: INSTR }, (ev) => {
       if (ev.type !== 'data') return;
       ticker = ev.result.payload;
-      rebuildLevels(); renderHeader();
+      renderHeader();
     }, { refetchInterval: 30000 }));
   }
 
@@ -769,9 +510,9 @@
   async function startFetch() {
     timers.forEach(clearInterval); timers = [];
     try {
-      const [d, h1, h4] = await Promise.all([fetchBars(tf, 300), fetchBars('1h', 300), fetchBars('4h', 300)]);
+      const [d, h1] = await Promise.all([fetchBars(tf, 300), fetchBars('1h', 300)]);
       mode = 'fetch'; lastErr = null; fitted = false;
-      bars.h1 = h1; bars.h4 = h4;
+      bars.h1 = h1;
       await fetchOI();
       onData('disp', d);
     } catch (e) {
@@ -788,7 +529,7 @@
       } catch (e) { lastErr = 'Exchange not answering. Showing the last prices received.'; setStatus(); }
     }, 5000));
     timers.push(setInterval(async () => {
-      try { bars.h1 = await fetchBars('1h', 300); bars.h4 = await fetchBars('4h', 300); await fetchOI(); rebuildLevels(); renderHeader(); } catch (e) { /* keep last */ }
+      try { bars.h1 = await fetchBars('1h', 300); await fetchOI(); renderHeader(); } catch (e) { /* keep last */ }
     }, 60000));
     return true;
   }
@@ -810,7 +551,7 @@
   function startDemo(reason) {
     mode = 'demo'; lastErr = reason || null; ticker = null; fitted = false;
     const step = { '5m': 300, '15m': 900, '1h': 3600, '4h': 14400 }[tf];
-    bars.h1 = synth(3600, 200, 65000, 7); bars.h4 = synth(14400, 200, bars.h1[0].open, 11);
+    bars.h1 = synth(3600, 200, 65000, 7);
     bars.disp = synth(step, 200, 65000, 3);
     onData('disp', bars.disp);
     $('src').textContent = (reason ? reason + ' ' : '') + 'Showing demo data, not real prices.';
@@ -989,15 +730,6 @@
     const b = e.target.closest('button'); if (!b) return;
     vpOn = !vpOn; b.classList.toggle('on', vpOn); b.setAttribute('aria-pressed', String(vpOn));
   });
-  $('lev').addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    const v = +b.dataset.v;
-    if (lev.has(v) && lev.size === 1) return; // keep at least one tier
-    lev.has(v) ? lev.delete(v) : lev.add(v);
-    b.classList.toggle('on', lev.has(v));
-    rebuildLevels();
-  });
-
   startETF();
   const cl = window.claude;
   if (cl && typeof cl.use === 'function') {
