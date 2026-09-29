@@ -220,7 +220,7 @@
 
   <section class="frame etf" id="etf">
     <div class="bar">
-      <b id="etf-ttl">Spot BTC ETF flows · US</b>
+      <b id="etf-ttl">ETF inflow/outflow</b>
       <div class="seg" id="etf-asset"><button data-v="btc" class="on" aria-pressed="true">BTC</button><button data-v="eth" aria-pressed="false">ETH</button><button data-v="sol" aria-pressed="false">SOL</button></div>
       <span class="ohlc" id="etf-asof">Loading…</span>
       <span class="legend">
@@ -938,7 +938,7 @@
   async function startETF() {
     const run = ++etfRun, asset = etfAsset;
     clearInterval(etfTimer); if (etfUnsub) { etfUnsub(); etfUnsub = null; }
-    $('etf-ttl').textContent = `Spot ${asset.toUpperCase()} ETF flows · US`;
+    $('etf-ttl').textContent = 'ETF inflow/outflow';
     if (etfCharts) etfCharts.fitted = false;
     if (etfDirect !== false) {
       try {

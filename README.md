@@ -29,7 +29,7 @@ The levels are estimates, not exchange data. Each 1H/4H candle's volume is treat
 that candle's average price, split across 10/25/50/100× leverage with 0.5% maintenance margin. Levels
 that price has already crossed are removed.
 
-### ETF flows panel
+### ETF inflow/outflow panel
 
 Under the chart, with a BTC / ETH / SOL switch: daily net flows for the US spot Bitcoin, Ether or Solana ETFs (all funds combined), cumulative net inflow,
 5- and 20-day totals, net assets, coins held, and a per-fund table (IBIT, FBTC, ... / ETHA, FETH, ... / BSOL, FSOL, ...). Data comes from
