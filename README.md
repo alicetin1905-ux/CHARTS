@@ -56,3 +56,42 @@ Squeeze variant (flip after the EMAs were on one line, 2.5 × ATR stop), 1×, af
 
 Run it: `python3 scripts/ribbon_backtest.py` (downloads candles into `data/`, ~10 minutes the first time).
 
+
+## Volume Anchor Level + Bias (`pine/unbiased_level.pine`)
+
+A TradingView Pine Script v6 indicator rebuilt from the public description of **Unbiased Level Pro** (askaitrade,
+invite-only and closed-source). It is not the original code, so its values can differ from the original's.
+
+- **Level:** a horizontal line at the highest-volume bar of the last N bars (default 20, range 2–100). Wick anchor = low of an up
+  bar / high of a down bar; body anchor = the bar's open.
+- **Bias:** over the same N bars, up bar + rising volume = 3 bull; up bar + falling volume = 1 bull + 2 bear; down bar + rising
+  volume = 3 bear; down bar + falling volume = 1 bear + 2 bull. Shown as bull % / bear %.
+- **Table:** bias for 1m, 5m, 15m, 1H, 4H and the chart timeframe (timeframes and periods can be changed). "Aligned ▲" =
+  bullish bias with price above that timeframe's level, "Aligned ▼" = bearish bias with price below it.
+- **Alerts:** 41 conditions (level crosses, new level, bias flips, 55/60/65/70% thresholds, per-timeframe and all-timeframe
+  alignment). Each fires once when its condition becomes true; create the alerts with "Once Per Bar Close".
+
+Install: TradingView → Pine Editor → paste the file → Add to chart. Needs a symbol with volume data. The other-timeframe
+values can change until their bars close.
+
+## Trend Signals + Overlays (`pine/trend_signals_overlays.pine`)
+
+A TradingView Pine Script v6 toolkit modelled on the public feature list of **LuxAlgo Signals & Overlays** (paid, closed-source).
+It is written from scratch with its own math, so its signals will not match LuxAlgo's.
+
+| Feature | How it is calculated here |
+|---|---|
+| Confirmation signals | Supertrend (ATR 10, factor = sensitivity / 4) flips. "+" = strong: the flip agrees with the Trend Tracer. Exits (blue/orange ×): RSI 14 leaving 70/30 in the trend's direction |
+| Contrarian signals | RSI (length = sensitivity) crossing back over 30 / under 70. "+" = it was below 20 / above 80 in the last 5 bars. One exit per signal |
+| Classifier 1–4 | ADX at the signal compared with the quartiles of the last 200 signals; each rating can be hidden |
+| Autopilot / optimal sensitivity | Best of sensitivity 10–20 by the flip strategy's return over the last 250 bars |
+| Smart Trail | Trailing stop on a modified true range (outsized bars and gaps capped), with a support (blue) / resistance (red) zone |
+| Reversal Zones | 2–3 × ATR 20 bands around EMA 20 of hlc3 |
+| Trend Tracer / Trend Catcher | Slow trailing stop on EMA(sensitivity) / Kaufman adaptive average (blue up, orange down) |
+| Neo Cloud | Midpoints of 2× and 4× sensitivity highs/lows; brighter the older the trend |
+| Candle coloring | Confirmation simple, confirmation gradient, contrarian gradient |
+| TP/SL | TP1–3 at 1–3 × distance × ATR 14 from the signal close, SL at 1 ×; re-anchors when price closes beyond TP3 |
+| Dashboard | Sensitivity, optimal sensitivity, trend, trend strength (2 × ADX), volatility (ATR 14 / ATR 100), squeeze (BB width rank), volume sentiment (−100…100) |
+
+Presets (Trend Trader, Scalper, Swing Trader) switch on the matching features. Signals appear when the bar closes. 20 alert
+conditions plus "Any alert() function call" for signals with their rating.

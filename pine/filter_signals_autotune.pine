@@ -1,0 +1,336 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Open toolkit modelled on the public feature list of ChartPrime's Market Oracle toolkits.
+// Written from scratch with its own math (documented below). It is not ChartPrime's code, and its signals will differ.
+//@version=6
+indicator("Filter Signals + Auto-Tune [open]", shorttitle = "FSA", overlay = true, max_labels_count = 500)
+
+// ───────── Inputs ─────────
+grpS = "Signals"
+sigMode = input.string("Trend + TP", "Signal mode", options = ["Trend + TP", "Reversal", "Trend + Reversal", "None"], group = grpS, tooltip = "Trend: Buy/Sell when price closes beyond the low-pass filter by the band.\nTP: take-profit x when a reversal forms against the open trend.\nReversal: tops and bottoms at the wave bands.")
+tuning  = input.int(20, "Tuning", minval = 4, maxval = 100, group = grpS, tooltip = "Length of the low-pass (SuperSmoother) filter. Signals are most frequent around 9–12; shorter or longer lengths give fewer. Ignored while auto-tune is on.")
+bandK   = input.float(1.0, "Band (× ATR 14)", minval = 0, step = 0.1, group = grpS, tooltip = "How far beyond the filter price must close to flip the trend. Lower = more signals and more whipsaw.")
+
+grpA = "Auto-tune"
+autoTune = input.bool(true, "Auto-tune", group = grpA, tooltip = "Backtests 10 tunings (6–64) on the last N bars and switches to the best one every N bars of chart time. A switch never creates a signal by itself: the trend changes only when the selected tuning flips. Past results do not predict future ones. Use 'Once per bar close' for alerts.")
+optFor   = input.string("PnL", "Optimize for", options = ["PnL", "Win rate"], group = grpA)
+optWin   = input.int(300, "Backtest window (bars)", minval = 50, maxval = 2000, group = grpA)
+reopt    = input.int(20, "Re-optimize every (bars)", minval = 1, maxval = 500, group = grpA)
+feePct   = input.float(0.075, "Fee per side (%)", minval = 0, step = 0.005, group = grpA)
+
+grpO = "Overlays"
+showFilter = input.bool(true,  "Filter line", group = grpO)
+showBand   = input.bool(true,  "Trend band", group = grpO, inline = "tb")
+bandLen    = input.int(30, "Length", minval = 2, group = grpO, inline = "tb")
+showWaves  = input.bool(false, "Wave bands", group = grpO, inline = "wb")
+waveLen    = input.int(50, "Length", minval = 5, group = grpO, inline = "wb")
+showRanges = input.bool(true,  "Signal ranges (VWAP ± σ from the last signal)", group = grpO)
+showPat    = input.bool(false, "Candle patterns (filtered)", group = grpO)
+candleIn   = input.string("Gradient", "Candle coloring", options = ["Gradient", "Classic", "Volume", "None"], group = grpO)
+consTh     = input.float(6.0, "Ranging when consolidation ≥", minval = 0, maxval = 10, step = 0.5, group = grpO)
+
+grpC = "Custom signal"
+showCustom = input.bool(false, "Show custom signals", group = grpC)
+trigIn = input.string("Trend signal", "Trigger", options = ["Trend signal", "Reversal signal", "Cross trend band", "Cross range mid"], group = grpC)
+f1In   = input.string("Not consolidating", "Filter 1", options = ["None", "Trend score agrees", "Not consolidating", "Volume spike", "Price vs trend band"], group = grpC)
+f2In   = input.string("None", "Filter 2", options = ["None", "Trend score agrees", "Not consolidating", "Volume spike", "Price vs trend band"], group = grpC)
+
+grpD = "Dashboard"
+dashIn     = input.bool(true, "Show dashboard", group = grpD)
+dashPosIn  = input.string("Top right", "Position", options = ["Top right", "Top left", "Bottom right", "Bottom left"], group = grpD)
+dashSizeIn = input.string("Small", "Size", options = ["Tiny", "Small", "Normal"], group = grpD)
+
+grpK = "Colors"
+bullCol = input.color(#00c3a0, "Bullish", group = grpK, inline = "k1")
+bearCol = input.color(#ff4d6d, "Bearish", group = grpK, inline = "k1")
+neutCol = input.color(#787b86, "Ranging", group = grpK, inline = "k1")
+tpCol   = input.color(#ffb300, "Take profit", group = grpK, inline = "k2")
+custCol = input.color(#29b6f6, "Custom", group = grpK, inline = "k2")
+
+atr14 = ta.atr(14)
+rsi14 = ta.rsi(close, 14)
+
+// ───────── Helpers ─────────
+// Ehlers 2-pole SuperSmoother: a low-pass filter with little lag for its smoothness.
+f_ss(float src, int len) =>
+    float a1 = math.exp(-1.414 * math.pi / len)
+    float c2 = 2 * a1 * math.cos(1.414 * math.pi / len)
+    float c3 = -a1 * a1
+    float c1 = 1 - c2 - c3
+    float f = 0.0
+    f := bar_index < 3 ? src : c1 * (src + src[1]) / 2 + c2 * f[1] + c3 * f[2]
+    f
+
+// One tuning: trend direction from the filter, plus its backtest over the last `optWin` bars
+// (log return of always-in long/short, fees on every flip, and the win rate of trades closed in the window).
+f_eval(int p) =>
+    float base = f_ss(close, p)
+    var int dir = 0
+    int prev = dir
+    if close > base + bandK * atr14
+        dir := 1
+    else if close < base - bandK * atr14
+        dir := -1
+    bool flip = dir != prev
+    float fee = feePct / 100
+    var float cum = 0.0
+    cum += prev * nz(math.log(close / close[1])) - (flip ? (prev != 0 ? 2 * fee : fee) : 0)
+    float pnl = cum - nz(cum[optWin])
+    var array<float> res = array.new<float>()
+    var array<int>   closedAt = array.new<int>()
+    var float entry = na
+    if flip
+        if prev != 0 and not na(entry)
+            res.push(prev * (close / entry - 1) - 2 * fee)
+            closedAt.push(bar_index)
+        entry := close
+    while closedAt.size() > 0 and closedAt.get(0) <= bar_index - optWin
+        closedAt.shift()
+        res.shift()
+    int wins = 0
+    for x in res
+        wins += x > 0 ? 1 : 0
+    float wr = (wins + 1.0) / (res.size() + 2.0)  // shrunk toward 50% when there are few trades
+    [dir, base, pnl, wr]
+
+// ───────── Trend signals and auto-tune ─────────
+[d0, b0, p0, w0] = f_eval(6)
+[d1, b1, p1, w1] = f_eval(9)
+[d2, b2, p2, w2] = f_eval(12)
+[d3, b3, p3, w3] = f_eval(16)
+[d4, b4, p4, w4] = f_eval(20)
+[d5, b5, p5, w5] = f_eval(25)
+[d6, b6, p6, w6] = f_eval(32)
+[d7, b7, p7, w7] = f_eval(40)
+[d8, b8, p8, w8] = f_eval(50)
+[d9, b9, p9, w9] = f_eval(64)
+[dU, bU, pU, wU] = f_eval(tuning)
+
+cands  = array.from(6, 9, 12, 16, 20, 25, 32, 40, 50, 64)
+dirs   = array.from(d0, d1, d2, d3, d4, d5, d6, d7, d8, d9)
+bases  = array.from(b0, b1, b2, b3, b4, b5, b6, b7, b8, b9)
+pnls   = array.from(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9)
+wrs    = array.from(w0, w1, w2, w3, w4, w5, w6, w7, w8, w9)
+scores = optFor == "PnL" ? pnls : wrs
+
+// Best tuning; ties (within rounding noise) go to the shorter one
+float bestScore = scores.max()
+int bestIdx = 0
+for i = 0 to 9
+    if scores.get(i) >= bestScore - 1e-9
+        bestIdx := i
+        break
+// Re-optimize on a schedule tied to chart time, so the choice does not depend on how many bars are loaded
+var int sel = 4
+int reoptBlk = math.floor(time / (timeframe.in_seconds() * 1000.0 * reopt))
+if bar_index >= optWin and reoptBlk != nz(reoptBlk[1], reoptBlk)
+    sel := bestIdx
+
+// The trend changes only when the selected tuning itself flips; switching tunings alone never prints a signal
+dirsPrev = array.from(d0[1], d1[1], d2[1], d3[1], d4[1], d5[1], d6[1], d7[1], d8[1], d9[1])
+int selDir  = autoTune ? dirs.get(sel) : dU
+int selPrev = autoTune ? nz(dirsPrev.get(sel)) : nz(dU[1])
+var int activeDir = 0
+if activeDir == 0 or selDir != selPrev
+    activeDir := selDir
+activeBase  = autoTune ? bases.get(sel) : bU
+activeLen   = autoTune ? cands.get(sel) : tuning
+activeScore = autoTune ? scores.get(sel) : optFor == "PnL" ? pU : wU
+
+trendBull = activeDir == 1 and activeDir[1] != 1
+trendBear = activeDir == -1 and activeDir[1] != -1
+
+// Walk-forward result of following the signals themselves (not the in-sample best tuning)
+var float cumLive = 0.0
+int prevLive = nz(activeDir[1])
+cumLive += prevLive * nz(math.log(close / close[1])) - (activeDir != prevLive ? (prevLive != 0 ? 2 : 1) * feePct / 100 : 0)
+float livePnl = cumLive - nz(cumLive[optWin])
+
+// ───────── Reversals (wave bands) ─────────
+// Bands at 2 and 3 mean absolute deviations around a slow filter. A bottom: price reached the outer band in the
+// last 3 bars and closes back above the inner one. "+" when RSI 14 was below 25 (above 75 for tops).
+wMid  = f_ss(close, waveLen)
+wDev  = ta.rma(math.abs(close - wMid), waveLen)
+wUpIn = wMid + 2 * wDev
+wUpOut = wMid + 3 * wDev
+wLoIn = wMid - 2 * wDev
+wLoOut = wMid - 3 * wDev
+xUpLoIn = ta.crossover(close, wLoIn)    // ta.* calls stay outside `and` (v6 evaluates it lazily)
+xDnUpIn = ta.crossunder(close, wUpIn)
+revBottom = ta.lowest(low, 3) <= wLoOut and xUpLoIn
+revTop    = ta.highest(high, 3) >= wUpOut and xDnUpIn
+rsiLo3 = ta.lowest(rsi14, 3)
+rsiHi3 = ta.highest(rsi14, 3)
+tpLong  = activeDir == 1 and revTop
+tpShort = activeDir == -1 and revBottom
+
+// ───────── Trend band and scores ─────────
+band  = ta.alma(hlc3, bandLen, 0.85, 6)
+slope = band - band[1]
+
+lo50 = ta.lowest(low, 50)
+hi50 = ta.highest(high, 50)
+rangePos   = (close - lo50) / math.max(hi50 - lo50, syminfo.mintick)
+trendScore = 10 * (0.35 * rangePos + 0.35 * nz(rsi14, 50) / 100 + 0.3 * (activeDir + 1) / 2.0)
+
+er = nz(math.abs(close - close[20]) / math.sum(math.abs(close - close[1]), 20))
+[bbMid, bbUp, bbLo] = ta.bb(close, 20, 2.0)
+bbwRank   = nz(ta.percentrank((bbUp - bbLo) / bbMid, 100), 50)
+consScore = 10 * (0.5 * (1 - er) + 0.5 * (1 - bbwRank / 100))
+ranging   = consScore >= consTh
+
+volAvg   = ta.sma(volume, 20)
+volRatio = volume / volAvg
+volSpike = volRatio > 1.5
+
+// ───────── Signal ranges: VWAP ± σ anchored at the last trend signal ─────────
+float vol = na(volume) or volume <= 0 ? 1.0 : volume
+var float sPV  = 0.0
+var float sV   = 0.0
+var float sP2V = 0.0
+var bool anchored = false
+bool reset = trendBull or trendBear
+if reset
+    anchored := true
+    sPV  := hlc3 * vol
+    sV   := vol
+    sP2V := hlc3 * hlc3 * vol
+else
+    sPV  += hlc3 * vol
+    sV   += vol
+    sP2V += hlc3 * hlc3 * vol
+aVwap = sV > 0 ? sPV / sV : na
+aSd   = math.sqrt(math.max(0, sP2V / sV - aVwap * aVwap))
+
+// ───────── Custom signal ─────────
+xUpBand = ta.crossover(close, band)
+xDnBand = ta.crossunder(close, band)
+xUpVwap = ta.crossover(close, aVwap) and not reset   // ignore the jump when the anchor resets
+xDnVwap = ta.crossunder(close, aVwap) and not reset
+
+f_filter(string f, bool bull) =>
+    switch f
+        "Trend score agrees"  => bull ? trendScore > 6 : trendScore < 4
+        "Not consolidating"   => not ranging
+        "Volume spike"        => na(volRatio) or volSpike   // no volume data: do not block
+        "Price vs trend band" => bull ? close > band : close < band
+        => true
+
+trigBull = switch trigIn
+    "Trend signal"     => trendBull
+    "Reversal signal"  => revBottom
+    "Cross trend band" => xUpBand
+    => xUpVwap
+trigBear = switch trigIn
+    "Trend signal"     => trendBear
+    "Reversal signal"  => revTop
+    "Cross trend band" => xDnBand
+    => xDnVwap
+customBull = trigBull and f_filter(f1In, true) and f_filter(f2In, true)
+customBear = trigBear and f_filter(f1In, false) and f_filter(f2In, false)
+
+// ───────── Candle patterns (only with the trend or at a wave band) ─────────
+body  = math.abs(close - open)
+rng   = high - low
+bullEng = close > open and close[1] < open[1] and close >= open[1] and open <= close[1] and body > body[1]
+bearEng = close < open and close[1] > open[1] and close <= open[1] and open >= close[1] and body > body[1]
+hammer  = rng > 0 and math.min(open, close) - low >= 0.6 * rng and body <= 0.35 * rng
+star    = rng > 0 and high - math.max(open, close) >= 0.6 * rng and body <= 0.35 * rng
+bullOk  = activeDir == 1 or low <= wLoIn
+bearOk  = activeDir == -1 or high >= wUpIn
+
+// ───────── Drawing ─────────
+conf     = barstate.isconfirmed
+showTrd  = sigMode == "Trend + TP" or sigMode == "Trend + Reversal"
+showRev  = sigMode == "Reversal" or sigMode == "Trend + Reversal"
+showTP   = sigMode == "Trend + TP"
+
+plotshape(showTrd and trendBull and conf, "Buy",  shape.labelup,   location.belowbar, bullCol, text = "Buy",  textcolor = color.white, size = size.small)
+plotshape(showTrd and trendBear and conf, "Sell", shape.labeldown, location.abovebar, bearCol, text = "Sell", textcolor = color.white, size = size.small)
+plotshape(showRev and revBottom and rsiLo3 >= 25 and conf, "Bottom",  shape.triangleup,   location.belowbar, bullCol, text = "R",  size = size.tiny)
+plotshape(showRev and revBottom and rsiLo3 < 25 and conf,  "Bottom+", shape.triangleup,   location.belowbar, bullCol, text = "R+", size = size.tiny)
+plotshape(showRev and revTop and rsiHi3 <= 75 and conf,    "Top",     shape.triangledown, location.abovebar, bearCol, text = "R",  size = size.tiny)
+plotshape(showRev and revTop and rsiHi3 > 75 and conf,     "Top+",    shape.triangledown, location.abovebar, bearCol, text = "R+", size = size.tiny)
+plotshape(showTP and tpLong and conf,  "Take profit (long)",  shape.xcross, location.abovebar, tpCol, size = size.tiny)
+plotshape(showTP and tpShort and conf, "Take profit (short)", shape.xcross, location.belowbar, tpCol, size = size.tiny)
+plotshape(showCustom and customBull and conf, "Custom buy",  shape.circle, location.belowbar, custCol, size = size.tiny)
+plotshape(showCustom and customBear and conf, "Custom sell", shape.circle, location.abovebar, custCol, size = size.tiny)
+plotshape(showPat and bullEng and bullOk and conf, "Bullish engulfing", shape.diamond, location.belowbar, color.new(bullCol, 30), text = "E", size = size.tiny)
+plotshape(showPat and bearEng and bearOk and conf, "Bearish engulfing", shape.diamond, location.abovebar, color.new(bearCol, 30), text = "E", size = size.tiny)
+plotshape(showPat and hammer and bullOk and conf,  "Hammer",        shape.diamond, location.belowbar, color.new(bullCol, 30), text = "H", size = size.tiny)
+plotshape(showPat and star and bearOk and conf,    "Shooting star", shape.diamond, location.abovebar, color.new(bearCol, 30), text = "S", size = size.tiny)
+
+plot(showFilter ? activeBase : na, "Filter", activeDir == 1 ? bullCol : activeDir == -1 ? bearCol : neutCol, 2)
+plot(showBand ? band : na, "Trend band", ranging ? neutCol : slope > 0 ? bullCol : bearCol, 4)
+
+pWui = plot(showWaves ? wUpIn  : na, "Upper wave (inner)", color.new(bearCol, 70))
+pWuo = plot(showWaves ? wUpOut : na, "Upper wave (outer)", color.new(bearCol, 70))
+pWli = plot(showWaves ? wLoIn  : na, "Lower wave (inner)", color.new(bullCol, 70))
+pWlo = plot(showWaves ? wLoOut : na, "Lower wave (outer)", color.new(bullCol, 70))
+fill(pWui, pWuo, color.new(bearCol, 88), "Upper wave fill")
+fill(pWli, pWlo, color.new(bullCol, 88), "Lower wave fill")
+
+rOk = showRanges and anchored and not reset
+plot(rOk ? aVwap : na,           "Range mid", color.new(color.silver, 30), 1, plot.style_linebr)
+plot(rOk ? aVwap + aSd : na,     "Range +1σ", color.new(bullCol, 50), 1, plot.style_linebr)
+plot(rOk ? aVwap + 2 * aSd : na, "Range +2σ", color.new(bullCol, 20), 1, plot.style_linebr)
+plot(rOk ? aVwap - aSd : na,     "Range -1σ", color.new(bearCol, 50), 1, plot.style_linebr)
+plot(rOk ? aVwap - 2 * aSd : na, "Range -2σ", color.new(bearCol, 20), 1, plot.style_linebr)
+
+plot(trendScore, "Trend score",         display = display.data_window)
+plot(consScore,  "Consolidation score", display = display.data_window)
+plot(activeLen,  "Active tuning",       display = display.data_window)
+
+classic  = activeDir == 1 ? bullCol : activeDir == -1 ? bearCol : neutCol
+gradient = trendScore >= 5 ? color.from_gradient(trendScore, 5, 10, neutCol, bullCol) : color.from_gradient(trendScore, 0, 5, bearCol, neutCol)
+volCol   = na(volRatio) ? classic : color.new(classic, volRatio >= 2 ? 0 : volRatio >= 1 ? 40 : 75)
+candleCol = switch candleIn
+    "Gradient" => gradient
+    "Classic"  => classic
+    "Volume"   => volCol
+    => color(na)
+barcolor(candleCol)
+
+// ───────── Dashboard ─────────
+dashPos = switch dashPosIn
+    "Top left"     => position.top_left
+    "Bottom right" => position.bottom_right
+    "Bottom left"  => position.bottom_left
+    => position.top_right
+dSize = switch dashSizeIn
+    "Tiny"   => size.tiny
+    "Normal" => size.normal
+    => size.small
+
+var table dash = table.new(dashPos, 2, 7, bgcolor = color.new(color.black, 80), border_color = color.new(color.gray, 70), border_width = 1)
+
+f_cell(int r, string k, string v, color vc) =>
+    table.cell(dash, 0, r, k, text_color = color.silver, text_size = dSize, text_halign = text.align_left)
+    table.cell(dash, 1, r, v, text_color = vc, text_size = dSize, text_halign = text.align_right)
+
+if dashIn and barstate.islast
+    string bias = ranging ? "Ranging" : trendScore >= 6 ? "Bullish" : trendScore <= 4 ? "Bearish" : "Neutral"
+    color biasCol = bias == "Bullish" ? bullCol : bias == "Bearish" ? bearCol : neutCol
+    string scoreTxt = optFor == "PnL" ? str.tostring((math.exp(activeScore) - 1) * 100, "#.#") + "%" : str.tostring(activeScore * 100, "#") + "%"
+    f_cell(0, "Tuning", str.tostring(activeLen) + (autoTune ? " (auto)" : ""), color.white)
+    f_cell(1, "Best tuning (" + optFor + ")", bar_index >= optWin ? str.tostring(cands.get(bestIdx)) : "n/a", color.white)
+    f_cell(2, "Selected tuning in-sample" + (optFor == "Win rate" ? " (smoothed WR)" : ""), scoreTxt, color.white)
+    f_cell(6, "Signals, last " + str.tostring(optWin) + " bars", str.tostring((math.exp(livePnl) - 1) * 100, "#.#") + "%", livePnl >= 0 ? bullCol : bearCol)
+    f_cell(3, "Trend score", str.tostring(trendScore, "#.0") + " / 10", trendScore >= 6 ? bullCol : trendScore <= 4 ? bearCol : neutCol)
+    f_cell(4, "Consolidation", str.tostring(consScore, "#.0") + " / 10", ranging ? tpCol : color.white)
+    f_cell(5, "Bias", bias, biasCol)
+
+// ───────── Alerts ─────────
+if conf and showTrd and (trendBull or trendBear)
+    alert(syminfo.ticker + " " + timeframe.period + ": " + (trendBull ? "Buy" : "Sell") + " at " + str.tostring(close, format.mintick) + " (tuning " + str.tostring(activeLen) + ")", alert.freq_once_per_bar_close)
+
+alertcondition(trendBull,  "Buy",                "{{ticker}} {{interval}}: Buy")
+alertcondition(trendBear,  "Sell",               "{{ticker}} {{interval}}: Sell")
+alertcondition(revBottom,  "Reversal bottom",    "{{ticker}} {{interval}}: reversal bottom")
+alertcondition(revTop,     "Reversal top",       "{{ticker}} {{interval}}: reversal top")
+alertcondition(tpLong,     "Take profit (long)", "{{ticker}} {{interval}}: take profit on longs")
+alertcondition(tpShort,    "Take profit (short)", "{{ticker}} {{interval}}: take profit on shorts")
+alertcondition(customBull, "Custom buy",         "{{ticker}} {{interval}}: custom buy")
+alertcondition(customBear, "Custom sell",        "{{ticker}} {{interval}}: custom sell")
+alertcondition(ranging and not ranging[1], "Market starts ranging", "{{ticker}} {{interval}}: consolidation score above threshold")
+alertcondition(not ranging and ranging[1], "Market starts trending", "{{ticker}} {{interval}}: consolidation score below threshold")
+alertcondition(autoTune and sel != sel[1], "Auto-tune changed", "{{ticker}} {{interval}}: auto-tune switched tuning")

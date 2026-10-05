@@ -1,0 +1,208 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Open rebuild of the idea behind "Unbiased Level Pro" (askaitrade), written from its public description.
+// It is not the original (closed-source) code, so values can differ from it.
+//@version=6
+indicator("Volume Anchor Level + Bias", shorttitle = "VA Level", overlay = true, max_lines_count = 10)
+
+// ───────── Inputs ─────────
+grpLvl = "Level"
+len      = input.int(20, "Lookback (bars)", minval = 2, maxval = 100, group = grpLvl, tooltip = "The level sits on the highest-volume bar of the last N bars. The bias uses the same N bars.")
+anchorIn = input.string("Wick", "Anchor", options = ["Wick", "Body"], group = grpLvl, tooltip = "Wick: low of an up bar, high of a down bar.\nBody: the open (body bottom of an up bar, body top of a down bar).")
+
+grpLine = "Line"
+showLine  = input.bool(true, "Show level line", group = grpLine)
+showHist  = input.bool(false, "Show level history (step line)", group = grpLine)
+lineCol   = input.color(color.new(color.orange, 0), "Color", group = grpLine)
+lineWidth = input.int(2, "Width", minval = 1, maxval = 5, group = grpLine)
+styleIn   = input.string("Solid", "Style", options = ["Solid", "Dashed", "Dotted"], group = grpLine)
+extendIn  = input.string("Right", "Extend", options = ["None", "Right", "Both"], group = grpLine)
+
+grpTbl = "Bias table"
+showTbl = input.bool(true, "Show table", group = grpTbl)
+tblPosIn = input.string("Top right", "Position", options = ["Top right", "Top left", "Bottom right", "Bottom left"], group = grpTbl)
+bullCol = input.color(color.new(#26a69a, 0), "Bullish", group = grpTbl, inline = "c")
+bearCol = input.color(color.new(#ef5350, 0), "Bearish", group = grpTbl, inline = "c")
+neutCol = input.color(color.new(color.gray, 0), "Neutral", group = grpTbl, inline = "c")
+
+grpTf = "Timeframes (period 0 = use Lookback)"
+tf1 = input.timeframe("1",   "TF 1", group = grpTf, inline = "1")
+p1  = input.int(0, "Period", minval = 0, maxval = 100, group = grpTf, inline = "1")
+tf2 = input.timeframe("5",   "TF 2", group = grpTf, inline = "2")
+p2  = input.int(0, "Period", minval = 0, maxval = 100, group = grpTf, inline = "2")
+tf3 = input.timeframe("15",  "TF 3", group = grpTf, inline = "3")
+p3  = input.int(0, "Period", minval = 0, maxval = 100, group = grpTf, inline = "3")
+tf4 = input.timeframe("60",  "TF 4", group = grpTf, inline = "4")
+p4  = input.int(0, "Period", minval = 0, maxval = 100, group = grpTf, inline = "4")
+tf5 = input.timeframe("240", "TF 5", group = grpTf, inline = "5")
+p5  = input.int(0, "Period", minval = 0, maxval = 100, group = grpTf, inline = "5")
+
+useBody = anchorIn == "Body"
+len1 = p1 > 0 ? math.max(p1, 2) : len
+len2 = p2 > 0 ? math.max(p2, 2) : len
+len3 = p3 > 0 ? math.max(p3, 2) : len
+len4 = p4 > 0 ? math.max(p4, 2) : len
+len5 = p5 > 0 ? math.max(p5, 2) : len
+
+// ───────── Core ─────────
+// Level: price of the highest-volume bar in the last `n` bars. Returns [level, bars back to that bar].
+f_level(int n, bool body) =>
+    int off = nz(-ta.highestbars(volume, n))
+    bool up = close[off] >= open[off]
+    float lvl = body ? open[off] : (up ? low[off] : high[off])
+    [lvl, off]
+
+// Bias: % of bull points over the last `n` bars.
+// Up bar + rising volume = 3 bull. Up bar + falling volume = 1 bull, 2 bear.
+// Down bar + rising volume = 3 bear. Down bar + falling volume = 1 bear, 2 bull. Doji = 0.
+f_bias(int n) =>
+    bool volUp = volume > volume[1]
+    float bullPts = close > open ? (volUp ? 3 : 1) : close < open ? (volUp ? 0 : 2) : 0
+    float bearPts = close > open ? (volUp ? 0 : 2) : close < open ? (volUp ? 3 : 1) : 0
+    float b = math.sum(bullPts, n)
+    float s = math.sum(bearPts, n)
+    b + s > 0 ? 100 * b / (b + s) : 50.0
+
+f_calc(int n, bool body) =>
+    [lvl, off] = f_level(n, body)
+    [f_bias(n), lvl, close]
+
+// 1 = bullish bias and price above the level, -1 = bearish bias and price below, 0 = mixed.
+f_state(float bull, float lvl, float c) =>
+    bull > 50 and c > lvl ? 1 : bull < 50 and c < lvl ? -1 : 0
+
+f_edge(bool cond) =>
+    cond and not cond[1]
+
+f_tfLabel(string tf) =>
+    int s = timeframe.in_seconds(tf)
+    s < 3600 ? str.tostring(math.round(s / 60)) + "m" : s < 86400 ? str.tostring(math.round(s / 3600)) + "H" : str.tostring(math.round(s / 86400)) + "D"
+
+// Chart timeframe
+[level, lvlOff] = f_level(len, useBody)
+bullPct = f_bias(len)
+bearPct = 100 - bullPct
+state   = f_state(bullPct, level, close)
+
+// Other timeframes
+[bull1, lvl1, c1] = request.security(syminfo.tickerid, tf1, f_calc(len1, useBody))
+[bull2, lvl2, c2] = request.security(syminfo.tickerid, tf2, f_calc(len2, useBody))
+[bull3, lvl3, c3] = request.security(syminfo.tickerid, tf3, f_calc(len3, useBody))
+[bull4, lvl4, c4] = request.security(syminfo.tickerid, tf4, f_calc(len4, useBody))
+[bull5, lvl5, c5] = request.security(syminfo.tickerid, tf5, f_calc(len5, useBody))
+s1 = f_state(bull1, lvl1, c1)
+s2 = f_state(bull2, lvl2, c2)
+s3 = f_state(bull3, lvl3, c3)
+s4 = f_state(bull4, lvl4, c4)
+s5 = f_state(bull5, lvl5, c5)
+
+// ───────── Drawing ─────────
+lStyle = switch styleIn
+    "Dashed" => line.style_dashed
+    "Dotted" => line.style_dotted
+    => line.style_solid
+lExt = switch extendIn
+    "None" => extend.none
+    "Both" => extend.both
+    => extend.right
+
+var line lvlLine = na
+if barstate.islast
+    if showLine
+        int x1 = bar_index - lvlOff
+        if na(lvlLine)
+            lvlLine := line.new(x1, level, bar_index, level, xloc.bar_index, lExt, lineCol, lStyle, lineWidth)
+        else
+            line.set_xy1(lvlLine, x1, level)
+            line.set_xy2(lvlLine, bar_index, level)
+    else if not na(lvlLine)
+        line.delete(lvlLine)
+        lvlLine := na
+
+plot(level,   "Level (data)", display = display.data_window)  // plot_0, used in the "New level" alert
+plot(showHist ? level : na, "Level", lineCol, 1, plot.style_stepline)
+plot(bullPct, "Bull %",       display = display.data_window)
+plot(bearPct, "Bear %",       display = display.data_window)
+
+// ───────── Table ─────────
+tblPos = switch tblPosIn
+    "Top left"     => position.top_left
+    "Bottom right" => position.bottom_right
+    "Bottom left"  => position.bottom_left
+    => position.top_right
+
+var table tbl = table.new(tblPos, 5, 7, bgcolor = color.new(color.black, 80), border_color = color.new(color.gray, 70), border_width = 1)
+
+f_row(int r, string name, float bull, int st) =>
+    color dotCol = na(bull) ? neutCol : bull > 50 ? bullCol : bull < 50 ? bearCol : neutCol
+    string stTxt = st == 1 ? "Aligned ▲" : st == -1 ? "Aligned ▼" : "Mixed"
+    color stCol = st == 1 ? bullCol : st == -1 ? bearCol : neutCol
+    table.cell(tbl, 0, r, name, text_color = color.white, text_size = size.small)
+    table.cell(tbl, 1, r, na(bull) ? "–" : str.tostring(bull, "#") + "%", text_color = bullCol, text_size = size.small)
+    table.cell(tbl, 2, r, na(bull) ? "–" : str.tostring(100 - bull, "#") + "%", text_color = bearCol, text_size = size.small)
+    table.cell(tbl, 3, r, "●", text_color = dotCol, text_size = size.normal)
+    table.cell(tbl, 4, r, stTxt, text_color = stCol, text_size = size.small)
+
+if showTbl and barstate.islast
+    table.cell(tbl, 0, 0, "TF",        text_color = color.silver, text_size = size.small)
+    table.cell(tbl, 1, 0, "Bull",      text_color = color.silver, text_size = size.small)
+    table.cell(tbl, 2, 0, "Bear",      text_color = color.silver, text_size = size.small)
+    table.cell(tbl, 3, 0, "Bias",      text_color = color.silver, text_size = size.small)
+    table.cell(tbl, 4, 0, "Structure", text_color = color.silver, text_size = size.small)
+    f_row(1, f_tfLabel(tf1), bull1, s1)
+    f_row(2, f_tfLabel(tf2), bull2, s2)
+    f_row(3, f_tfLabel(tf3), bull3, s3)
+    f_row(4, f_tfLabel(tf4), bull4, s4)
+    f_row(5, f_tfLabel(tf5), bull5, s5)
+    f_row(6, "Chart", bullPct, state)
+
+// ───────── Alerts ─────────
+// Each condition fires only on the bar it becomes true. Create alerts with "Once Per Bar Close".
+alertcondition(ta.crossover(close, level),  "Price crosses above level", "{{ticker}} {{interval}}: price crossed above the volume level")
+alertcondition(ta.crossunder(close, level), "Price crosses below level", "{{ticker}} {{interval}}: price crossed below the volume level")
+alertcondition(level != level[1],           "New level",                 "{{ticker}} {{interval}}: volume level moved to {{plot_0}}")
+
+alertcondition(f_edge(bullPct > 50), "Chart bias turns bullish", "{{ticker}} {{interval}}: bias turned bullish")
+alertcondition(f_edge(bullPct < 50), "Chart bias turns bearish", "{{ticker}} {{interval}}: bias turned bearish")
+alertcondition(f_edge(bullPct >= 55), "Chart bull bias ≥ 55%", "{{ticker}} {{interval}}: bull bias ≥ 55%")
+alertcondition(f_edge(bullPct >= 60), "Chart bull bias ≥ 60%", "{{ticker}} {{interval}}: bull bias ≥ 60%")
+alertcondition(f_edge(bullPct >= 65), "Chart bull bias ≥ 65%", "{{ticker}} {{interval}}: bull bias ≥ 65%")
+alertcondition(f_edge(bullPct >= 70), "Chart bull bias ≥ 70%", "{{ticker}} {{interval}}: bull bias ≥ 70%")
+alertcondition(f_edge(bearPct >= 55), "Chart bear bias ≥ 55%", "{{ticker}} {{interval}}: bear bias ≥ 55%")
+alertcondition(f_edge(bearPct >= 60), "Chart bear bias ≥ 60%", "{{ticker}} {{interval}}: bear bias ≥ 60%")
+alertcondition(f_edge(bearPct >= 65), "Chart bear bias ≥ 65%", "{{ticker}} {{interval}}: bear bias ≥ 65%")
+alertcondition(f_edge(bearPct >= 70), "Chart bear bias ≥ 70%", "{{ticker}} {{interval}}: bear bias ≥ 70%")
+alertcondition(f_edge(state == 1),  "Chart aligned bullish", "{{ticker}} {{interval}}: bullish bias and price above level")
+alertcondition(f_edge(state == -1), "Chart aligned bearish", "{{ticker}} {{interval}}: bearish bias and price below level")
+
+alertcondition(f_edge(bull1 > 50), "TF 1 bias turns bullish", "{{ticker}}: TF 1 bias turned bullish")
+alertcondition(f_edge(bull1 < 50), "TF 1 bias turns bearish", "{{ticker}}: TF 1 bias turned bearish")
+alertcondition(f_edge(bull2 > 50), "TF 2 bias turns bullish", "{{ticker}}: TF 2 bias turned bullish")
+alertcondition(f_edge(bull2 < 50), "TF 2 bias turns bearish", "{{ticker}}: TF 2 bias turned bearish")
+alertcondition(f_edge(bull3 > 50), "TF 3 bias turns bullish", "{{ticker}}: TF 3 bias turned bullish")
+alertcondition(f_edge(bull3 < 50), "TF 3 bias turns bearish", "{{ticker}}: TF 3 bias turned bearish")
+alertcondition(f_edge(bull4 > 50), "TF 4 bias turns bullish", "{{ticker}}: TF 4 bias turned bullish")
+alertcondition(f_edge(bull4 < 50), "TF 4 bias turns bearish", "{{ticker}}: TF 4 bias turned bearish")
+alertcondition(f_edge(bull5 > 50), "TF 5 bias turns bullish", "{{ticker}}: TF 5 bias turned bullish")
+alertcondition(f_edge(bull5 < 50), "TF 5 bias turns bearish", "{{ticker}}: TF 5 bias turned bearish")
+
+alertcondition(f_edge(s1 == 1),  "TF 1 aligned bullish", "{{ticker}}: TF 1 bullish bias, price above level")
+alertcondition(f_edge(s1 == -1), "TF 1 aligned bearish", "{{ticker}}: TF 1 bearish bias, price below level")
+alertcondition(f_edge(s2 == 1),  "TF 2 aligned bullish", "{{ticker}}: TF 2 bullish bias, price above level")
+alertcondition(f_edge(s2 == -1), "TF 2 aligned bearish", "{{ticker}}: TF 2 bearish bias, price below level")
+alertcondition(f_edge(s3 == 1),  "TF 3 aligned bullish", "{{ticker}}: TF 3 bullish bias, price above level")
+alertcondition(f_edge(s3 == -1), "TF 3 aligned bearish", "{{ticker}}: TF 3 bearish bias, price below level")
+alertcondition(f_edge(s4 == 1),  "TF 4 aligned bullish", "{{ticker}}: TF 4 bullish bias, price above level")
+alertcondition(f_edge(s4 == -1), "TF 4 aligned bearish", "{{ticker}}: TF 4 bearish bias, price below level")
+alertcondition(f_edge(s5 == 1),  "TF 5 aligned bullish", "{{ticker}}: TF 5 bullish bias, price above level")
+alertcondition(f_edge(s5 == -1), "TF 5 aligned bearish", "{{ticker}}: TF 5 bearish bias, price below level")
+
+allBull    = bull1 > 50 and bull2 > 50 and bull3 > 50 and bull4 > 50 and bull5 > 50
+allBear    = bull1 < 50 and bull2 < 50 and bull3 < 50 and bull4 < 50 and bull5 < 50
+nAlignUp   = (s1 == 1 ? 1 : 0) + (s2 == 1 ? 1 : 0) + (s3 == 1 ? 1 : 0) + (s4 == 1 ? 1 : 0) + (s5 == 1 ? 1 : 0)
+nAlignDown = (s1 == -1 ? 1 : 0) + (s2 == -1 ? 1 : 0) + (s3 == -1 ? 1 : 0) + (s4 == -1 ? 1 : 0) + (s5 == -1 ? 1 : 0)
+alertcondition(f_edge(allBull),         "All TFs bias bullish",      "{{ticker}}: all 5 timeframes bullish")
+alertcondition(f_edge(allBear),         "All TFs bias bearish",      "{{ticker}}: all 5 timeframes bearish")
+alertcondition(f_edge(nAlignUp == 5),   "All TFs aligned bullish",   "{{ticker}}: all 5 timeframes bullish and above their levels")
+alertcondition(f_edge(nAlignDown == 5), "All TFs aligned bearish",   "{{ticker}}: all 5 timeframes bearish and below their levels")
+alertcondition(f_edge(nAlignUp >= 3),   "3+ TFs aligned bullish",    "{{ticker}}: 3 or more timeframes bullish and above their levels")
+alertcondition(f_edge(nAlignDown >= 3), "3+ TFs aligned bearish",    "{{ticker}}: 3 or more timeframes bearish and below their levels")
