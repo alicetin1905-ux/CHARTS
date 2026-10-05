@@ -56,3 +56,20 @@ Squeeze variant (flip after the EMAs were on one line, 2.5 × ATR stop), 1×, af
 
 Run it: `python3 scripts/ribbon_backtest.py` (downloads candles into `data/`, ~10 minutes the first time).
 
+
+## Volume Anchor Level + Bias (`pine/unbiased_level.pine`)
+
+A TradingView Pine Script v6 indicator rebuilt from the public description of **Unbiased Level Pro** (askaitrade,
+invite-only and closed-source). It is not the original code, so its values can differ from the original's.
+
+- **Level:** a horizontal line at the highest-volume bar of the last N bars (default 20, range 2–100). Wick anchor = low of an up
+  bar / high of a down bar; body anchor = the bar's open.
+- **Bias:** over the same N bars, up bar + rising volume = 3 bull; up bar + falling volume = 1 bull + 2 bear; down bar + rising
+  volume = 3 bear; down bar + falling volume = 1 bear + 2 bull. Shown as bull % / bear %.
+- **Table:** bias for 1m, 5m, 15m, 1H, 4H and the chart timeframe (timeframes and periods can be changed). "Aligned ▲" =
+  bullish bias with price above that timeframe's level, "Aligned ▼" = bearish bias with price below it.
+- **Alerts:** 41 conditions (level crosses, new level, bias flips, 55/60/65/70% thresholds, per-timeframe and all-timeframe
+  alignment). Each fires once when its condition becomes true; create the alerts with "Once Per Bar Close".
+
+Install: TradingView → Pine Editor → paste the file → Add to chart. Needs a symbol with volume data. The other-timeframe
+values can change until their bars close.
