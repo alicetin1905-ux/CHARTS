@@ -3,15 +3,17 @@
 The signal logic is ported from the Pine Script, including TradingView's own definitions of ta.rma, ta.ema,
 ta.atr, ta.rsi, ta.dmi and ta.supertrend, so the trades follow the labels the chart shows. No dependencies.
 
-Signals on the bar close, fills at the next bar's open, 0.075% cost per side, 1x, full equity per trade.
-Drawdown is marked to market on every close.
+Signals on the bar close, fills at the next bar's open, 0.075% cost per side on each side's notional, 1x, full
+equity per trade. A 1x short is wiped out (-100%, no more trading) when the price doubles. Drawdown is marked to
+market on every close; profit factor is gross profit / gross loss in money, as TradingView reports it.
 
 Rules (confirmation signals, sensitivity 12, unless noted):
   flip        always in the market: Buy goes long, Sell goes short
   strong      only Buy+/Sell+ open a trade; any opposite signal closes it (and reverses if it is strong)
   exits       every signal opens a trade; the indicator's blue/orange x exit closes it, or the opposite signal
   tpsl        every signal opens a trade; take profit at TP2, stop at SL (TP/SL distance 1.5 x ATR 14),
-              or the opposite signal. If TP and SL fall inside the same candle, the stop counts first
+              or the opposite signal. A gap through a level fills at the open; if TP and SL both fall inside the
+              same candle, the stop counts first
   rated 3-4   flip, but only signals the classifier rates 3 or 4 (the others are hidden)
   autopilot   flip, with the autopilot sensitivity (best of 10-20 over the last 250 bars)
   contrarian  contrarian signals; their exit closes the trade, the opposite signal reverses it
@@ -166,14 +168,15 @@ def xunder(a, lvl, i):
 
 
 def percentile(vals, p):
+    """array.percentile_linear_interpolation: rank p*n/100 - 0.5, clamped to the ends."""
     v = sorted(vals)
-    k = (len(v) - 1) * p / 100
+    k = min(max(p * len(v) / 100 - 0.5, 0), len(v) - 1)
     f = math.floor(k)
     return v[f] + (v[min(f + 1, len(v) - 1)] - v[f]) * (k - f)
 
 
 def classify(hist, x):
-    """f_rate: 1-4 by quartile of x among the last 200 signals (needs 8). Warm-up na values are skipped."""
+    """f_rate: 1-4 by quartile of x among the last 200 signals (needs 8). na (no ADX yet) is unrated, not stored."""
     if x is None:
         return None
     r = None
@@ -203,7 +206,10 @@ def events(candles, sens=12, autopilot=False, mode='conf', allowed=(1, 2, 3, 4))
     a10 = atr(h, l, c, 10)
     if autopilot:
         sc = [autopilot_score(c, supertrend_dir(h, l, c, a10, k / 4)) for k in range(10, 21)]
-        opt = [10 + max(range(11), key=lambda j: sc[j][i]) for i in range(n)]
+        opt = []
+        for i in range(n):  # ties (within rounding noise) go to the lowest sensitivity
+            best = max(s[i] for s in sc)
+            opt.append(10 + next(j for j in range(11) if sc[j][i] >= best - 1e-9))
         st = supertrend_dir(h, l, c, a10, [s / 4 for s in opt])
     else:
         opt, st = None, supertrend_dir(h, l, c, a10, sens / 4)
@@ -248,35 +254,45 @@ def simulate(candles, ev, start_ms=0, rule='flip', cost=COST, tp_mult=2, unit=1.
     side, strong, bx, sx, a14 = ev['side'], ev['strong'], ev['bx'], ev['sx'], ev['atr14']
     pos, entry, tp, sl = 0, 0.0, None, None
     eq = peak = 1.0
-    mdd, trades, bars_in = 0.0, [], 0
+    mdd, bars_in, ambiguous, ruined = 0.0, 0, 0, None
+    trades, gross_win, gross_loss = [], 0.0, 0.0
     year_end, year_trades = {}, {}
 
-    def close(px, i):
-        nonlocal eq, pos
-        r = pos * (px / entry - 1) - 2 * cost
-        eq *= 1 + r
+    def close(px, i, liquidated=False):
+        nonlocal eq, pos, gross_win, gross_loss
+        r = -1.0 if liquidated else pos * (px / entry - 1) - cost - cost * px / entry  # fee on each side's notional
+        pnl = eq * max(r, -1.0)
+        gross_win, gross_loss = gross_win + max(pnl, 0), gross_loss - min(pnl, 0)
+        eq = max(0.0, eq + pnl)
         trades.append(r)
         y = time.gmtime(t[i] / 1000).tm_year
         year_trades[y] = year_trades.get(y, 0) + 1
         pos = 0
 
-    for i in range(first, n - 1):
+    for i in range(first, n):
         if pos:
             bars_in += 1
-            if rule == 'tpsl':
+            if rule == 'tpsl':  # gaps at the open first; if both levels are inside the candle, the stop counts first
                 if pos == 1:
-                    px = (o[i] if o[i] <= sl else sl if l[i] <= sl else
-                          o[i] if o[i] >= tp else tp if h[i] >= tp else None)
+                    px = (o[i] if o[i] <= sl or o[i] >= tp else sl if l[i] <= sl else tp if h[i] >= tp else None)
+                    ambiguous += sl < o[i] < tp and l[i] <= sl and h[i] >= tp
                 else:
-                    px = (o[i] if o[i] >= sl else sl if h[i] >= sl else
-                          o[i] if o[i] <= tp else tp if l[i] <= tp else None)
+                    px = (o[i] if o[i] >= sl or o[i] <= tp else sl if h[i] >= sl else tp if l[i] <= tp else None)
+                    ambiguous += tp < o[i] < sl and h[i] >= sl and l[i] <= tp
                 if px is not None:
                     close(px, i)
-        mtm = eq * (1 + pos * (c[i] / entry - 1)) if pos else eq
+            if pos == -1 and h[i] >= 2 * entry:  # a 1x short is wiped out when the price doubles
+                close(2 * entry, i, liquidated=True)
+                ruined = time.strftime('%Y-%m-%d', time.gmtime(t[i] / 1000))
+        mtm = max(0.0, eq * (1 + pos * (c[i] / entry - 1))) if pos else eq
         peak = max(peak, mtm)
         mdd = max(mdd, 1 - mtm / peak)
         year_end[time.gmtime(t[i] / 1000).tm_year] = mtm
+        if ruined or i == n - 1:
+            break
 
+        if pos and rule in ('exits', 'contra') and (bx[i] if pos == 1 else sx[i]):
+            close(o[i + 1], i + 1)
         s = side[i]
         if s and s != pos:
             if pos:
@@ -286,18 +302,14 @@ def simulate(candles, ev, start_ms=0, rule='flip', cost=COST, tp_mult=2, unit=1.
                 if rule == 'tpsl':
                     d = unit * a14[i]
                     tp, sl = c[i] + s * tp_mult * d, c[i] - s * d
-        elif pos and rule in ('exits', 'contra') and (bx[i] if pos == 1 else sx[i]):
-            close(o[i + 1], i + 1)
     if pos:
         close(c[-1], n - 1)
-    year_end[time.gmtime(t[-1] / 1000).tm_year] = eq
+        year_end[time.gmtime(t[-1] / 1000).tm_year] = eq
 
-    wins = [r for r in trades if r > 0]
-    loss = -sum(r for r in trades if r <= 0)
     years = (t[-1] - t[first]) / DAY / 365
     yr, prev = {}, 1.0
     for y in sorted(year_end):
-        yr[y] = (year_end[y] / prev - 1) * 100
+        yr[y] = (year_end[y] / prev - 1) * 100 if prev else 0.0
         prev = year_end[y]
     return {
         'from': time.strftime('%Y-%m-%d', time.gmtime(t[first] / 1000)),
@@ -305,10 +317,12 @@ def simulate(candles, ev, start_ms=0, rule='flip', cost=COST, tp_mult=2, unit=1.
         'buy_hold': (c[-1] / o[first + 1] - 1) * 100,
         'trades': len(trades),
         'per_month': len(trades) / (years * 12) if years else 0,
-        'win_rate': 100 * len(wins) / max(1, len(trades)),
-        'profit_factor': sum(wins) / loss if loss else float('inf'),
+        'win_rate': 100 * sum(1 for r in trades if r > 0) / max(1, len(trades)),
+        'profit_factor': gross_win / gross_loss if gross_loss else float('inf'),
         'max_dd': mdd * 100,
-        'time_in_market': 100 * bars_in / max(1, n - 1 - first),
+        'time_in_market': 100 * bars_in / max(1, n - first),
+        'ambiguous': ambiguous,
+        'ruined': ruined,
         'years': yr,
         'year_trades': year_trades,
     }
@@ -330,7 +344,8 @@ HEAD = ('| TF | Rule | Return | Buy & hold | Trades | Trades/mo | Win rate | Pro
 
 
 def row(tf, name, r):
-    return (f"| {tf} | {name} | {r['return']:+.1f}% | {r['buy_hold']:+.1f}% | {r['trades']} | {r['per_month']:.1f} "
+    ret = f"{r['return']:+.1f}%" + (f" (wiped out {r['ruined']})" if r['ruined'] else '')
+    return (f"| {tf} | {name} | {ret} | {r['buy_hold']:+.1f}% | {r['trades']} | {r['per_month']:.1f} "
             f"| {r['win_rate']:.0f}% | {r['profit_factor']:.2f} | {r['max_dd']:.1f}% | {r['time_in_market']:.0f}% |")
 
 
@@ -372,19 +387,21 @@ if __name__ == '__main__':
         g = [run(tf, r, cost=cst)['return'] for r in ('flip', 'tpsl') for cst in (0, COST)]
         print(f'| {tf} | {g[0]:+.1f}% | {g[1]:+.1f}% | {g[2]:+.1f}% | {g[3]:+.1f}% |', flush=True)
 
-    since = time.strftime('%Y-%m', time.gmtime((base['1H'][0][0] + WARMUP * 3_600_000) / 1000))
-    print(f'\n## Full history, 1H and up (from about {since})\n\n' + HEAD)
+    full_start = max(series[tf][WARMUP][0] for tf in HIGHER)  # every timeframe has its 300-bar warm-up by then
+    since = time.strftime('%Y-%m-%d', time.gmtime(full_start / 1000))
+    print(f'\n## Full history, 1H and up, all from {since}\n\n' + HEAD)
     full = {}
     for tf in HIGHER:
         for name in VARIANTS:
-            full[tf, name] = run(tf, name, start_ms=0)
+            full[tf, name] = run(tf, name, start_ms=full_start)
             print(row(tf, name, full[tf, name]), flush=True)
 
     yrs = sorted({y for r in full.values() for y in r['years']})
-    print('\n## Full history: per calendar year (return, trades closed)\n')
+    print(f'\n## Full history: per calendar year from {since} (return, trades closed)\n')
     print('| TF | Rule | ' + ' | '.join(map(str, yrs)) + ' | Losing years |\n|---|---|' + '---|' * (len(yrs) + 1))
-    bh, prev = {}, series['1H'][WARMUP][1]
-    for tt, _, _, _, cc in series['1H'][WARMUP:]:
+    d1 = [x for x in series['1D'] if x[0] >= full_start]
+    bh, prev = {}, d1[0][1]
+    for tt, _, _, _, cc in d1:
         bh[time.gmtime(tt / 1000).tm_year] = cc
     bh_ret = {}
     for y in sorted(bh):
@@ -394,6 +411,13 @@ if __name__ == '__main__':
     for tf in HIGHER:
         for name in ('flip', 'strong', 'tpsl', 'autopilot'):
             r = full[tf, name]
-            cells = [f"{r['years'][y]:+.0f}% ({r['year_trades'].get(y, 0)})" if y in r['years'] else '' for y in yrs]
-            losing = sum(1 for y in yrs if r['years'].get(y, 0) < 0)
+            cells = [f"{r['years'][y]:+.0f}% ({r['year_trades'].get(y, 0)})" if y in r['years'] else 'wiped out'
+                     for y in yrs]
+            losing = sum(1 for y in yrs if r['years'].get(y, -1) < 0)
             print(f'| {tf} | {name} | ' + ' | '.join(cells) + f' | {losing} |', flush=True)
+
+    print('\n## tpsl: trades where TP and SL were both inside one candle (counted as stopped out)\n')
+    print('| TF | Last ' + f'{a.years:g} years | Full history |\n|---|---|---|')
+    for tf in series:
+        last = run(tf, 'tpsl')['ambiguous']
+        print(f"| {tf} | {last} | {full[tf, 'tpsl']['ambiguous'] if tf in HIGHER else ''} |")

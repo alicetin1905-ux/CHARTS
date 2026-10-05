@@ -95,16 +95,18 @@ f_score(float factor) =>
     cum - nz(cum[250])
 
 // Classifier: 1–4 by quartile of `x` among earlier signals, then store `x`.
+// Signals before ADX exists (first ~27 bars) stay unrated and are not stored.
 f_rate(array<float> hist, float x) =>
     int r = na
-    if hist.size() >= 8
-        float q1 = hist.percentile_linear_interpolation(25)
-        float q2 = hist.percentile_linear_interpolation(50)
-        float q3 = hist.percentile_linear_interpolation(75)
-        r := x < q1 ? 1 : x < q2 ? 2 : x < q3 ? 3 : 4
-    hist.push(x)
-    if hist.size() > 200
-        hist.shift()
+    if not na(x)
+        if hist.size() >= 8
+            float q1 = hist.percentile_linear_interpolation(25)
+            float q2 = hist.percentile_linear_interpolation(50)
+            float q3 = hist.percentile_linear_interpolation(75)
+            r := x < q1 ? 1 : x < q2 ? 2 : x < q3 ? 3 : 4
+        hist.push(x)
+        if hist.size() > 200
+            hist.shift()
     r
 
 f_allowed(int r) =>
@@ -118,8 +120,15 @@ emaS  = ta.ema(close, sens)
 [diPlus, diMinus, adx] = ta.dmi(14, 14)
 
 // Optimal sensitivity: grid search 10–20 (factor 2.5–5.0) over the last 250 bars
-scores  = array.from(f_score(2.5), f_score(2.75), f_score(3.0), f_score(3.25), f_score(3.5), f_score(3.75), f_score(4.0), f_score(4.25), f_score(4.5), f_score(4.75), f_score(5.0))
-optSens = 10 + scores.indexof(scores.max())
+// Scores that tie (same positions over the window) differ only by rounding noise, so ties go to the lowest sensitivity.
+scores    = array.from(f_score(2.5), f_score(2.75), f_score(3.0), f_score(3.25), f_score(3.5), f_score(3.75), f_score(4.0), f_score(4.25), f_score(4.5), f_score(4.75), f_score(5.0))
+bestScore = scores.max()
+int optIdx = 0
+for i = 0 to 10
+    if scores.get(i) >= bestScore - 1e-9
+        optIdx := i
+        break
+optSens = 10 + optIdx
 activeSens = autopilot ? optSens : sens
 
 // Confirmation trend
@@ -275,8 +284,8 @@ if showTPSL and sigSide != 0
         tLines.push(line.new(bar_index, close, bar_index, close, color = c, style = i < 3 ? line.style_dotted : line.style_dashed, width = 1))
         tLabels.push(label.new(bar_index, close, "", style = label.style_label_left, color = color.new(c, 70), textcolor = color.white, size = size.tiny))
 
-// Re-anchor once price closes beyond TP3
-if tSide != 0 and not fresh and barstate.isconfirmed and (tSide == 1 ? close > tEntry + 3 * tUnit : close < tEntry - 3 * tUnit)
+// Re-anchor once price closes beyond TP3 (not after the stop was hit)
+if tSide != 0 and not fresh and not slHit and barstate.isconfirmed and (tSide == 1 ? close > tEntry + 3 * tUnit : close < tEntry - 3 * tUnit)
     tEntry := close
     tUnit  := tpDist * atr14
     fresh  := true
