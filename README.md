@@ -73,3 +73,25 @@ invite-only and closed-source). It is not the original code, so its values can d
 
 Install: TradingView → Pine Editor → paste the file → Add to chart. Needs a symbol with volume data. The other-timeframe
 values can change until their bars close.
+
+## Trend Signals + Overlays (`pine/trend_signals_overlays.pine`)
+
+A TradingView Pine Script v6 toolkit modelled on the public feature list of **LuxAlgo Signals & Overlays** (paid, closed-source).
+It is written from scratch with its own math, so its signals will not match LuxAlgo's.
+
+| Feature | How it is calculated here |
+|---|---|
+| Confirmation signals | Supertrend (ATR 10, factor = sensitivity / 4) flips. "+" = strong: the flip agrees with the Trend Tracer. Exits (blue/orange ×): RSI 14 leaving 70/30 in the trend's direction |
+| Contrarian signals | RSI (length = sensitivity) crossing back over 30 / under 70. "+" = it was below 20 / above 80 in the last 5 bars. One exit per signal |
+| Classifier 1–4 | ADX at the signal compared with the quartiles of the last 200 signals; each rating can be hidden |
+| Autopilot / optimal sensitivity | Best of sensitivity 10–20 by the flip strategy's return over the last 250 bars |
+| Smart Trail | Trailing stop on a modified true range (outsized bars and gaps capped), with a support (blue) / resistance (red) zone |
+| Reversal Zones | 2–3 × ATR 20 bands around EMA 20 of hlc3 |
+| Trend Tracer / Trend Catcher | Slow trailing stop on EMA(sensitivity) / Kaufman adaptive average (blue up, orange down) |
+| Neo Cloud | Midpoints of 2× and 4× sensitivity highs/lows; brighter the older the trend |
+| Candle coloring | Confirmation simple, confirmation gradient, contrarian gradient |
+| TP/SL | TP1–3 at 1–3 × distance × ATR 14 from the signal close, SL at 1 ×; re-anchors when price closes beyond TP3 |
+| Dashboard | Sensitivity, optimal sensitivity, trend, trend strength (2 × ADX), volatility (ATR 14 / ATR 100), squeeze (BB width rank), volume sentiment (−100…100) |
+
+Presets (Trend Trader, Scalper, Swing Trader) switch on the matching features. Signals appear when the bar closes. 20 alert
+conditions plus "Any alert() function call" for signals with their rating.
