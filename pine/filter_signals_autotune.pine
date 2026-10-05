@@ -7,11 +7,11 @@ indicator("Filter Signals + Auto-Tune [open]", shorttitle = "FSA", overlay = tru
 // ───────── Inputs ─────────
 grpS = "Signals"
 sigMode = input.string("Trend + TP", "Signal mode", options = ["Trend + TP", "Reversal", "Trend + Reversal", "None"], group = grpS, tooltip = "Trend: Buy/Sell when price closes beyond the low-pass filter by the band.\nTP: take-profit x when a reversal forms against the open trend.\nReversal: tops and bottoms at the wave bands.")
-tuning  = input.int(20, "Tuning", minval = 4, maxval = 100, group = grpS, tooltip = "Length of the low-pass (SuperSmoother) filter. Lower = more signals. Ignored while auto-tune is on.")
-bandK   = input.float(0.5, "Band (× ATR 14)", minval = 0, step = 0.1, group = grpS, tooltip = "How far beyond the filter price must close to flip the trend.")
+tuning  = input.int(20, "Tuning", minval = 4, maxval = 100, group = grpS, tooltip = "Length of the low-pass (SuperSmoother) filter. Signals are most frequent around 9–12; shorter or longer lengths give fewer. Ignored while auto-tune is on.")
+bandK   = input.float(1.0, "Band (× ATR 14)", minval = 0, step = 0.1, group = grpS, tooltip = "How far beyond the filter price must close to flip the trend. Lower = more signals and more whipsaw.")
 
 grpA = "Auto-tune"
-autoTune = input.bool(true, "Auto-tune", group = grpA, tooltip = "Backtests 10 tunings (6–64) on the last N bars and uses the best one. Past results do not predict future ones.")
+autoTune = input.bool(true, "Auto-tune", group = grpA, tooltip = "Backtests 10 tunings (6–64) on the last N bars and switches to the best one every N bars of chart time. A switch never creates a signal by itself: the trend changes only when the selected tuning flips. Past results do not predict future ones. Use 'Once per bar close' for alerts.")
 optFor   = input.string("PnL", "Optimize for", options = ["PnL", "Win rate"], group = grpA)
 optWin   = input.int(300, "Backtest window (bars)", minval = 50, maxval = 2000, group = grpA)
 reopt    = input.int(20, "Re-optimize every (bars)", minval = 1, maxval = 500, group = grpA)
@@ -83,7 +83,7 @@ f_eval(int p) =>
             res.push(prev * (close / entry - 1) - 2 * fee)
             closedAt.push(bar_index)
         entry := close
-    while closedAt.size() > 0 and closedAt.get(0) < bar_index - optWin
+    while closedAt.size() > 0 and closedAt.get(0) <= bar_index - optWin
         closedAt.shift()
         res.shift()
     int wins = 0
@@ -119,17 +119,31 @@ for i = 0 to 9
     if scores.get(i) >= bestScore - 1e-9
         bestIdx := i
         break
+// Re-optimize on a schedule tied to chart time, so the choice does not depend on how many bars are loaded
 var int sel = 4
-if bar_index >= optWin and bar_index % reopt == 0
+int reoptBlk = math.floor(time / (timeframe.in_seconds() * 1000.0 * reopt))
+if bar_index >= optWin and reoptBlk != nz(reoptBlk[1], reoptBlk)
     sel := bestIdx
 
-activeDir   = autoTune ? dirs.get(sel)  : dU
+// The trend changes only when the selected tuning itself flips; switching tunings alone never prints a signal
+dirsPrev = array.from(d0[1], d1[1], d2[1], d3[1], d4[1], d5[1], d6[1], d7[1], d8[1], d9[1])
+int selDir  = autoTune ? dirs.get(sel) : dU
+int selPrev = autoTune ? nz(dirsPrev.get(sel)) : nz(dU[1])
+var int activeDir = 0
+if activeDir == 0 or selDir != selPrev
+    activeDir := selDir
 activeBase  = autoTune ? bases.get(sel) : bU
 activeLen   = autoTune ? cands.get(sel) : tuning
 activeScore = autoTune ? scores.get(sel) : optFor == "PnL" ? pU : wU
 
 trendBull = activeDir == 1 and activeDir[1] != 1
 trendBear = activeDir == -1 and activeDir[1] != -1
+
+// Walk-forward result of following the signals themselves (not the in-sample best tuning)
+var float cumLive = 0.0
+int prevLive = nz(activeDir[1])
+cumLive += prevLive * nz(math.log(close / close[1])) - (activeDir != prevLive ? (prevLive != 0 ? 2 : 1) * feePct / 100 : 0)
+float livePnl = cumLive - nz(cumLive[optWin])
 
 // ───────── Reversals (wave bands) ─────────
 // Bands at 2 and 3 mean absolute deviations around a slow filter. A bottom: price reached the outer band in the
@@ -140,8 +154,10 @@ wUpIn = wMid + 2 * wDev
 wUpOut = wMid + 3 * wDev
 wLoIn = wMid - 2 * wDev
 wLoOut = wMid - 3 * wDev
-revBottom = ta.lowest(low, 3) <= wLoOut and ta.crossover(close, wLoIn)
-revTop    = ta.highest(high, 3) >= wUpOut and ta.crossunder(close, wUpIn)
+xUpLoIn = ta.crossover(close, wLoIn)    // ta.* calls stay outside `and` (v6 evaluates it lazily)
+xDnUpIn = ta.crossunder(close, wUpIn)
+revBottom = ta.lowest(low, 3) <= wLoOut and xUpLoIn
+revTop    = ta.highest(high, 3) >= wUpOut and xDnUpIn
 rsiLo3 = ta.lowest(rsi14, 3)
 rsiHi3 = ta.highest(rsi14, 3)
 tpLong  = activeDir == 1 and revTop
@@ -171,8 +187,10 @@ float vol = na(volume) or volume <= 0 ? 1.0 : volume
 var float sPV  = 0.0
 var float sV   = 0.0
 var float sP2V = 0.0
+var bool anchored = false
 bool reset = trendBull or trendBear
 if reset
+    anchored := true
     sPV  := hlc3 * vol
     sV   := vol
     sP2V := hlc3 * hlc3 * vol
@@ -186,14 +204,14 @@ aSd   = math.sqrt(math.max(0, sP2V / sV - aVwap * aVwap))
 // ───────── Custom signal ─────────
 xUpBand = ta.crossover(close, band)
 xDnBand = ta.crossunder(close, band)
-xUpVwap = ta.crossover(close, aVwap)
-xDnVwap = ta.crossunder(close, aVwap)
+xUpVwap = ta.crossover(close, aVwap) and not reset   // ignore the jump when the anchor resets
+xDnVwap = ta.crossunder(close, aVwap) and not reset
 
 f_filter(string f, bool bull) =>
     switch f
         "Trend score agrees"  => bull ? trendScore > 6 : trendScore < 4
         "Not consolidating"   => not ranging
-        "Volume spike"        => volSpike
+        "Volume spike"        => na(volRatio) or volSpike   // no volume data: do not block
         "Price vs trend band" => bull ? close > band : close < band
         => true
 
@@ -251,7 +269,7 @@ pWlo = plot(showWaves ? wLoOut : na, "Lower wave (outer)", color.new(bullCol, 70
 fill(pWui, pWuo, color.new(bearCol, 88), "Upper wave fill")
 fill(pWli, pWlo, color.new(bullCol, 88), "Lower wave fill")
 
-rOk = showRanges and not reset
+rOk = showRanges and anchored and not reset
 plot(rOk ? aVwap : na,           "Range mid", color.new(color.silver, 30), 1, plot.style_linebr)
 plot(rOk ? aVwap + aSd : na,     "Range +1σ", color.new(bullCol, 50), 1, plot.style_linebr)
 plot(rOk ? aVwap + 2 * aSd : na, "Range +2σ", color.new(bullCol, 20), 1, plot.style_linebr)
@@ -283,7 +301,7 @@ dSize = switch dashSizeIn
     "Normal" => size.normal
     => size.small
 
-var table dash = table.new(dashPos, 2, 6, bgcolor = color.new(color.black, 80), border_color = color.new(color.gray, 70), border_width = 1)
+var table dash = table.new(dashPos, 2, 7, bgcolor = color.new(color.black, 80), border_color = color.new(color.gray, 70), border_width = 1)
 
 f_cell(int r, string k, string v, color vc) =>
     table.cell(dash, 0, r, k, text_color = color.silver, text_size = dSize, text_halign = text.align_left)
@@ -295,7 +313,8 @@ if dashIn and barstate.islast
     string scoreTxt = optFor == "PnL" ? str.tostring((math.exp(activeScore) - 1) * 100, "#.#") + "%" : str.tostring(activeScore * 100, "#") + "%"
     f_cell(0, "Tuning", str.tostring(activeLen) + (autoTune ? " (auto)" : ""), color.white)
     f_cell(1, "Best tuning (" + optFor + ")", bar_index >= optWin ? str.tostring(cands.get(bestIdx)) : "n/a", color.white)
-    f_cell(2, "Backtest, last " + str.tostring(optWin) + " bars", scoreTxt, color.white)
+    f_cell(2, "Selected tuning in-sample" + (optFor == "Win rate" ? " (smoothed WR)" : ""), scoreTxt, color.white)
+    f_cell(6, "Signals, last " + str.tostring(optWin) + " bars", str.tostring((math.exp(livePnl) - 1) * 100, "#.#") + "%", livePnl >= 0 ? bullCol : bearCol)
     f_cell(3, "Trend score", str.tostring(trendScore, "#.0") + " / 10", trendScore >= 6 ? bullCol : trendScore <= 4 ? bearCol : neutCol)
     f_cell(4, "Consolidation", str.tostring(consScore, "#.0") + " / 10", ranging ? tpCol : color.white)
     f_cell(5, "Bias", bias, biasCol)
@@ -314,4 +333,4 @@ alertcondition(customBull, "Custom buy",         "{{ticker}} {{interval}}: custo
 alertcondition(customBear, "Custom sell",        "{{ticker}} {{interval}}: custom sell")
 alertcondition(ranging and not ranging[1], "Market starts ranging", "{{ticker}} {{interval}}: consolidation score above threshold")
 alertcondition(not ranging and ranging[1], "Market starts trending", "{{ticker}} {{interval}}: consolidation score below threshold")
-alertcondition(sel != sel[1], "Auto-tune changed", "{{ticker}} {{interval}}: auto-tune switched tuning")
+alertcondition(autoTune and sel != sel[1], "Auto-tune changed", "{{ticker}} {{interval}}: auto-tune switched tuning")
