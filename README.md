@@ -156,3 +156,16 @@ close or high/low extremes), both sides and long-only. Full tables: [`backtests/
 - 8H with the defaults looks good (test PF 1.42, long-only 1.82) but 6H and 12H next to it do not: likely luck.
 - It is built as a trailing stop, and that is what it is good for, not as an entry signal.
 - TradingView version: [`strategies/chandelier_exit_strategy.pine`](strategies/chandelier_exit_strategy.pine).
+
+### Chandelier Exit on 1D: best ATR period × multiplier (`scripts/chandelier_1d.py`)
+
+22 ATR periods (2 – 60) × 21 multipliers (1.0 – 6.0), close or high/low extremes, both sides or long only. Full grids:
+[`backtests/chandelier_1d.md`](backtests/chandelier_1d.md). The multiplier matters far more than the ATR period:
+4.0 – 4.5 works for almost every period in both windows, 3.5 and below mostly does not.
+
+| ATR 40, multiplier 4.0, close | Train 2021–24 | Test 2024–26 | Whole period (from Jan 2021) | Buy & hold |
+|---|---|---|---|---|
+| Long + short | PF 2.57 | PF 2.92 | PF 2.63, +450%, DD 32%, 32 trades | +164% |
+| Long only | PF 5.40 | PF 2.94 | PF 4.83, +434%, DD 19%, 16 trades | +164% |
+
+Only ~16 – 32 trades in six years, so the numbers are fragile; dropping the multiplier to 3.5 breaks it.
