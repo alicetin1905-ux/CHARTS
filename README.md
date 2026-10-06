@@ -180,3 +180,15 @@ exit, on 15m – 1D. Full tables: [`backtests/chandelier_zlsma.md`](backtests/ch
 - As a pure filter it helps a little in some cases (4H 40 / 4 long-only: test PF 1.21 → 1.50, +739% → +1002% over
   2020 – 26; 1D 40 / 4 long-only: same test PF, max drawdown 19% → 14%) and hurts in others (12H 40 / 4, 1D 22 / 3).
 - 38 is not special: test PF jumps around between ZLSMA 20, 32, 38, 50, 75 and 100 with no pattern.
+
+### + MACD as a third filter (`scripts/chandelier_zlsma_macd.py`)
+
+MACD 12 / 26 / 9 must agree with the Chandelier signal, either "MACD line above 0" or "MACD above its signal line", on
+its own or together with ZLSMA 38. Full tables: [`backtests/chandelier_zlsma_macd.md`](backtests/chandelier_zlsma_macd.md).
+
+- "MACD above 0" helps; "above the signal line" barely changes anything.
+- Chandelier 22 / 3 + ZLSMA 38 + MACD > 0 on 4H: test PF 1.07 → 1.56 long-only (max drawdown 39% → 20%) and
+  0.87 → 1.43 long + short. It holds for other ZLSMA lengths (20 – 75) and MACD settings (test PF 1.25 – 2.29), and on
+  4H – 12H, but fails on 2H and 3H; with fewer trades it makes less in total than Chandelier alone (4H long +185% vs +313%).
+- Still well below the Keltner breakout above. The filters are options in
+  [`strategies/chandelier_exit_strategy.pine`](strategies/chandelier_exit_strategy.pine).
