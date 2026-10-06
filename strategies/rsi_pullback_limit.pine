@@ -17,6 +17,10 @@ strategy("RSI Pullback Limit [BTC 1H]", overlay = true, initial_capital = 10000,
      commission_type = strategy.commission.percent, commission_value = 0.025, slippage = 2,
      backtest_fill_limits_assumption = 1)
 
+// Strategy Tester results are only real on standard candles (not Heikin Ashi, Renko, Line Break, Kagi, ...).
+if not chart.is_standard
+    runtime.error("Switch the chart type to Candles (or Bars): this strategy only backtests on standard charts.")
+
 rsiLen  = input.int(3,      "RSI length",              minval = 2)
 lo      = input.float(25,   "Long below RSI",          minval = 1, maxval = 49, tooltip = "Short above 100 minus this.")
 emaLen  = input.int(50,     "Trend EMA",               minval = 2)

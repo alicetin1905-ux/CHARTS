@@ -20,6 +20,10 @@ strategy("Keltner Trend Breakout [BTC]", overlay = true, initial_capital = 10000
      margin_long = 50, margin_short = 50,
      commission_type = strategy.commission.percent, commission_value = 0.055, slippage = 2)
 
+// Strategy Tester results are only real on standard candles (not Heikin Ashi, Renko, Line Break, Kagi, ...).
+if not chart.is_standard
+    runtime.error("Switch the chart type to Candles (or Bars): this strategy only backtests on standard charts.")
+
 kcLen   = input.int(10,    "Keltner length",        minval = 2)
 kcMult  = input.float(2.0, "Band multiplier",       minval = 0.5, step = 0.25)
 emaLen  = input.int(50,    "Trend EMA (0 = off)",   minval = 0)

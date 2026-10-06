@@ -15,6 +15,10 @@ strategy("BB Trend Pullback [BTC 4H]", overlay = true, initial_capital = 10000,
      margin_long = 50, margin_short = 50,  // avoids "Margin call" trades at 100% of equity (see keltner_trend_4h.pine)
      commission_type = strategy.commission.percent, commission_value = 0.055, slippage = 2)
 
+// Strategy Tester results are only real on standard candles (not Heikin Ashi, Renko, Line Break, Kagi, ...).
+if not chart.is_standard
+    runtime.error("Switch the chart type to Candles (or Bars): this strategy only backtests on standard charts.")
+
 bbLen   = input.int(30,     "BB length",          minval = 2)
 bbMult  = input.float(2.5,  "BB deviations",      minval = 0.5, step = 0.25)
 emaLen  = input.int(200,    "Trend EMA (0 = off)", minval = 0)
