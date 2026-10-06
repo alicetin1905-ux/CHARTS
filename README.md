@@ -118,24 +118,24 @@ Stochastic strategies) on Bybit BTCUSDT.P, 15m – 1D, ~8,800 variants per timef
 an EMA trend filter, an ATR stop and long-only. Taker fees + slippage, 1x. Picked on Apr 2020 – Oct 2024, checked on
 Oct 2024 – Oct 2026. Full tables: [`backtests/community_strategies.md`](backtests/community_strategies.md).
 
-**Winner: Bollinger Bands Strategy (TradingView built-in logic) on 4H**: bands 30 / 2.5, only longs above the 200 EMA and
-shorts below it, 5 × ATR stop. Full backtest: [`backtests/4H_bb_tv.md`](backtests/4H_bb_tv.md).
+**Winner: Keltner Channels Strategy (TradingView built-in, close-based breakout)**: bands EMA 10 ± 2 × EMA(high − low, 10),
+only longs above the 50 EMA and shorts below it, 2 × ATR stop. Full backtest: [`backtests/4H_keltner_tv.md`](backtests/4H_keltner_tv.md).
 
-| | Train 2020–24 | Test 2024–26 | Whole period | Buy & hold |
+| 4H chart | Train 2020–24 | Test 2024–26 | Whole period | Buy & hold |
 |---|---|---|---|---|
-| Profit factor | 2.88 | 2.93 | 2.89 | |
-| Trades / year | 9 | 10 | 9 | |
-| Win rate | 72% | 74% | 73% | |
-| Return | +253% | +55% | +447% | +804% |
-| Max drawdown | 32% | 15% | 32% | 77% |
+| Profit factor | 5.89 | 2.54 | 4.92 | |
+| Trades / year | 10 | 10 | 10 | |
+| Win rate | 33% | 30% | 32% | |
+| Return | +1036% | +65% | +1779% | +804% |
+| Max drawdown | 23% | 17% | 23% | 77% |
 
-![equity](backtests/4H_bb_tv_equity.svg)
+![equity](backtests/4H_keltner_tv_equity.svg)
 
-- Every calendar year 2020 – 2026 was profitable, including 2022 (+9% while BTC fell 65%). Longs PF 3.3, shorts PF 2.4.
-- Highest t-stat of the top candidates (3.4), but only 59 trades in six years. It is in the market less than buy & hold,
-  so it makes less in total with far smaller drawdowns.
-- Runner-up: MACD Strategy (built-in) on 12H, 12 / 34 / 13, 50 EMA filter, 2 × ATR stop: PF 2.29 (train 2.33, test 2.16),
-  ~20 trades a year, no losing year, +833% vs +648% buy & hold.
-- Long-only trend versions (e.g. MA cross 9 / 200 on 4H, PF 4.8) score higher but lean on BTC's rise and lost in 2022.
-- TradingView version: [`strategies/bb_trend_4h.pine`](strategies/bb_trend_4h.pine) (close-based, so it differs a little
-  from the built-in, which uses stop orders at the bands).
+- The same settings make money on unseen data on **every** chart from 1H to 1D (test PF 1.35 – 8.3; 3H – 8H: 2.5 – 3.1),
+  so the edge does not depend on one candle size.
+- Trend following: ~1 in 3 trades wins; longs carry it (PF 8.1, shorts 1.3). Losing years: 2022 (−20%) and 2025 (−17%).
+- First pick was the Bollinger Bands Strategy on 4H (PF 2.9 in both windows, no losing year), but it fails on 1H, 2H and 8H
+  with the same settings: the 4H result is a lucky spot. Report kept in [`backtests/4H_bb_tv.md`](backtests/4H_bb_tv.md).
+- TradingView version: [`strategies/keltner_trend_4h.pine`](strategies/keltner_trend_4h.pine). The strategies use
+  `margin_long/short = 50`: with 100% of equity per trade, Pine v6's default 100% margin makes TradingView force-close
+  parts of positions ("Margin call" trades) once commission is paid, which adds losing trades the backtest does not have.

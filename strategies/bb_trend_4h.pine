@@ -12,6 +12,7 @@
 //@version=6
 strategy("BB Trend Pullback [BTC 4H]", overlay = true, initial_capital = 10000,
      default_qty_type = strategy.percent_of_equity, default_qty_value = 100, pyramiding = 0,
+     margin_long = 50, margin_short = 50,  // avoids "Margin call" trades at 100% of equity (see keltner_trend_4h.pine)
      commission_type = strategy.commission.percent, commission_value = 0.055, slippage = 2)
 
 bbLen   = input.int(30,     "BB length",          minval = 2)

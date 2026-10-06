@@ -1,0 +1,61 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Keltner channel breakout (based on TradingView's built-in Keltner Channels Strategy) with a 50 EMA trend
+// filter and an ATR stop. Built for BYBIT:BTCUSDT.P; tested on 1H - 1D, best around 3H - 6H.
+// Backtest: scripts/community_backtest.py, scripts/community_detail.py, backtests/4H_keltner_tv.md.
+//
+// Bands: EMA(close, 10) +/- 2 x EMA(high - low, 10).
+// Long : close crosses above the upper band while above the 50 EMA.
+// Short: close crosses below the lower band while below the 50 EMA.
+// Exit : the opposite band cross (a long closes when price closes below the lower band), or the stop
+//        2 x ATR(14) from the signal close. Signals act on the candle close, fills at the next open.
+// Unlike the built-in (stop orders at the band, ATR-based width), this version uses closing prices.
+//
+// margin_long / margin_short = 50: with 100% of equity per trade, Pine v6's default 100% margin makes
+// TradingView force-close parts of positions ("Margin call" trades) once commission is paid. 50% margin
+// leaves the 1x position untouched.
+
+//@version=6
+strategy("Keltner Trend Breakout [BTC]", overlay = true, initial_capital = 10000,
+     default_qty_type = strategy.percent_of_equity, default_qty_value = 100, pyramiding = 0,
+     margin_long = 50, margin_short = 50,
+     commission_type = strategy.commission.percent, commission_value = 0.055, slippage = 2)
+
+kcLen   = input.int(10,    "Keltner length",        minval = 2)
+kcMult  = input.float(2.0, "Band multiplier",       minval = 0.5, step = 0.25)
+emaLen  = input.int(50,    "Trend EMA (0 = off)",   minval = 0)
+slAtr   = input.float(2.0, "Stop (x ATR, 0 = off)", minval = 0, step = 0.5)
+shorts  = input.bool(true, "Trade shorts")
+
+mid   = ta.ema(close, kcLen)
+rng   = ta.ema(high - low, kcLen)
+upper = mid + kcMult * rng
+lower = mid - kcMult * rng
+e     = ta.ema(close, math.max(emaLen, 1))
+a     = ta.atr(14)
+
+buy  = ta.crossover(close, upper)
+sell = ta.crossunder(close, lower)
+longOk  = emaLen == 0 or close > e
+shortOk = shorts and (emaLen == 0 or close < e)
+
+// A repeat signal in the direction already held is ignored (the stop stays where it was).
+if buy
+    if longOk and strategy.position_size <= 0
+        strategy.entry("L", strategy.long)   // also reverses a short
+        if slAtr > 0
+            strategy.exit("L stop", "L", stop = close - slAtr * a)
+    else if strategy.position_size < 0
+        strategy.close("S", comment = "Exit short")
+if sell
+    if shortOk and strategy.position_size >= 0
+        strategy.entry("S", strategy.short)  // also reverses a long
+        if slAtr > 0
+            strategy.exit("S stop", "S", stop = close + slAtr * a)
+    else if strategy.position_size > 0
+        strategy.close("L", comment = "Exit long")
+
+plot(mid, "Middle", color = color.new(color.gray, 30))
+p1 = plot(upper, "Upper", color = color.new(color.teal, 30))
+p2 = plot(lower, "Lower", color = color.new(color.teal, 30))
+fill(p1, p2, color = color.new(color.teal, 94))
+plot(emaLen > 0 ? e : na, "Trend EMA", color = color.orange, linewidth = 2)

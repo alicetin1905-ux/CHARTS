@@ -5,7 +5,7 @@
 Writes a markdown report to stdout and an equity chart (log scale, strategy vs buy & hold) to
 backtests/<tf>_<strategy>_equity.svg.
 """
-import os, sys, time
+import json, os, sys, time
 
 import numpy as np
 
@@ -33,6 +33,21 @@ def equity(t, trades, cost, start):
         eq *= 1 + r - 2 * cost
         curve.append((t[min(k, len(t) - 1)], eq))
     return curve
+
+
+def resample(mins, data_dir='data'):
+    """Any multiple of 15 minutes from data/bybit_15m.json, for the other-timeframes check."""
+    raw = np.array(json.load(open(os.path.join(data_dir, 'bybit_15m.json'))), dtype=float)
+    ms, need = mins * 60_000, mins // 15
+    k = raw[:, 0] - raw[:, 0] % ms
+    out, s = [], 0
+    for e in range(1, len(raw) + 1):
+        if e == len(raw) or k[e] != k[s]:
+            if e - s == need:
+                g = raw[s:e]
+                out.append([k[s], g[0, 1], g[:, 2].max(), g[:, 3].min(), g[-1, 4], g[:, 5].sum()])
+            s = e
+    return np.array(out)
 
 
 def svg(path, t, c, curve, start, title):
@@ -120,6 +135,14 @@ if __name__ == '__main__':
                 tq = C.backtest(D, name, q)
                 a, b = P.stats(t, tq, *W['train']), P.stats(t, tq, *W['test'])
                 print(f"| {k}={g[k][j]} | {a['pf']:.2f} | {b['pf']:.2f} | {b['ret']:+.0f}% |")
+    print('\n## Same settings on other chart timeframes\n\nAn edge that only shows up on one candle size is likely luck.\n')
+    print('| Chart | Train PF | Test PF | Trades / year | Test return |\n|---|---|---|---|---|')
+    for m in (60, 120, 180, 240, 360, 480, 720, 1440):
+        Dm = P.prepare(resample(m))
+        Wm, tm = C.windows(Dm['t']), C.backtest(Dm, name, p)
+        a, b = P.stats(Dm['t'], tm, *Wm['train']), P.stats(Dm['t'], tm, *Wm['test'])
+        lab = f'{m // 60}H' + (' (tested)' if f'{m // 60}H' == tf or (m == 1440 and tf == '1D') else '')
+        print(f"| {lab} | {a['pf']:.2f} | {b['pf']:.2f} | {a['per_year']:.0f} | {b['ret']:+.0f}% |")
     path = f'backtests/{tf}_{name}_equity.svg'
     svg(path, t, c, equity(t, tr, P.COST, start), start, f'{C.NAMES[name]} {tf} ({C.ps(p)}) vs buy & hold, log scale, after fees')
     print(f'\n![equity]({os.path.basename(path)})')

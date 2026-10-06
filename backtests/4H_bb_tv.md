@@ -49,4 +49,19 @@ Bybit BTCUSDT perpetual, 2020-05-21 to 2026-10-05. Settings: n=30, k=2.5, filt=2
 | sl_atr=3.0 | 1.83 | 3.83 | +65% |
 | side=long | 4.47 | 1.31 | +5% |
 
+## Same settings on other chart timeframes
+
+An edge that only shows up on one candle size is likely luck.
+
+| Chart | Train PF | Test PF | Trades / year | Test return |
+|---|---|---|---|---|
+| 1H | 1.06 | 0.70 | 35 | -24% |
+| 2H | 1.07 | 0.92 | 16 | -9% |
+| 3H | 1.16 | 1.62 | 11 | +21% |
+| 4H (tested) | 2.88 | 2.93 | 9 | +55% |
+| 6H | 1.51 | 1.25 | 6 | +5% |
+| 8H | 1.54 | 0.95 | 5 | -4% |
+| 12H | 3.13 | 1.32 | 3 | +4% |
+| 24H | 1.09 | 99.00 | 2 | +38% |
+
 ![equity](4H_bb_tv_equity.svg)
