@@ -1,0 +1,67 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// RSI(3) pullback with limit orders, built for BYBIT:BTCUSDT.P on the 1-hour chart.
+// Backtest and settings search: scripts/rsi_pullback.py and backtests/rsi_pullback.md in this repository.
+//
+// Long : RSI(3) closes below 25 while price is above the 50 EMA -> buy LIMIT 0.1 x ATR below that close,
+//        valid for one candle. Stop 3 x ATR below the limit. When RSI(3) closes above 50, sell LIMIT at
+//        that close for one candle; if it does not fill, close at market. Out after 48 candles at most.
+// Short: mirror image (RSI above 75, price below the 50 EMA).
+// Limit orders pay the maker fee (Bybit 0.02%); stops and market exits pay taker (0.055%) + slippage. The
+// tester uses one commission for all orders, so 0.025% approximates that mix (about 86% of exits fill as
+// limit orders in the backtest). Set it to 0.055 to see the all-taker worst case.
+
+//@version=6
+strategy("RSI Pullback Limit [BTC 1H]", overlay = true, initial_capital = 10000,
+     default_qty_type = strategy.percent_of_equity, default_qty_value = 100, pyramiding = 0,
+     commission_type = strategy.commission.percent, commission_value = 0.025, slippage = 2,
+     backtest_fill_limits_assumption = 1)
+
+rsiLen  = input.int(3,      "RSI length",              minval = 2)
+lo      = input.float(25,   "Long below RSI",          minval = 1, maxval = 49, tooltip = "Short above 100 minus this.")
+emaLen  = input.int(50,     "Trend EMA",               minval = 2)
+offAtr  = input.float(0.1,  "Limit offset (x ATR)",    minval = 0, step = 0.05)
+slAtr   = input.float(3.0,  "Stop (x ATR)",            minval = 0.5, step = 0.5)
+maxBars = input.int(48,     "Max candles in a trade",  minval = 1)
+shorts  = input.bool(true,  "Trade shorts")
+
+r = ta.rsi(close, rsiLen)
+e = ta.ema(close, emaLen)
+a = ta.atr(14)
+
+var float stopPx = na
+var int   tpBar  = na
+
+// Entry orders live for one candle only.
+strategy.cancel("L")
+strategy.cancel("S")
+
+if strategy.position_size == 0
+    tpBar := na
+    if r < lo and close > e
+        float lim = close - offAtr * a
+        stopPx := lim - slAtr * a
+        strategy.entry("L", strategy.long, limit = lim)
+        strategy.exit("XL", "L", stop = stopPx)
+    else if shorts and r > 100 - lo and close < e
+        float lim = close + offAtr * a
+        stopPx := lim + slAtr * a
+        strategy.entry("S", strategy.short, limit = lim)
+        strategy.exit("XS", "S", stop = stopPx)
+else
+    int held = bar_index - strategy.opentrades.entry_bar_index(0) + 1
+    bool isLong = strategy.position_size > 0
+    if not na(tpBar) and bar_index > tpBar
+        strategy.close_all(comment = "TP market")
+    else if held >= maxBars
+        strategy.close_all(comment = "Time")
+    else if na(tpBar) and (isLong ? r > 50 : r < 50)
+        tpBar := bar_index
+        if isLong
+            strategy.exit("XL", "L", stop = stopPx, limit = close)
+        else
+            strategy.exit("XS", "S", stop = stopPx, limit = close)
+
+plot(e, "Trend EMA", color = color.new(color.orange, 0))
+plot(strategy.position_size != 0 ? stopPx : na, "Stop", color = color.red, style = plot.style_linebr)
+plotshape(strategy.position_size == 0 and r < lo and close > e, "Long setup", shape.triangleup, location.belowbar, color.new(color.teal, 0), size = size.tiny)
+plotshape(strategy.position_size == 0 and shorts and r > 100 - lo and close < e, "Short setup", shape.triangledown, location.abovebar, color.new(color.red, 0), size = size.tiny)

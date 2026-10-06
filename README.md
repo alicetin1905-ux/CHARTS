@@ -77,3 +77,35 @@ zone, label and extend inputs are drawing options. Full tables: [`backtests/liqu
 - 200 is the indicator's maximum MA Length, and 12H gives only ~40 trades in six years. Past results do not predict future ones.
 
 Run it: `python3 scripts/liquidity_trail_backtest.py` (reuses `data/` from the ribbon backtest, ~10 minutes).
+
+## High-frequency strategy search, Bybit data (`scripts/pf_search.py`, `scripts/rsi_pullback.py`)
+
+Goal: a good profit factor with at least 250 trades a year on BYBIT BTCUSDT.P, on 15m, 1H, 4H, 12H and 1D.
+Candles come from Bybit's public file server (`scripts/bybit_data.py`: MT4 15m candles to Nov 2024, then candles
+built from Bybit's trade files; Bybit's REST API is geo-blocked here). Train Apr 2020 – Oct 2024, test Oct 2024 – Oct 2026.
+
+`pf_search.py` tests ~7,600 variants per timeframe: own strategy types (RSI and Bollinger mean reversion, liquidity
+sweeps, Donchian breakouts, opening-range breakouts, time of day, volume spikes, Liquidity Trail) and 14 community or
+built-in TradingView strategies (UT Bot, Range Filter, Chandelier Exit, Supertrend, SSL Channel, Squeeze Momentum,
+MACD, RSI, Bollinger, Keltner, Parabolic SAR, Hull, MA cross, Stochastic). Full tables: [`backtests/pf_search.md`](backtests/pf_search.md).
+
+- **With market orders (taker 0.055% + slippage), nothing with 250+ trades a year has PF above 1 on the test window,
+  on any timeframe.** The community strategies land at test PF 0.6 – 0.99. Fees are the problem: 250 round trips
+  cost ~37% a year.
+- 12H and 1D cannot reach 250 trades a year (730 / 365 candles a year).
+- Mean reversion entered with **limit orders** (maker 0.02%) is the one thing that holds up.
+
+`rsi_pullback.py` re-tests that with realistic fills (a limit fills only if price trades through it; stops and time
+exits pay taker + slippage). Full tables: [`backtests/rsi_pullback.md`](backtests/rsi_pullback.md).
+
+| 1H RSI(3) pullback, limit orders | Train 2020–24 | Test 2024–26 | Whole period |
+|---|---|---|---|
+| Profit factor | 1.14 | 1.11 | 1.13 |
+| Trades / year | 256 | 268 | 260 |
+| Win rate | 70% | 67% | 69% |
+| Return / max drawdown | +69% / 20% | +15% / 11% | +95% / 20% |
+
+Rules: RSI(3) < 25 and close > EMA 50 → buy limit 0.1 × ATR below the close (one candle); stop 3 × ATR; when RSI(3)
+closes above 50, sell limit at that close, else at market next candle; max 48 candles. Shorts mirrored. Every year
+2020 – 2026 had PF ≥ 1.00 (2023 flat). The edge is thin (~11% a year): it depends on limit fills, and with all-taker
+fees it loses. TradingView version: [`strategies/rsi_pullback_limit.pine`](strategies/rsi_pullback_limit.pine).
