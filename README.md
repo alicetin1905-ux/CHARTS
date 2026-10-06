@@ -192,3 +192,19 @@ its own or together with ZLSMA 38. Full tables: [`backtests/chandelier_zlsma_mac
   4H – 12H, but fails on 2H and 3H; with fewer trades it makes less in total than Chandelier alone (4H long +185% vs +313%).
 - Still well below the Keltner breakout above. The filters are options in
   [`strategies/chandelier_exit_strategy.pine`](strategies/chandelier_exit_strategy.pine).
+
+## TradeBot check (`scripts/tradebot_stress.js`)
+
+Independent check of [TradeBot](https://alicetin1905-ux.github.io/TradeBot/) using its own backtest code with
+realistic fills switched on, plus the same rules on 21 coins it did not pick. Full report:
+[`backtests/tradebot_review.md`](backtests/tradebot_review.md).
+
+| 2020 – 2026, from 2,000 USDT | End | PF | Max drawdown |
+|---|---|---|---|
+| Bot's 21 coins, its backtest | 64,765 | 1.40 | 28.6% |
+| Bot's 21 coins, realistic fills | 56,062 | 1.34 | 29.3% |
+| 21 other liquid alts, its backtest | 10,320 | 1.05 | 70.4% |
+| 21 other liquid alts, realistic fills | 1,469 | 0.99 | 89.1% |
+
+The backtest reproduces and survives realistic fills, but on coins it was not tuned on it does not make money: most
+of the edge comes from picking the coins after seeing the results.
