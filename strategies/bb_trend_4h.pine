@@ -1,0 +1,55 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// TradingView's built-in Bollinger Bands Strategy logic, with a 200 EMA trend filter and an ATR stop.
+// Built for BYBIT:BTCUSDT.P on the 4-hour chart. Backtest: scripts/community_backtest.py,
+// scripts/community_detail.py and backtests/4H_bb_tv.md in this repository.
+//
+// Long : close crosses back above the lower band (30, 2.5) while above the 200 EMA.
+// Short: close crosses back below the upper band while below the 200 EMA.
+// Exit : the opposite band cross (a long closes when price crosses down through the upper band), or the
+//        stop 5 x ATR(14) from the signal close. Signals act on the candle close, fills at the next open.
+// Unlike the built-in (stop orders at the bands), this version uses closing prices.
+
+//@version=6
+strategy("BB Trend Pullback [BTC 4H]", overlay = true, initial_capital = 10000,
+     default_qty_type = strategy.percent_of_equity, default_qty_value = 100, pyramiding = 0,
+     commission_type = strategy.commission.percent, commission_value = 0.055, slippage = 2)
+
+bbLen   = input.int(30,     "BB length",          minval = 2)
+bbMult  = input.float(2.5,  "BB deviations",      minval = 0.5, step = 0.25)
+emaLen  = input.int(200,    "Trend EMA (0 = off)", minval = 0)
+slAtr   = input.float(5.0,  "Stop (x ATR, 0 = off)", minval = 0, step = 0.5)
+shorts  = input.bool(true,  "Trade shorts")
+
+basis = ta.sma(close, bbLen)
+dev   = bbMult * ta.stdev(close, bbLen)
+upper = basis + dev
+lower = basis - dev
+e     = ta.ema(close, math.max(emaLen, 1))
+a     = ta.atr(14)
+
+buy  = ta.crossover(close, lower)
+sell = ta.crossunder(close, upper)
+longOk  = emaLen == 0 or close > e
+shortOk = shorts and (emaLen == 0 or close < e)
+
+// A repeat signal in the direction already held is ignored (the stop stays where it was).
+if buy
+    if longOk and strategy.position_size <= 0
+        strategy.entry("L", strategy.long)   // also reverses a short
+        if slAtr > 0
+            strategy.exit("L stop", "L", stop = close - slAtr * a)
+    else if strategy.position_size < 0
+        strategy.close("S", comment = "Exit short")
+if sell
+    if shortOk and strategy.position_size >= 0
+        strategy.entry("S", strategy.short)  // also reverses a long
+        if slAtr > 0
+            strategy.exit("S stop", "S", stop = close + slAtr * a)
+    else if strategy.position_size > 0
+        strategy.close("L", comment = "Exit long")
+
+plot(basis, "Basis", color = color.new(color.gray, 30))
+p1 = plot(upper, "Upper", color = color.new(color.blue, 40))
+p2 = plot(lower, "Lower", color = color.new(color.blue, 40))
+fill(p1, p2, color = color.new(color.blue, 94))
+plot(emaLen > 0 ? e : na, "Trend EMA", color = color.orange, linewidth = 2)

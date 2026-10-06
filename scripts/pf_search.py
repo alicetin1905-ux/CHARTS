@@ -16,7 +16,7 @@ touches both):
   trail    Liquidity Trail Signals [BOSWaves] flip, only in the direction of a slower EMA.
   hour     time of day: enter at a fixed UTC hour (long only, or with the EMA trend), hold N hours.
   vspike   volume spike (volume > k x average and a big candle): follow or fade it for N candles.
-The trend filter `filt` is an EMA length on the tested timeframe (0 = none).
+The trend filter `filt` is an EMA length on the tested timeframe (0 = none: both sides trade).
 
 Bybit BTCUSDT perpetual candles from scripts/bybit_data.py (data/bybit_15m.json). Timeframes 15m, 1H, 4H, 12H, 1D.
 Picked on the train window (Apr 2020 -> Oct 2024), checked on the test window (Oct 2024 -> Oct 2026).
@@ -175,8 +175,8 @@ def stats(t, trades, s, e, cost=COST):
 def strat_rsi(D, n, lo, filt, sl_atr, max_bars):
     c, A = D['c'], D['atr']
     R = D[f'rsi{n}']
-    trend = np.ones(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
-    sig = np.where((R < lo) & (trend > 0), 1, np.where((R > 100 - lo) & (trend < 0), -1, 0))
+    trend = np.zeros(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
+    sig = np.where((R < lo) & (trend >= 0), 1, np.where((R > 100 - lo) & (trend <= 0), -1, 0))
     stop = np.where(sig == 1, c - sl_atr * A, c + sl_atr * A)
     return sig, stop, np.full(len(c), np.nan), R > 50, R < 50, max_bars
 
@@ -184,8 +184,8 @@ def strat_rsi(D, n, lo, filt, sl_atr, max_bars):
 def strat_bb(D, n, k, filt, sl_atr, max_bars):
     c, A = D['c'], D['atr']
     m, sd = D[f'sma{n}'], D[f'sd{n}']
-    trend = np.ones(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
-    sig = np.where((c < m - k * sd) & (trend > 0), 1, np.where((c > m + k * sd) & (trend < 0), -1, 0))
+    trend = np.zeros(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
+    sig = np.where((c < m - k * sd) & (trend >= 0), 1, np.where((c > m + k * sd) & (trend <= 0), -1, 0))
     stop = np.where(sig == 1, c - sl_atr * A, c + sl_atr * A)
     return sig, stop, np.full(len(c), np.nan), c > m, c < m, max_bars
 
@@ -193,7 +193,7 @@ def strat_bb(D, n, k, filt, sl_atr, max_bars):
 def strat_sweep(D, n, filt, rr, buf, max_bars):
     o, h, l, c, A = D['o'], D['h'], D['l'], D['c'], D['atr']
     lo, hi = D[f'minl{n}'], D[f'maxh{n}']
-    trend = np.ones(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
+    trend = np.zeros(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
     bull = (l < lo) & (c > lo) & (trend >= 0)
     bear = (h > hi) & (c < hi) & (trend <= 0)
     sig = np.where(bull & ~bear, 1, np.where(bear & ~bull, -1, 0))
@@ -207,8 +207,8 @@ def strat_sweep(D, n, filt, rr, buf, max_bars):
 def strat_donch(D, n, filt, sl_atr, rr, max_bars):
     c, A = D['c'], D['atr']
     lo, hi = D[f'minl{n}'], D[f'maxh{n}']
-    trend = np.ones(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
-    sig = np.where((c > hi) & (trend > 0), 1, np.where((c < lo) & (trend < 0), -1, 0))
+    trend = np.zeros(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
+    sig = np.where((c > hi) & (trend >= 0), 1, np.where((c < lo) & (trend <= 0), -1, 0))
     stop = np.where(sig == 1, c - sl_atr * A, c + sl_atr * A)
     tgt = np.where(sig == 1, c + rr * sl_atr * A, c - rr * sl_atr * A)
     f = np.zeros(len(c), bool)
@@ -246,8 +246,8 @@ def strat_trail(D, ma_len, mult, filt, rr, max_bars):
         D[key] = trail_engine(c, D[f'ema{ma_len}'], D['atr15'], mult)
     trend, trail = D[key]
     flip = np.r_[0, np.diff(trend)] != 0
-    tf = np.ones(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
-    sig = np.where(flip & (trend > 0) & (tf > 0), 1, np.where(flip & (trend < 0) & (tf < 0), -1, 0))
+    tf = np.zeros(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
+    sig = np.where(flip & (trend > 0) & (tf >= 0), 1, np.where(flip & (trend < 0) & (tf <= 0), -1, 0))
     risk = np.abs(c - trail)
     tgt = np.where(rr > 0, np.where(sig == 1, c + rr * risk, c - rr * risk), np.nan)
     return sig, trail, tgt, trend < 0, trend > 0, max_bars
@@ -282,7 +282,7 @@ def strat_orb(D, hour, rbars, stop_mode, rr, filt):
         bpd = int(round(DAY / np.median(np.diff(t))))
         D[key] = (rh, rl, first, np.maximum(1, bpd - pos - 1))
     rh, rl, first, left = D[key]
-    trend = np.ones(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
+    trend = np.zeros(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
     sig = np.where(first & (c > rh) & (trend >= 0), 1, np.where(first & (c < rl) & (trend <= 0), -1, 0))
     mid = (rh + rl) / 2
     stop = np.where(sig == 1, rl if stop_mode == 'range' else mid, rh if stop_mode == 'range' else mid)
@@ -322,7 +322,8 @@ def strat_vspike(D, vk, rk, mode, hold, sl_atr):
 # Ports of popular open-source TradingView scripts and TradingView's built-in strategies. Each gives raw
 # buy/sell signals and trades them like the original: in the market all the time, reversing on the
 # opposite signal. Options: `filt` = only enter in the direction of EMA(filt) (the position still exits on
-# the opposite signal), `sl_atr` = ATR stop (0 = none).
+# the opposite signal; 0 = no filter, both sides), `sl_atr` = ATR stop (0 = none), `side` = 'both' or 'long'
+# (long only: the sell signal just closes the long).
 
 def cross_up(a, b):
     return (a > b) & (np.r_[np.nan, a[:-1]] <= np.r_[np.nan, b[:-1]])
@@ -566,14 +567,14 @@ COMMUNITY = {
 def make_comm(name):
     fn = COMMUNITY[name][0]
 
-    def strat(D, filt, sl_atr, **p):
+    def strat(D, filt, sl_atr, side='both', **p):
         key = ('comm', name, tuple(sorted(p.items())))
         if key not in D:
             D[key] = fn(D, **p)
         buy, sell = D[key]
         c, A = D['c'], D['atr']
-        trend = np.ones(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
-        sig = np.where(buy & (trend > 0), 1, np.where(sell & (trend < 0), -1, 0))
+        trend = np.zeros(len(c)) if filt == 0 else np.sign(c - D[f'ema{filt}'])
+        sig = np.where(buy & (trend >= 0), 1, np.where(sell & (trend <= 0) & (side == 'both'), -1, 0))
         stop = np.where(sl_atr > 0, np.where(sig == 1, c - sl_atr * A, c + sl_atr * A), np.nan)
         return sig, stop, np.full(len(c), np.nan), sell, buy, 10 ** 9
     return strat

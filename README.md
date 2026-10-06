@@ -89,8 +89,8 @@ sweeps, Donchian breakouts, opening-range breakouts, time of day, volume spikes,
 built-in TradingView strategies (UT Bot, Range Filter, Chandelier Exit, Supertrend, SSL Channel, Squeeze Momentum,
 MACD, RSI, Bollinger, Keltner, Parabolic SAR, Hull, MA cross, Stochastic). Full tables: [`backtests/pf_search.md`](backtests/pf_search.md).
 
-- **With market orders (taker 0.055% + slippage), nothing with 250+ trades a year has PF above 1 on the test window,
-  on any timeframe.** The community strategies land at test PF 0.6 – 0.99. Fees are the problem: 250 round trips
+- **With market orders (taker 0.055% + slippage), nothing with 250+ trades a year gets above PF ~1.0 on the test
+  window, on any timeframe.** The community strategies land at test PF 0.6 – 0.99. Fees are the problem: 250 round trips
   cost ~37% a year.
 - 12H and 1D cannot reach 250 trades a year (730 / 365 candles a year).
 - Mean reversion entered with **limit orders** (maker 0.02%) is the one thing that holds up.
@@ -109,3 +109,33 @@ Rules: RSI(3) < 25 and close > EMA 50 → buy limit 0.1 × ATR below the close (
 closes above 50, sell limit at that close, else at market next candle; max 48 candles. Shorts mirrored. Every year
 2020 – 2026 had PF ≥ 1.00 (2023 flat). The edge is thin (~11% a year): it depends on limit fills, and with all-taker
 fees it loses. TradingView version: [`strategies/rsi_pullback_limit.pine`](strategies/rsi_pullback_limit.pine).
+
+## Best community strategy (`scripts/community_backtest.py`, `scripts/community_detail.py`)
+
+16 TradingView community and built-in strategies (UT Bot, Range Filter, Chandelier Exit, Supertrend, SSL Channel, Squeeze
+Momentum, HalfTrend, QQE MOD, Hull Suite and the built-in MACD, RSI, Bollinger, Keltner, Parabolic SAR, MA cross and
+Stochastic strategies) on Bybit BTCUSDT.P, 15m – 1D, ~8,800 variants per timeframe: wide settings grids, with or without
+an EMA trend filter, an ATR stop and long-only. Taker fees + slippage, 1x. Picked on Apr 2020 – Oct 2024, checked on
+Oct 2024 – Oct 2026. Full tables: [`backtests/community_strategies.md`](backtests/community_strategies.md).
+
+**Winner: Bollinger Bands Strategy (TradingView built-in logic) on 4H**: bands 30 / 2.5, only longs above the 200 EMA and
+shorts below it, 5 × ATR stop. Full backtest: [`backtests/4H_bb_tv.md`](backtests/4H_bb_tv.md).
+
+| | Train 2020–24 | Test 2024–26 | Whole period | Buy & hold |
+|---|---|---|---|---|
+| Profit factor | 2.88 | 2.93 | 2.89 | |
+| Trades / year | 9 | 10 | 9 | |
+| Win rate | 72% | 74% | 73% | |
+| Return | +253% | +55% | +447% | +804% |
+| Max drawdown | 32% | 15% | 32% | 77% |
+
+![equity](backtests/4H_bb_tv_equity.svg)
+
+- Every calendar year 2020 – 2026 was profitable, including 2022 (+9% while BTC fell 65%). Longs PF 3.3, shorts PF 2.4.
+- Highest t-stat of the top candidates (3.4), but only 59 trades in six years. It is in the market less than buy & hold,
+  so it makes less in total with far smaller drawdowns.
+- Runner-up: MACD Strategy (built-in) on 12H, 12 / 34 / 13, 50 EMA filter, 2 × ATR stop: PF 2.29 (train 2.33, test 2.16),
+  ~20 trades a year, no losing year, +833% vs +648% buy & hold.
+- Long-only trend versions (e.g. MA cross 9 / 200 on 4H, PF 4.8) score higher but lean on BTC's rise and lost in 2022.
+- TradingView version: [`strategies/bb_trend_4h.pine`](strategies/bb_trend_4h.pine) (close-based, so it differs a little
+  from the built-in, which uses stop orders at the bands).
