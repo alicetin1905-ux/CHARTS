@@ -56,3 +56,24 @@ Squeeze variant (flip after the EMAs were on one line, 2.5 × ATR stop), 1×, af
 
 Run it: `python3 scripts/ribbon_backtest.py` (downloads candles into `data/`, ~10 minutes the first time).
 
+
+## Liquidity Trail Signals settings search (`scripts/liquidity_trail_backtest.py`)
+
+Backtest of **Liquidity Trail Signals [BOSWaves]** on BTCUSDT.P: 780 settings (MA Length × ATR Length × Trail
+Distance) × 13 exit/entry variants on 15m – 1D, 1×, after fees. Settings are picked on 2020 – Oct 2024 and checked on
+Oct 2024 – Oct 2026. Only MA Length, ATR Length, Trail Distance, Entry Mode and the TP R values change the signals; the
+zone, label and extend inputs are drawing options. Full tables: [`backtests/liquidity_trail_signals.md`](backtests/liquidity_trail_signals.md).
+
+| Chart | MA / ATR / Trail | 2020–26 | Buy & hold | Max drawdown | Last 2 years (B&H +39%) | Trades / year |
+|---|---|---|---|---|---|---|
+| **12H** | **200 / 10 / 1.0** | **+1,114%** | +848% | 49% (B&H 77%) | **+95%** | ~7 |
+| 6H | 200 / 10 / 1.0 | +1,743% | +1,187% | 50% | +84% | ~15 |
+| 4H | 200 / 10 / 1.25 | +1,427% | +798% | 45% | +60% | ~20 |
+| 4H | 28 / 15 / 1.25 (default) | +131% | +798% | 58% | −24% | ~56 |
+
+- Signal Change entry, exit on the opposite flip (the trail at entry as the stop). TP1–3 exits do worse, and Trail
+  Retest mode rarely triggers.
+- The default settings lose money below 12H after fees. MA 150–200 is what works on 4H – 12H; ATR Length barely matters.
+- 200 is the indicator's maximum MA Length, and 12H gives only ~40 trades in six years. Past results do not predict future ones.
+
+Run it: `python3 scripts/liquidity_trail_backtest.py` (reuses `data/` from the ribbon backtest, ~10 minutes).
