@@ -169,3 +169,14 @@ close or high/low extremes), both sides and long-only. Full tables: [`backtests/
 | Long only | PF 5.40 | PF 2.94 | PF 4.83, +434%, DD 19%, 16 trades | +164% |
 
 Only ~16 – 32 trades in six years, so the numbers are fragile; dropping the multiplier to 3.5 breaks it.
+
+### Chandelier Exit + ZLSMA 38 (`scripts/chandelier_zlsma.py`)
+
+ZLSMA (veryfid's Zero Lag LSMA) as a filter (Buy only above it, Sell only below), as a confirmation, and as an extra
+exit, on 15m – 1D. Full tables: [`backtests/chandelier_zlsma.md`](backtests/chandelier_zlsma.md).
+
+- It does not fix the low timeframes: 15m and 1H still lose money in every variant (test PF 0.5 – 0.96).
+- Exiting when price closes back through ZLSMA makes almost every case worse (it cuts the trend trades short).
+- As a pure filter it helps a little in some cases (4H 40 / 4 long-only: test PF 1.21 → 1.50, +739% → +1002% over
+  2020 – 26; 1D 40 / 4 long-only: same test PF, max drawdown 19% → 14%) and hurts in others (12H 40 / 4, 1D 22 / 3).
+- 38 is not special: test PF jumps around between ZLSMA 20, 32, 38, 50, 75 and 100 with no pattern.
