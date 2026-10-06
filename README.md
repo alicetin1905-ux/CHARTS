@@ -139,3 +139,20 @@ only longs above the 50 EMA and shorts below it, 2 × ATR stop. Full backtest: [
 - TradingView version: [`strategies/keltner_trend_4h.pine`](strategies/keltner_trend_4h.pine). The strategies use
   `margin_long/short = 50`: with 100% of equity per trade, Pine v6's default 100% margin makes TradingView force-close
   parts of positions ("Margin call" trades) once commission is paid, which adds losing trades the backtest does not have.
+
+## Chandelier Exit (everget) as a strategy (`scripts/chandelier_backtest.py`)
+
+Long on Buy, short on Sell, always in the market, Bybit BTCUSDT.P, 1H – 1D, 72 settings (ATR length × multiplier ×
+close or high/low extremes), both sides and long-only. Full tables: [`backtests/chandelier_exit.md`](backtests/chandelier_exit.md).
+
+| Default 22 / 3.0, test Oct 2024 – Oct 2026 | 1H | 2H | 3H | 4H | 6H | 8H | 12H | 1D |
+|---|---|---|---|---|---|---|---|---|
+| Both sides, PF | 0.83 | 0.82 | 0.99 | 0.87 | 0.89 | 1.42 | 0.89 | 1.34 |
+| Long only, PF | 0.92 | 0.95 | 1.18 | 1.07 | 1.13 | 1.82 | 1.18 | 1.38 |
+
+- As a long/short system it does not work: below 1D, 76 – 100% of all settings lose on the test window. The shorts
+  are the problem; long-only is mostly profitable from 4H up, but still made far less than holding BTC (4H: +313% vs
+  +804% over 2020 – 26).
+- 8H with the defaults looks good (test PF 1.42, long-only 1.82) but 6H and 12H next to it do not: likely luck.
+- It is built as a trailing stop, and that is what it is good for, not as an entry signal.
+- TradingView version: [`strategies/chandelier_exit_strategy.pine`](strategies/chandelier_exit_strategy.pine).

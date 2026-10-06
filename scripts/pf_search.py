@@ -398,11 +398,12 @@ def sig_rangefilter(D, per, mult):
     return lc & (prev == -1), sc & (prev == 1)
 
 
-def sig_chandelier(D, length, mult):
-    """Chandelier Exit (everget), close-based extremes."""
+def sig_chandelier(D, length, mult, use_close=True):
+    """Chandelier Exit (everget). use_close = its "Use Close Price for Extremums" input (default on)."""
     c = D['c']
     a = mult * atr(D['h'], D['l'], c, length)
-    ls0, ss0 = highest(c, length) - a, lowest(c, length) + a
+    ls0 = (highest(c, length) if use_close else highest(D['h'], length)) - a
+    ss0 = (lowest(c, length) if use_close else lowest(D['l'], length)) + a
     ls, ss = ls0.copy(), ss0.copy()
     d = np.ones(len(c))
     for i in range(1, len(c)):

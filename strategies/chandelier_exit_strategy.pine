@@ -1,0 +1,46 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Chandelier Exit by everget (https://www.tradingview.com/script/AqXxNS7j-Chandelier-Exit/), calculation copied
+// unchanged, traded as a strategy: long on its Buy signal, short on its Sell signal (or flat with "Long only").
+// Backtest on Bybit BTCUSDT.P: scripts/chandelier_backtest.py and backtests/chandelier_exit.md in this repository.
+
+//@version=6
+strategy("Chandelier Exit Strategy (everget)", overlay = true, initial_capital = 10000,
+     default_qty_type = strategy.percent_of_equity, default_qty_value = 100, pyramiding = 0,
+     margin_long = 50, margin_short = 50,  // avoids "Margin call" trades at 100% of equity
+     commission_type = strategy.commission.percent, commission_value = 0.055, slippage = 2)
+
+// Strategy Tester results are only real on standard candles (not Heikin Ashi, Renko, Line Break, Kagi, ...).
+if not chart.is_standard
+    runtime.error("Switch the chart type to Candles (or Bars): this strategy only backtests on standard charts.")
+
+length   = input.int(22,     "ATR Period")
+mult     = input.float(3.0,  "ATR Multiplier", step = 0.1)
+useClose = input.bool(true,  "Use Close Price for Extremums")
+longOnly = input.bool(false, "Long only (Sell just closes the long)")
+
+// ---- everget's Chandelier Exit ----
+atr = mult * ta.atr(length)
+longStop = (useClose ? ta.highest(close, length) : ta.highest(length)) - atr
+longStopPrev = nz(longStop[1], longStop)
+longStop := close[1] > longStopPrev ? math.max(longStop, longStopPrev) : longStop
+shortStop = (useClose ? ta.lowest(close, length) : ta.lowest(length)) + atr
+shortStopPrev = nz(shortStop[1], shortStop)
+shortStop := close[1] < shortStopPrev ? math.min(shortStop, shortStopPrev) : shortStop
+var int dir = 1
+dir := close > shortStopPrev ? 1 : close < longStopPrev ? -1 : dir
+buySignal = dir == 1 and dir[1] == -1
+sellSignal = dir == -1 and dir[1] == 1
+
+// ---- orders (on the candle close, filled at the next open) ----
+if buySignal
+    strategy.entry("Long", strategy.long)
+if sellSignal
+    if longOnly
+        strategy.close("Long", comment = "Sell")
+    else
+        strategy.entry("Short", strategy.short)
+
+plot(dir == 1 ? longStop : na, "Long Stop", color = color.green, style = plot.style_linebr, linewidth = 2)
+plot(dir == -1 ? shortStop : na, "Short Stop", color = color.red, style = plot.style_linebr, linewidth = 2)
+plotshape(buySignal ? longStop : na, "Buy", shape.labelup, location.absolute, color.green, text = "Buy", textcolor = color.white, size = size.tiny)
+plotshape(sellSignal ? shortStop : na, "Sell", shape.labeldown, location.absolute, color.red, text = "Sell", textcolor = color.white, size = size.tiny)

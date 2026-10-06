@@ -128,6 +128,8 @@ if __name__ == '__main__':
     g = C.grid(name)
     print('\n## Neighbouring settings (one parameter moved one step), test window\n\n| Changed | Train PF | Test PF | Test return |\n|---|---|---|---|')
     for k, v in p.items():
+        if k not in g or v not in g[k]:
+            continue
         i = g[k].index(v)
         for j in (i - 1, i + 1):
             if 0 <= j < len(g[k]):
