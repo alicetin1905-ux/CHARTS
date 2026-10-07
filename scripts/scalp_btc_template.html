@@ -1,0 +1,169 @@
+<title>BTC Scalper Grid</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: config table on top, the selected config's metrics, equity curve and trade list below. */
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --fg: #18202b; --muted: #5d6878; --line: #dfe3ea;
+  --accent: #2f5fd0; --accent-soft: #e5ecfb; --up: #11804f; --down: #c23b30;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11151b; --panel: #181e26; --fg: #e3e8ef; --muted: #8e99a8; --line: #2a323d;
+  --accent: #7ea2ff; --accent-soft: #1f2a40; --up: #3fc285; --down: #f0786c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11151b; --panel: #181e26; --fg: #e3e8ef; --muted: #8e99a8; --line: #2a323d;
+  --accent: #7ea2ff; --accent-soft: #1f2a40; --up: #3fc285; --down: #f0786c; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; line-height: 1.45 }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 20px }
+h1 { font-size: 22px; font-weight: 600; margin: 0; text-wrap: balance }
+h2 { font-size: 15px; font-weight: 600; margin: 0 }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 75ch }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; min-width: 0 }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.bar label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em }
+select { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg) }
+.scroll { overflow: auto; max-height: 420px; border: 1px solid var(--line); border-radius: 6px }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 13px }
+th, td { padding: 6px 9px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line) }
+th { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-weight: 500; font-size: 12px; cursor: pointer; user-select: none }
+th.l, td.l { text-align: left }
+th[aria-sort="descending"]::after { content: " ↓" } th[aria-sort="ascending"]::after { content: " ↑" }
+#cfgs tbody tr { cursor: pointer }
+#cfgs tbody tr:hover { background: var(--accent-soft) }
+#cfgs tbody tr.sel { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent) }
+#cfgs tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px }
+.pos { color: var(--up) } .neg { color: var(--down) }
+.mono { font-family: var(--mono); font-size: 12.5px }
+.kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden }
+.kv div { background: var(--panel); padding: 8px 10px; display: grid; gap: 2px }
+.kv span { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em }
+.kv b { font-weight: 500; font-variant-numeric: tabular-nums; font-size: 15px }
+.chip { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 12px; background: var(--accent-soft); color: var(--accent) }
+.long { color: var(--up) } .short { color: var(--down) }
+svg text { fill: var(--muted); font-family: var(--mono); font-size: 11px }
+.note { color: var(--muted); font-size: 12.5px; margin: 0; max-width: 90ch }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>BTCUSDT.P LONG / SHORT score scalper</h1>
+    <p class="sub" id="lede"></p>
+  </header>
+
+  <section class="panel">
+    <div class="bar">
+      <h2 style="margin-right:auto">Configurations</h2>
+      <label for="grp">Show</label>
+      <select id="grp">
+        <option value="all">all listed</option>
+        <option value="train">best by train PF</option>
+        <option value="busy">best with ≥ 100 trades / year</option>
+        <option value="test">best by test PF (hindsight)</option>
+      </select>
+    </div>
+    <div class="scroll"><table id="cfgs"><thead></thead><tbody></tbody></table></div>
+    <p class="note">PF = profit factor (gross profit ÷ gross loss, after fees). R = multiples of the stop distance; at 1 % risk per trade, 1 R = 1 % of the account. Train = 2023 – 2024, test = Jan 2025 – Sep 2026. Click a row for its equity curve and trade list.</p>
+  </section>
+
+  <section class="panel" id="detail">
+    <h2 id="dtitle"></h2>
+    <div class="kv" id="kv"></div>
+    <div style="overflow-x:auto"><svg id="eq" width="100%" height="260" role="img" aria-label="Equity curve"></svg></div>
+    <div class="scroll" style="max-height:340px"><table id="side"></table></div>
+    <div class="bar"><h2 style="margin-right:auto">Trades</h2><span class="note" id="tcount"></span></div>
+    <div class="scroll"><table id="trades"><thead></thead><tbody></tbody></table></div>
+  </section>
+</div>
+
+<script>
+const D = /*DATA*/null;
+const $ = (s) => document.querySelector(s);
+const fmt = (x, d = 2) => (x === Infinity ? '∞' : Number(x).toFixed(d));
+const sgn = (x, d = 1) => (x > 0 ? '+' : '') + fmt(x, d);
+const cls = (x) => (x > 0 ? 'pos' : x < 0 ? 'neg' : '');
+const dt = (t) => new Date(t).toISOString().slice(0, 16).replace('T', ' ');
+const C = D.configs;
+C.forEach((c, i) => { c.id = i; });
+
+const nProf = C.filter(c => c.m.train_pf > 1 && c.m.test_pf > 1).length;
+$('#lede').textContent = `${D.total.toLocaleString('en')} configurations backtested on Binance BTCUSDT 1m candles, Jan 2023 – Sep 2026. ` +
+  `This page lists the ${C.length} best by train profit factor, by train profit factor with at least 100 trades a year, and by test profit factor; ` +
+  `all ${D.total.toLocaleString('en')} are in scalp_btc_all.csv.gz. ${nProf} of the listed configurations made money in both periods.`;
+
+const COLS = [
+  ['#', c => c.rank, 'l'], ['Entry / setup / HTF', c => `${c.cfg.entry} / ${c.cfg.setup} / ${c.cfg.htf}`, 'l'],
+  ['Score L / S', c => `${c.cfg.long_score} / ${c.cfg.short_score}`, 'l'], ['Vol', c => c.cfg.vol + '×'], ['ATR', c => c.cfg.atr.toFixed(2) + '×'],
+  ['SL', c => c.cfg.sl_pct + '%'], ['TP1 / 2 / 3', c => `${c.cfg.tp1_pct} / ${c.cfg.tp2_pct} / ${c.cfg.tp3_pct}%`, 'l'], ['ZLSMA exit', c => c.cfg.zlsma_exit, 'l'],
+  ['Trades', c => c.m.trades], ['Win %', c => c.m.win_rate], ['PF', c => c.m.pf], ['Train PF', c => c.m.train_pf], ['Test PF', c => c.m.test_pf],
+  ['Net R', c => c.m.net_R], ['Max DD R', c => c.m.max_dd_R], ['Avg R', c => c.m.avg_R],
+];
+const groups = { train: C.filter(c => c.g.includes('train')), busy: C.filter(c => c.g.includes('busy')), test: C.filter(c => c.g.includes('test')), all: C };
+let sortK = 11, sortDir = -1, sel = 0;
+
+function renderCfgs() {
+  const rows = [...groups[$('#grp').value]];
+  rows.forEach((c, i) => { c.rank = i + 1; });
+  const key = COLS[sortK][1];
+  rows.sort((a, b) => { const x = key(a), y = key(b); return (typeof x === 'number' ? x - y : String(x).localeCompare(y)) * sortDir; });
+  $('#cfgs thead').innerHTML = '<tr>' + COLS.map((c, i) => `<th class="${c[2] || ''}" data-k="${i}" ${i === sortK ? `aria-sort="${sortDir < 0 ? 'descending' : 'ascending'}"` : ''}>${c[0]}</th>`).join('') + '</tr>';
+  $('#cfgs tbody').innerHTML = rows.map(c => `<tr tabindex="0" data-id="${c.id}" class="${c.id === sel ? 'sel' : ''}">` + COLS.map(([n, f, a]) => {
+    const v = f(c);
+    const pfCol = ['PF', 'Train PF', 'Test PF'].includes(n);
+    const k = pfCol ? (v > 1 ? 'pos' : 'neg') : (n === 'Net R' || n === 'Avg R') ? cls(v) : '';
+    return `<td class="${a || ''} ${k}">${typeof v === 'number' && n !== '#' && n !== 'Trades' ? (n === 'Win %' ? fmt(v, 1) : n === 'Avg R' ? fmt(v, 3) : fmt(v)) : v}</td>`;
+  }).join('') + '</tr>').join('');
+}
+$('#cfgs thead').addEventListener('click', e => {
+  const k = +e.target.dataset.k; if (Number.isNaN(k)) return;
+  if (k === sortK) sortDir = -sortDir; else { sortK = k; sortDir = -1; }
+  renderCfgs();
+});
+const pick = e => { const tr = e.target.closest('tr[data-id]'); if (!tr) return; sel = +tr.dataset.id; renderCfgs(); renderDetail(); };
+$('#cfgs tbody').addEventListener('click', pick);
+$('#cfgs tbody').addEventListener('keydown', e => { if (e.key === 'Enter') pick(e); });
+$('#grp').addEventListener('change', renderCfgs);
+
+function renderDetail() {
+  const c = C[sel], m = c.m, g = c.cfg;
+  $('#dtitle').innerHTML = `${g.entry} entry · ${g.setup} setup · ${g.htf} HTF · score LONG ≥ ${g.long_score}, SHORT ≥ ${g.short_score} · volume ${g.vol}× · ATR ${g.atr.toFixed(2)}× · SL ${g.sl_pct}% · TP ${g.tp1_pct} / ${g.tp2_pct} / ${g.tp3_pct}% · ZLSMA exit ${g.zlsma_exit}`;
+  const kv = [['Total trades', m.trades], ['LONG trades', m.longs], ['SHORT trades', m.shorts], ['Win rate', fmt(m.win_rate, 1) + ' %'],
+    ['Profit factor', fmt(m.pf)], ['Net P&L', sgn(m.net_R) + ' R'], ['Max drawdown', fmt(m.max_dd_R, 1) + ' R'], ['Average trade', sgn(m.avg_R, 3) + ' R'],
+    ['Best trade', sgn(m.best_R) + ' R'], ['Worst trade', sgn(m.worst_R) + ' R'], ['TP1 hits', m.tp1_hits], ['TP2 hits', m.tp2_hits], ['TP3 hits', m.tp3_hits],
+    ['SL hits', m.sl_hits], ['Break-even / lock stops', m.be_stop], ['ZLSMA exits', m.zlsma], ['Train PF', fmt(m.train_pf)], ['Test PF', fmt(m.test_pf)]];
+  $('#kv').innerHTML = kv.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+  $('#side').innerHTML = '<thead><tr><th class="l">Side</th><th>Trades</th><th>Win %</th><th>PF</th><th>Net R</th></tr></thead><tbody>' +
+    [['LONG', m.longs, m.long_win_rate, m.long_pf, m.long_net_R, 'long'], ['SHORT', m.shorts, m.short_win_rate, m.short_pf, m.short_net_R, 'short']]
+      .map(r => `<tr><td class="l ${r[5]}">${r[0]}</td><td>${r[1]}</td><td>${fmt(r[2], 1)}</td><td class="${r[3] > 1 ? 'pos' : 'neg'}">${fmt(r[3])}</td><td class="${cls(r[4])}">${sgn(r[4])}</td></tr>`).join('') + '</tbody>';
+  drawEquity(c.trades);
+  $('#trades thead').innerHTML = '<tr><th class="l">#</th><th class="l">Entry (UTC)</th><th class="l">Side</th><th>Score</th><th>Entry price</th><th class="l">Exit (UTC)</th><th class="l">Exit</th><th>TPs hit</th><th>P&amp;L R</th><th>Equity R</th></tr>';
+  let eq = 0;
+  $('#trades tbody').innerHTML = c.trades.map((t, i) => {
+    eq += t[5];
+    return `<tr><td class="l">${i + 1}</td><td class="l mono">${dt(t[0])}</td><td class="l ${t[1] > 0 ? 'long' : 'short'}">${t[1] > 0 ? 'LONG' : 'SHORT'}</td><td>${t[2]}</td><td>${t[3].toLocaleString('en', { minimumFractionDigits: 1 })}</td>` +
+      `<td class="l mono">${dt(t[4])}</td><td class="l">${D.reasons[t[7]]}</td><td>${t[6]}</td><td class="${cls(t[5])}">${sgn(t[5], 2)}</td><td class="${cls(eq)}">${sgn(eq, 1)}</td></tr>`;
+  }).join('');
+  $('#tcount').textContent = `${c.trades.length} trades, oldest first`;
+}
+
+function drawEquity(tr) {
+  const svg = $('#eq'), W = Math.max(svg.clientWidth || 800, 320), H = 260, pl = 52, pr = 12, pt = 12, pb = 26;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const t0 = Date.UTC(2023, 0, 1), t1 = Date.UTC(2026, 9, 1);
+  let eq = 0; const pts = [[t0, 0]]; tr.forEach(t => { eq += t[5]; pts.push([t[4], eq]); });
+  const ys = pts.map(p => p[1]); let lo = Math.min(0, ...ys), hi = Math.max(0, ...ys); if (hi - lo < 1) hi = lo + 1;
+  const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+  const X = t => pl + (t - t0) / (t1 - t0) * (W - pl - pr), Y = v => pt + (hi - v) / (hi - lo) * (H - pt - pb);
+  const step = Math.pow(10, Math.floor(Math.log10((hi - lo) / 4))); const st = [1, 2, 5, 10].map(s => s * step).find(s => (hi - lo) / s <= 6);
+  let g = '';
+  for (let v = Math.ceil(lo / st) * st; v <= hi; v += st) g += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="${Math.abs(v) < 1e-9 ? 1.5 : 1}"/><text x="${pl - 6}" y="${Y(v) + 4}" text-anchor="end">${+v.toFixed(6)} R</text>`;
+  for (let y = 2023; y <= 2026; y++) { const x = X(Date.UTC(y, 0, 1)); g += `<line x1="${x}" x2="${x}" y1="${pt}" y2="${H - pb}" stroke="var(--line)"/><text x="${x + 4}" y="${H - 8}">${y}</text>`; }
+  const xs = X(D.split); g += `<line x1="${xs}" x2="${xs}" y1="${pt}" y2="${H - pb}" stroke="var(--accent)" stroke-dasharray="4 3"/><text x="${xs + 4}" y="${pt + 10}" style="fill:var(--accent)">test →</text>`;
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('');
+  const end = pts[pts.length - 1], col = end[1] >= 0 ? 'var(--up)' : 'var(--down)';
+  g += `<path d="${path}L${X(end[0])},${Y(0)}L${X(t0)},${Y(0)}Z" fill="${col}" fill-opacity="0.08" stroke="none"/>`;
+  g += `<path d="${path}" fill="none" stroke="${col}" stroke-width="1.6"/><circle cx="${X(end[0])}" cy="${Y(end[1])}" r="3.5" fill="${col}"/>`;
+  svg.innerHTML = g;
+}
+addEventListener('resize', () => drawEquity(C[sel].trades));
+renderCfgs(); renderDetail();
+</script>

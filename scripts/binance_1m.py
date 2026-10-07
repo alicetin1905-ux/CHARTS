@@ -1,6 +1,6 @@
 """Binance USD-M futures 1m candles from data.binance.vision (monthly zips). Needs numpy.
 
-Writes data/binance_1m/<SYMBOL>.npz with t (open time ms UTC), o, h, l, c, v (base volume).
+Writes data/binance_1m/<SYMBOL>.npz with t (open time ms UTC), o, h, l, c, v (base volume), tb (taker buy base volume).
 
     python3 scripts/binance_1m.py [SYMBOL ...]        default: BTC ETH SOL XRP DOGE SUI, 2022-10 .. 2026-09
 """
@@ -36,7 +36,7 @@ def month(job):
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
         txt = z.read(z.namelist()[0]).decode()
     lines = [ln for ln in txt.splitlines() if ln and ln[0].isdigit()]  # newer files have a header row
-    a = np.array([ln.split(',')[:6] for ln in lines], dtype=np.float64)
+    a = np.array([[x for j, x in enumerate(ln.split(',')) if j in (0, 1, 2, 3, 4, 5, 9)] for ln in lines], dtype=np.float64)
     return a
 
 
@@ -53,7 +53,7 @@ def main():
             a = np.concatenate(parts)
             a = a[np.argsort(a[:, 0], kind='stable')]
             a = a[np.concatenate([[True], np.diff(a[:, 0]) > 0])]
-            np.savez(f, t=a[:, 0].astype(np.int64), o=a[:, 1], h=a[:, 2], l=a[:, 3], c=a[:, 4], v=a[:, 5])
+            np.savez(f, t=a[:, 0].astype(np.int64), o=a[:, 1], h=a[:, 2], l=a[:, 3], c=a[:, 4], v=a[:, 5], tb=a[:, 6])
             print(sym, len(a), 'candles', time.strftime('%Y-%m-%d', time.gmtime(a[0, 0] / 1000)), '->',
                   time.strftime('%Y-%m-%d', time.gmtime(a[-1, 0] / 1000)))
 
