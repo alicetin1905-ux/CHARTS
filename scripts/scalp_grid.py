@@ -331,7 +331,7 @@ def report(cands, ST, YR, COIN_ST):
     w('| Score thresholds | configs | train PF | test PF | test PF > 1 | trades / year | test R / year |')
     w('|---|---|---|---|---|---|---|')
     for nm, mm in (('same for long and short', sym_mask), ('separate long / short', ~sym_mask)):
-        msk = ok & mm[..., None]
+        msk = ok & mm
         w(f'| {nm} | {msk.sum():,} | {np.nanmedian(pf_tr[msk]):.2f} | {np.nanmedian(pf_te[msk]):.2f} | '
           f'{(pf_te[msk] > 1).mean() * 100:.0f} % | {np.median(tr_y[msk]):.0f} | {np.median(te_y[msk]):+.1f} |')
     w('')
