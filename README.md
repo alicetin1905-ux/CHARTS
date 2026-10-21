@@ -56,6 +56,27 @@ cumulative delta (CVD).
 
 Add it: TradingView → Pine Editor → paste the file → Add to chart, on `BINANCE:BTCUSDT.P` or `BYBIT:BTCUSDT.P`.
 
+### Backtest of the BUY / SELL signals (`scripts/cvd_divergence_backtest.py`)
+
+Default settings, Binance BTCUSDT.P 1m candles Oct 2020 – Sep 2026, next-bar-open entry, stop at the divergence
+pivot (checked on 1m), opposite signal reverses, 1×, 0.075% cost per side. Full tables:
+[`backtests/cvd_divergence.md`](backtests/cvd_divergence.md).
+
+| Chart | Trades / yr | PF (no target) | Net (no target) | PF (2R target) | Net (2R target) | Max DD |
+|---|---|---|---|---|---|---|
+| 15m | 206 – 241 | 0.91 | −71% | 0.93 | −59% | 67 – 73% |
+| 1H | 48 – 55 | 0.81 | −75% | 0.74 | −78% | 79 – 83% |
+| 4H | 12 – 15 | 0.69 | −69% | 0.96 | −28% | 55 – 69% |
+| 1D | 3 | 1.17 | −16% | 0.89 | −34% | 68 – 69% |
+| Buy & hold | | | +676% | | | |
+
+- Every timeframe loses after costs. 15m has a small edge before costs (PF 1.12 – 1.18) that fees remove.
+- SELL signals lose on every timeframe (PF 0.39 – 0.90). BUY signals alone do better on 4H / 1D (PF 1.3+), but
+  that is 34 trades in 6 years on 4H and 4 on 1D: too few to rely on.
+- With Binance's real taker delta instead of the estimate, 4H makes +23% to +34% in 6 years: still far below holding.
+- The estimate from the chart candle, which TradingView uses for bars older than its intrabar history, gives
+  different signals (PF 0.35 – 1.21), so signals in the indicator's older history do not show what it does live.
+
 ## EMA Ribbon flip backtest (`scripts/ribbon_backtest.py`)
 
 Backtest of trading BTCUSDT.P on the flips of the **EMA Ribbon [Krypt]** (EMAs 20–55): long when all 8 EMAs
