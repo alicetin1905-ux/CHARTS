@@ -11,9 +11,13 @@
 //
 // Delta candles: open = 0, high / low = highest / lowest running delta inside the bar, close = bar delta.
 // CVD candles  : the same, starting from the previous bar's CVD.
+//
+// Divergence: pivot highs / lows in price (pivot bars left / right) are compared with the previous pivot of the
+// same kind 5-60 bars earlier. Bullish = price lower low, CVD higher low. Bearish = price higher high, CVD lower
+// high. Hidden divergences (optional) are the reverse. A signal appears 'pivot bars right' bars after the pivot.
 
 //@version=6
-indicator("Delta Volume [BTCUSDT.P]", shorttitle = "Delta Vol", format = format.volume)
+indicator("Delta Volume [BTCUSDT.P]", shorttitle = "Delta Vol", format = format.volume, max_lines_count = 500, max_labels_count = 500)
 
 grpData = "Data"
 useChart  = input.bool(true, "Use chart symbol", group = grpData)
@@ -31,6 +35,20 @@ maLen       = input.int(20, "", minval = 1, inline = "ma", group = grpView)
 showTable   = input.bool(true, "Stats table", group = grpView)
 upColor     = input.color(#26a69a, "Buy", inline = "col", group = grpView)
 dnColor     = input.color(#ef5350, "Sell", inline = "col", group = grpView)
+
+grpDiv = "Price / CVD divergence"
+showDiv    = input.bool(true, "Regular divergences", group = grpDiv,
+     tooltip = "Bullish: price makes a lower low, CVD a higher low (selling is drying up). Bearish: price makes a higher high, CVD a lower high (buying is drying up).")
+showHidden = input.bool(false, "Hidden divergences", group = grpDiv,
+     tooltip = "Bullish: price makes a higher low, CVD a lower low. Bearish: price makes a lower high, CVD a higher high. Read as trend continuation.")
+pivLeft    = input.int(5, "Pivot bars left", minval = 1, group = grpDiv)
+pivRight   = input.int(3, "Pivot bars right", minval = 1, group = grpDiv,
+     tooltip = "A pivot is confirmed this many bars after it, so signals and alerts arrive that many bars late. The marks are drawn back on the pivot bar.")
+rangeMin   = input.int(5, "Min bars between pivots", minval = 1, group = grpDiv)
+rangeMax   = input.int(60, "Max bars between pivots", minval = 2, group = grpDiv)
+divOnPrice = input.bool(true, "Draw on price chart", group = grpDiv, tooltip = "Lines and labels on the candles. Only when 'Use chart symbol' is on.")
+bullColor  = input.color(#00e676, "Bullish", inline = "dcol", group = grpDiv)
+bearColor  = input.color(#ff9100, "Bearish", inline = "dcol", group = grpDiv)
 
 sym     = useChart ? syminfo.tickerid : symInput
 ltf     = autoLtf ? (timeframe.isseconds ? "1S" : timeframe.isintraday ? "1" : timeframe.isdaily ? "5" : "60") : ltfInput
@@ -92,10 +110,64 @@ bool reset = switch anchorInput
 var float cvd = 0.0
 float cvdOpen = reset ? 0.0 : cvd
 cvd := cvdOpen + delta
+var int lastResetBar = 0
+if reset
+    lastResetBar := bar_index
 
 isCandles = modeInput == "Delta candles"
 isColumns = modeInput == "Delta columns"
 isCvd     = modeInput == "Cumulative delta (CVD)"
+
+// Divergence: find pivots in price, compare CVD at the same bars with the previous pivot of the same kind.
+// Pairs that straddle a CVD reset are skipped, since their CVD values are not comparable.
+pivLow    = ta.pivotlow(l, pivLeft, pivRight)
+pivHigh   = ta.pivothigh(h, pivLeft, pivRight)
+pivBar    = bar_index - pivRight
+cvdAtPiv  = cvd[pivRight]
+
+var float prevLowPrice  = na
+var float prevLowCvd    = na
+var int   prevLowBar    = na
+var float prevHighPrice = na
+var float prevHighCvd   = na
+var int   prevHighBar   = na
+
+bool bullDiv    = false
+bool hidBullDiv = false
+bool bearDiv    = false
+bool hidBearDiv = false
+
+drawDiv(int x1, float p1, float c1, float p2, float c2, bool isBull, bool isHidden) =>
+    color col  = isBull ? bullColor : bearColor
+    string sty = isHidden ? line.style_dashed : line.style_solid
+    if isCvd
+        line.new(x1, c1, pivBar, c2, color = col, width = 2, style = sty)
+    if divOnPrice and useChart
+        line.new(x1, p1, pivBar, p2, color = col, width = 2, style = sty, force_overlay = true)
+        label.new(pivBar, p2, (isHidden ? "H " : "") + (isBull ? "Bull" : "Bear"), color = col, textcolor = color.black,
+             style = isBull ? label.style_label_up : label.style_label_down, size = size.small, force_overlay = true)
+
+if not na(pivLow)
+    int dist = pivBar - prevLowBar
+    if not na(prevLowBar) and dist >= rangeMin and dist <= rangeMax and lastResetBar <= prevLowBar
+        bullDiv    := pivLow < prevLowPrice and cvdAtPiv > prevLowCvd
+        hidBullDiv := pivLow > prevLowPrice and cvdAtPiv < prevLowCvd
+        if (showDiv and bullDiv) or (showHidden and hidBullDiv)
+            drawDiv(prevLowBar, prevLowPrice, prevLowCvd, pivLow, cvdAtPiv, true, hidBullDiv)
+    prevLowPrice := pivLow
+    prevLowCvd   := cvdAtPiv
+    prevLowBar   := pivBar
+
+if not na(pivHigh)
+    int dist = pivBar - prevHighBar
+    if not na(prevHighBar) and dist >= rangeMin and dist <= rangeMax and lastResetBar <= prevHighBar
+        bearDiv    := pivHigh > prevHighPrice and cvdAtPiv < prevHighCvd
+        hidBearDiv := pivHigh < prevHighPrice and cvdAtPiv > prevHighCvd
+        if (showDiv and bearDiv) or (showHidden and hidBearDiv)
+            drawDiv(prevHighBar, prevHighPrice, prevHighCvd, pivHigh, cvdAtPiv, false, hidBearDiv)
+    prevHighPrice := pivHigh
+    prevHighCvd   := cvdAtPiv
+    prevHighBar   := pivBar
 
 fade     = isFallback ? 50 : 0
 barColor = color.new(delta >= 0 ? upColor : dnColor, fade)
@@ -109,6 +181,12 @@ plotcandle(isCvd ? cvdOpen : na, isCvd ? cvdOpen + hiDelta : na, isCvd ? cvdOpen
 ma = ta.ema(isCvd ? cvd : delta, maLen)
 plot(showMa ? ma : na, "Moving average", color.new(color.orange, 0), 2)
 hline(0, "Zero", color.new(color.gray, 50), hline.style_dotted)
+
+// Divergence marks in the pane, on the pivot bar (confirmed pivRight bars later).
+plotshape(showDiv and bullDiv, "Bullish divergence", shape.triangleup, location.bottom, bullColor, offset = -pivRight, size = size.tiny)
+plotshape(showDiv and bearDiv, "Bearish divergence", shape.triangledown, location.top, bearColor, offset = -pivRight, size = size.tiny)
+plotshape(showHidden and hidBullDiv, "Hidden bullish divergence", shape.circle, location.bottom, bullColor, offset = -pivRight, size = size.tiny)
+plotshape(showHidden and hidBearDiv, "Hidden bearish divergence", shape.circle, location.top, bearColor, offset = -pivRight, size = size.tiny)
 
 // Data window values.
 plot(buyVol,   "Buy volume",  upColor, display = display.data_window)
@@ -137,3 +215,7 @@ alertcondition(ta.crossover(delta, 0),  "Delta turns positive", "Delta volume tu
 alertcondition(ta.crossunder(delta, 0), "Delta turns negative", "Delta volume turned negative on {{ticker}}")
 alertcondition(ta.crossover(cvd, ta.ema(cvd, maLen)),  "CVD crosses above its EMA", "CVD crossed above its EMA on {{ticker}}")
 alertcondition(ta.crossunder(cvd, ta.ema(cvd, maLen)), "CVD crosses below its EMA", "CVD crossed below its EMA on {{ticker}}")
+alertcondition(bullDiv,    "Bullish divergence",        "Bullish price / CVD divergence on {{ticker}}")
+alertcondition(bearDiv,    "Bearish divergence",        "Bearish price / CVD divergence on {{ticker}}")
+alertcondition(hidBullDiv, "Hidden bullish divergence", "Hidden bullish price / CVD divergence on {{ticker}}")
+alertcondition(hidBearDiv, "Hidden bearish divergence", "Hidden bearish price / CVD divergence on {{ticker}}")

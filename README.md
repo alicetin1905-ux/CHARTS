@@ -44,7 +44,11 @@ cumulative delta (CVD).
 - Volume in BTC or in USDT. A table shows buy / sell volume, delta, delta % and CVD for the last bar.
 - Older bars beyond TradingView's intrabar history use the chart candle instead (buy share = (close − low) / (high − low))
   and are drawn faded.
-- Alerts: delta turns positive / negative, CVD crosses its EMA.
+- Price / CVD divergence: bullish when price makes a lower low but CVD a higher low, bearish when price makes a
+  higher high but CVD a lower high (hidden divergences optional). Found on price pivots (5 bars left, 3 right, 5–60
+  bars apart), so a signal shows 3 bars after the pivot. Drawn as lines and labels on the candles, a line on the CVD
+  (in CVD mode) and triangles in the pane. Pivot pairs with a CVD reset in between are skipped.
+- Alerts: delta turns positive / negative, CVD crosses its EMA, each divergence type.
 
 Add it: TradingView → Pine Editor → paste the file → Add to chart, on `BINANCE:BTCUSDT.P` or `BYBIT:BTCUSDT.P`.
 
