@@ -48,7 +48,11 @@ cumulative delta (CVD).
   higher high but CVD a lower high (hidden divergences optional). Found on price pivots (5 bars left, 3 right, 5–60
   bars apart), so a signal shows 3 bars after the pivot. Drawn as lines and labels on the candles, a line on the CVD
   (in CVD mode) and triangles in the pane. Pivot pairs with a CVD reset in between are skipped.
-- Alerts: delta turns positive / negative, CVD crosses its EMA, each divergence type.
+- Buy / sell signals when a divergence confirms: after a bullish divergence, BUY when a candle closes above the
+  highest high since the pivot low, with positive delta. Cancelled if price breaks the pivot low first, if a bearish
+  divergence appears, or after 10 bars. SELL is the mirror image. The pending trigger level is drawn on the chart.
+  The pivot is the natural stop; it is included in the `alert()` message. Not backtested.
+- Alerts: delta turns positive / negative, CVD crosses its EMA, each divergence type, buy / sell.
 
 Add it: TradingView → Pine Editor → paste the file → Add to chart, on `BINANCE:BTCUSDT.P` or `BYBIT:BTCUSDT.P`.
 

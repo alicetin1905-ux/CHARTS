@@ -15,6 +15,8 @@
 // Divergence: pivot highs / lows in price (pivot bars left / right) are compared with the previous pivot of the
 // same kind 5-60 bars earlier. Bullish = price lower low, CVD higher low. Bearish = price higher high, CVD lower
 // high. Hidden divergences (optional) are the reverse. A signal appears 'pivot bars right' bars after the pivot.
+// Buy / sell: a divergence arms a trigger (highest high / lowest low since the pivot); a close through it with
+// matching delta within 'Bars to confirm' bars is the signal, unless price breaks the pivot first.
 
 //@version=6
 indicator("Delta Volume [BTCUSDT.P]", shorttitle = "Delta Vol", format = format.volume, max_lines_count = 500, max_labels_count = 500)
@@ -49,6 +51,14 @@ rangeMax   = input.int(60, "Max bars between pivots", minval = 2, group = grpDiv
 divOnPrice = input.bool(true, "Draw on price chart", group = grpDiv, tooltip = "Lines and labels on the candles. Only when 'Use chart symbol' is on.")
 bullColor  = input.color(#00e676, "Bullish", inline = "dcol", group = grpDiv)
 bearColor  = input.color(#ff9100, "Bearish", inline = "dcol", group = grpDiv)
+
+grpSig = "Buy / sell signals"
+showSignals = input.bool(true, "Show buy / sell signals", group = grpSig,
+     tooltip = "After a bullish divergence: BUY when a candle closes above the highest high from the pivot low to the bar the divergence was found. Cancelled if price trades below the pivot low first, if a bearish divergence appears, or after 'Bars to confirm'. SELL is the mirror image.")
+sigHidden   = input.bool(false, "Also from hidden divergences", group = grpSig)
+confirmBars = input.int(10, "Bars to confirm", minval = 1, group = grpSig)
+needDelta   = input.bool(true, "Confirmation candle needs matching delta", group = grpSig,
+     tooltip = "BUY only on a candle with positive delta, SELL only on negative delta.")
 
 sym     = useChart ? syminfo.tickerid : symInput
 ltf     = autoLtf ? (timeframe.isseconds ? "1S" : timeframe.isintraday ? "1" : timeframe.isdaily ? "5" : "60") : ltfInput
@@ -169,6 +179,52 @@ if not na(pivHigh)
     prevHighCvd   := cvdAtPiv
     prevHighBar   := pivBar
 
+// Buy / sell: a divergence arms a trigger level, a close through it (before the pivot breaks) confirms it.
+// Pending triggers are checked before new ones are armed, so a signal comes at the earliest on the next bar.
+hiSincePiv = ta.highest(h, pivRight + 1)
+loSincePiv = ta.lowest(l, pivRight + 1)
+
+var float buyLevel   = na
+var float buyStop    = na
+var int   buyExpire  = na
+var float sellLevel  = na
+var float sellStop   = na
+var int   sellExpire = na
+
+bool buySig  = false
+bool sellSig = false
+float sigStop = na
+
+if not na(buyLevel)
+    if l < buyStop or bar_index > buyExpire
+        buyLevel := na
+    else if c > buyLevel and (not needDelta or delta > 0)
+        buySig   := true
+        sigStop  := buyStop
+        buyLevel := na
+if not na(sellLevel)
+    if h > sellStop or bar_index > sellExpire
+        sellLevel := na
+    else if c < sellLevel and (not needDelta or delta < 0)
+        sellSig   := true
+        sigStop   := sellStop
+        sellLevel := na
+
+bool newBull = bullDiv or (sigHidden and hidBullDiv)
+bool newBear = bearDiv or (sigHidden and hidBearDiv)
+if newBull
+    buyLevel  := hiSincePiv
+    buyStop   := pivLow
+    buyExpire := bar_index + confirmBars
+    if not newBear
+        sellLevel := na
+if newBear
+    sellLevel  := loSincePiv
+    sellStop   := pivHigh
+    sellExpire := bar_index + confirmBars
+    if not newBull
+        buyLevel := na
+
 fade     = isFallback ? 50 : 0
 barColor = color.new(delta >= 0 ? upColor : dnColor, fade)
 
@@ -187,6 +243,15 @@ plotshape(showDiv and bullDiv, "Bullish divergence", shape.triangleup, location.
 plotshape(showDiv and bearDiv, "Bearish divergence", shape.triangledown, location.top, bearColor, offset = -pivRight, size = size.tiny)
 plotshape(showHidden and hidBullDiv, "Hidden bullish divergence", shape.circle, location.bottom, bullColor, offset = -pivRight, size = size.tiny)
 plotshape(showHidden and hidBearDiv, "Hidden bearish divergence", shape.circle, location.top, bearColor, offset = -pivRight, size = size.tiny)
+
+// Signals in the pane, and on the candles with the pending trigger levels.
+onPrice = showSignals and useChart
+plotshape(showSignals and buySig,  "Buy",  shape.labelup,   location.bottom, upColor, text = "BUY",  textcolor = color.white, size = size.small)
+plotshape(showSignals and sellSig, "Sell", shape.labeldown, location.top,    dnColor, text = "SELL", textcolor = color.white, size = size.small)
+plotshape(onPrice and buySig,  "Buy (price)",  shape.labelup,   location.belowbar, upColor, text = "BUY",  textcolor = color.white, size = size.small, force_overlay = true)
+plotshape(onPrice and sellSig, "Sell (price)", shape.labeldown, location.abovebar, dnColor, text = "SELL", textcolor = color.white, size = size.small, force_overlay = true)
+plot(onPrice ? buyLevel : na,  "Buy trigger",  color.new(upColor, 30), 1, plot.style_linebr, force_overlay = true)
+plot(onPrice ? sellLevel : na, "Sell trigger", color.new(dnColor, 30), 1, plot.style_linebr, force_overlay = true)
 
 // Data window values.
 plot(buyVol,   "Buy volume",  upColor, display = display.data_window)
@@ -219,3 +284,9 @@ alertcondition(bullDiv,    "Bullish divergence",        "Bullish price / CVD div
 alertcondition(bearDiv,    "Bearish divergence",        "Bearish price / CVD divergence on {{ticker}}")
 alertcondition(hidBullDiv, "Hidden bullish divergence", "Hidden bullish price / CVD divergence on {{ticker}}")
 alertcondition(hidBearDiv, "Hidden bearish divergence", "Hidden bearish price / CVD divergence on {{ticker}}")
+alertcondition(buySig,  "Buy signal",  "BUY: bullish price / CVD divergence confirmed on {{ticker}} at {{close}}")
+alertcondition(sellSig, "Sell signal", "SELL: bearish price / CVD divergence confirmed on {{ticker}} at {{close}}")
+// For 'Any alert() function call' alerts, with the invalidation level (the divergence pivot).
+if buySig or sellSig
+    alert((buySig ? "BUY " : "SELL ") + syminfo.ticker + " at " + str.tostring(c, format.mintick) +
+         ", divergence invalid beyond " + str.tostring(sigStop, format.mintick), alert.freq_once_per_bar_close)
