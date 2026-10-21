@@ -64,14 +64,18 @@ pivot (checked on 1m), opposite signal reverses, 1×, 0.075% cost per side. Full
 
 | Chart | Trades / yr | PF (no target) | Net (no target) | PF (2R target) | Net (2R target) | Max DD |
 |---|---|---|---|---|---|---|
+| 5m | 700 – 796 | 0.61 | −100% | 0.62 | −100% | 100% |
 | 15m | 206 – 241 | 0.91 | −71% | 0.93 | −59% | 67 – 73% |
 | 1H | 48 – 55 | 0.81 | −75% | 0.74 | −78% | 79 – 83% |
 | 4H | 12 – 15 | 0.69 | −69% | 0.96 | −28% | 55 – 69% |
+| 12H | 3 – 4 | 0.54 | −47% | 1.49 | +40% | 32 – 64% |
 | 1D | 3 | 1.17 | −16% | 0.89 | −34% | 68 – 69% |
 | Buy & hold | | | +676% | | | |
 
-- Every timeframe loses after costs. 15m has a small edge before costs (PF 1.12 – 1.18) that fees remove.
-- SELL signals lose on every timeframe (PF 0.39 – 0.90). BUY signals alone do better on 4H / 1D (PF 1.3+), but
+- Every timeframe loses after costs except 12H with the 2R target (+40% in 6 years, 25 trades, PF 1.49): too few
+  trades to trust, and the same timeframe without a target loses 47%. 5m loses everything (PF 0.61, ~750 trades a
+  year). 15m has a small edge before costs (PF 1.12 – 1.18) that fees remove.
+- SELL signals lose on every timeframe but 12H (PF 0.39 – 0.90). BUY signals alone do better on 4H / 1D (PF 1.3+), but
   that is 34 trades in 6 years on 4H and 4 on 1D: too few to rely on.
 - With Binance's real taker delta instead of the estimate, 4H makes +23% to +34% in 6 years: still far below holding.
 - The estimate from the chart candle, which TradingView uses for bars older than its intrabar history, gives

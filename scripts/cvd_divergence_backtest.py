@@ -18,7 +18,7 @@ Delta is also computed two other ways, to see whether the estimate matters:
 
 Trading: enter at the open of the next bar, 1x, full equity, 0.075 % cost per side (taker fee + slippage).
 Stop at the divergence pivot (the indicator's invalidation level), checked on 1m candles; an opposite signal
-closes and reverses the trade, a repeat signal in the same direction is ignored. Exit variants:
+closes and reverses the trade, a repeat signal in the same direction is ignored. Charts: 5m, 15m, 1H, 4H, 12H, 1D. Exit variants:
   - reverse : no target, the trade runs until the stop or the opposite signal;
   - 2R      : take profit at 2x the stop distance.
 If the stop and the target are hit in the same minute, the stop counts.
@@ -40,7 +40,7 @@ MONTHS = [f'{y}-{m:02d}' for y in range(2020, 2027) for m in range(1, 13) if '20
 OUT = os.path.join('backtests', 'cvd_divergence.md')
 
 COST = 0.00075
-TFS = [('15m', 15, 1), ('1H', 60, 1), ('4H', 240, 1), ('1D', 1440, 5)]  # chart TF, minutes, intrabar minutes
+TFS = [('5m', 5, 1), ('15m', 15, 1), ('1H', 60, 1), ('4H', 240, 1), ('12H', 720, 1), ('1D', 1440, 5)]  # chart TF, minutes, intrabar minutes
 PIV_L, PIV_R, RANGE_MIN, RANGE_MAX, CONFIRM = 5, 3, 5, 60, 10
 DELTAS = ['intrabar', 'chart bar', 'taker']
 EXITS = ['reverse', '2R']
