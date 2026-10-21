@@ -1,0 +1,139 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Delta volume (buy volume - sell volume) per bar and cumulative (CVD), built for BINANCE:BTCUSDT.P / BYBIT:BTCUSDT.P.
+//
+// Pine Script cannot see who was the aggressor in each trade, so delta is estimated from lower-timeframe
+// candles, the same way TradingView's built-in Volume Delta does it:
+//   - each intrabar (1m by default) counts as buy volume if it closed up, sell volume if it closed down;
+//   - an intrabar that closed flat takes the direction of the price change from the previous intrabar
+//     (or of the last direction if the price did not change either).
+// Bars older than the intrabar history TradingView provides (about 100,000 intrabars, plan dependent) fall
+// back to the chart bar: buy share = (close - low) / (high - low). They are drawn faded and counted in the table.
+//
+// Delta candles: open = 0, high / low = highest / lowest running delta inside the bar, close = bar delta.
+// CVD candles  : the same, starting from the previous bar's CVD.
+
+//@version=6
+indicator("Delta Volume [BTCUSDT.P]", shorttitle = "Delta Vol", format = format.volume)
+
+grpData = "Data"
+useChart  = input.bool(true, "Use chart symbol", group = grpData)
+symInput  = input.symbol("BINANCE:BTCUSDT.P", "Symbol", group = grpData, tooltip = "Used when 'Use chart symbol' is off.")
+autoLtf   = input.bool(true, "Auto lower timeframe", group = grpData,
+     tooltip = "Seconds chart: 1S. Intraday: 1m. Daily: 5m. Weekly and up: 1H. A lower timeframe is more precise but covers less history.")
+ltfInput  = input.timeframe("1", "Lower timeframe", group = grpData)
+unitInput = input.string("Coin (BTC)", "Volume unit", options = ["Coin (BTC)", "Quote (USDT)"], group = grpData)
+
+grpView = "Display"
+modeInput   = input.string("Delta candles", "Show", options = ["Delta candles", "Delta columns", "Cumulative delta (CVD)"], group = grpView)
+anchorInput = input.string("None", "CVD reset", options = ["None", "Day", "Week", "Month"], group = grpView)
+showMa      = input.bool(true, "Moving average", inline = "ma", group = grpView)
+maLen       = input.int(20, "", minval = 1, inline = "ma", group = grpView)
+showTable   = input.bool(true, "Stats table", group = grpView)
+upColor     = input.color(#26a69a, "Buy", inline = "col", group = grpView)
+dnColor     = input.color(#ef5350, "Sell", inline = "col", group = grpView)
+
+sym     = useChart ? syminfo.tickerid : symInput
+ltf     = autoLtf ? (timeframe.isseconds ? "1S" : timeframe.isintraday ? "1" : timeframe.isdaily ? "5" : "60") : ltfInput
+isQuote = unitInput == "Quote (USDT)"
+
+if timeframe.in_seconds(ltf) > timeframe.in_seconds()
+    runtime.error("The lower timeframe (" + ltf + ") must not be higher than the chart timeframe.")
+
+[ltfO, ltfC, ltfV] = request.security_lower_tf(sym, ltf, [open, close, volume])
+[o, h, l, c, v]    = request.security(sym, timeframe.period, [open, high, low, close, volume])
+
+// Direction of the last intrabar that moved, carried across chart bars for the tick rule.
+var float lastDir   = 1.0
+var float lastClose = na
+
+float buyVol  = 0.0
+float sellVol = 0.0
+float delta   = 0.0
+float hiDelta = 0.0
+float loDelta = 0.0
+int   n       = ltfC.size()
+bool  isFallback = n == 0
+
+if not isFallback
+    for i = 0 to n - 1
+        float ic = ltfC.get(i)
+        float io = ltfO.get(i)
+        float iv = nz(ltfV.get(i)) * (isQuote ? ic : 1.0)
+        float dir = ic > io ? 1.0 : ic < io ? -1.0 : ic > lastClose ? 1.0 : ic < lastClose ? -1.0 : lastDir
+        if dir > 0
+            buyVol += iv
+        else
+            sellVol += iv
+        delta   += dir * iv
+        hiDelta := math.max(hiDelta, delta)
+        loDelta := math.min(loDelta, delta)
+        lastDir   := dir
+        lastClose := ic
+else
+    float vol      = nz(v) * (isQuote ? c : 1.0)
+    float buyShare = h > l ? (c - l) / (h - l) : c > o ? 1.0 : c < o ? 0.0 : 0.5
+    buyVol  := vol * buyShare
+    sellVol := vol - buyVol
+    delta   := buyVol - sellVol
+    hiDelta := math.max(delta, 0.0)
+    loDelta := math.min(delta, 0.0)
+    if not na(c)
+        lastClose := c
+
+totalVol = buyVol + sellVol
+deltaPct = totalVol > 0 ? 100 * delta / totalVol : 0.0
+
+// Cumulative delta with an optional periodic reset.
+bool reset = switch anchorInput
+    "Day"   => timeframe.change("D")
+    "Week"  => timeframe.change("W")
+    "Month" => timeframe.change("M")
+    => false
+var float cvd = 0.0
+float cvdOpen = reset ? 0.0 : cvd
+cvd := cvdOpen + delta
+
+isCandles = modeInput == "Delta candles"
+isColumns = modeInput == "Delta columns"
+isCvd     = modeInput == "Cumulative delta (CVD)"
+
+fade     = isFallback ? 50 : 0
+barColor = color.new(delta >= 0 ? upColor : dnColor, fade)
+
+plotcandle(isCandles ? 0.0 : na, isCandles ? hiDelta : na, isCandles ? loDelta : na, isCandles ? delta : na,
+     "Delta candles", barColor, barColor, bordercolor = barColor)
+plot(isColumns ? delta : na, "Delta", barColor, style = plot.style_columns)
+plotcandle(isCvd ? cvdOpen : na, isCvd ? cvdOpen + hiDelta : na, isCvd ? cvdOpen + loDelta : na, isCvd ? cvd : na,
+     "CVD candles", barColor, barColor, bordercolor = barColor)
+
+ma = ta.ema(isCvd ? cvd : delta, maLen)
+plot(showMa ? ma : na, "Moving average", color.new(color.orange, 0), 2)
+hline(0, "Zero", color.new(color.gray, 50), hline.style_dotted)
+
+// Data window values.
+plot(buyVol,   "Buy volume",  upColor, display = display.data_window)
+plot(sellVol,  "Sell volume", dnColor, display = display.data_window)
+plot(deltaPct, "Delta %",     color.gray, display = display.data_window)
+plot(cvd,      "CVD",         color.gray, display = display.data_window)
+
+var int fallbackBars = 0
+if isFallback
+    fallbackBars += 1
+
+var table stats = table.new(position.top_right, 2, 7, bgcolor = color.new(color.black, 80), border_width = 1)
+if showTable and barstate.islast
+    unit = isQuote ? " USDT" : " " + syminfo.basecurrency
+    rows = array.from("Buy volume", "Sell volume", "Delta", "Delta %", "CVD", "Lower TF", "Fallback bars")
+    vals = array.from(str.tostring(buyVol, format.volume) + unit, str.tostring(sellVol, format.volume) + unit,
+         str.tostring(delta, format.volume) + unit, str.tostring(deltaPct, "0.0") + "%",
+         str.tostring(cvd, format.volume) + unit, ltf + (isFallback ? " (n/a)" : " x" + str.tostring(n)),
+         str.tostring(fallbackBars))
+    for i = 0 to rows.size() - 1
+        color valColor = i == 2 or i == 3 ? (delta >= 0 ? upColor : dnColor) : i == 4 ? (cvd >= 0 ? upColor : dnColor) : color.white
+        stats.cell(0, i, rows.get(i), text_color = color.silver, text_size = size.small, text_halign = text.align_left)
+        stats.cell(1, i, vals.get(i), text_color = valColor, text_size = size.small, text_halign = text.align_right)
+
+alertcondition(ta.crossover(delta, 0),  "Delta turns positive", "Delta volume turned positive on {{ticker}}")
+alertcondition(ta.crossunder(delta, 0), "Delta turns negative", "Delta volume turned negative on {{ticker}}")
+alertcondition(ta.crossover(cvd, ta.ema(cvd, maLen)),  "CVD crosses above its EMA", "CVD crossed above its EMA on {{ticker}}")
+alertcondition(ta.crossunder(cvd, ta.ema(cvd, maLen)), "CVD crosses below its EMA", "CVD crossed below its EMA on {{ticker}}")

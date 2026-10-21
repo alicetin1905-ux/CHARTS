@@ -31,6 +31,23 @@ SoSoValue's public API.
   `scripts/etf_flows.py` for btc, eth and sol and saves the results to the page's `etf/btc`, `etf/eth` and
   `etf/sol` database documents. SoSoValue has no data for other coins' ETFs (XRP, DOGE, LTC, ...).
 
+## Delta Volume indicator (`indicators/delta_volume.pine`)
+
+TradingView indicator for BTCUSDT.P (works on any symbol): buy volume − sell volume per bar, and the
+cumulative delta (CVD).
+
+- Pine Script cannot see which side started each trade, so delta is estimated from 1-minute candles inside each
+  bar (like TradingView's built-in Volume Delta): a 1m candle that closed up counts as buy volume, one that closed
+  down as sell volume, a flat one takes the direction of the last price move.
+- Show: delta candles (body = bar delta, wicks = highest / lowest delta inside the bar), delta columns, or CVD
+  candles, with an EMA. CVD can reset each day, week or month.
+- Volume in BTC or in USDT. A table shows buy / sell volume, delta, delta % and CVD for the last bar.
+- Older bars beyond TradingView's intrabar history use the chart candle instead (buy share = (close − low) / (high − low))
+  and are drawn faded.
+- Alerts: delta turns positive / negative, CVD crosses its EMA.
+
+Add it: TradingView → Pine Editor → paste the file → Add to chart, on `BINANCE:BTCUSDT.P` or `BYBIT:BTCUSDT.P`.
+
 ## EMA Ribbon flip backtest (`scripts/ribbon_backtest.py`)
 
 Backtest of trading BTCUSDT.P on the flips of the **EMA Ribbon [Krypt]** (EMAs 20–55): long when all 8 EMAs
