@@ -81,6 +81,18 @@ pivot (checked on 1m), opposite signal reverses, 1×, 0.075% cost per side. Full
 - The estimate from the chart candle, which TradingView uses for bars older than its intrabar history, gives
   different signals (PF 0.35 – 1.21), so signals in the indicator's older history do not show what it does live.
 
+Filters and exits, ranked on train (Oct 2020 – Dec 2023), judged on test (Jan 2024 – Sep 2026):
+[`backtests/cvd_divergence_improve.md`](backtests/cvd_divergence_improve.md) (`scripts/cvd_divergence_improve.py`).
+
+- 240 rule sets (chart × long only or both × EMA 200 / daily EMA 200 trend filter × target × min stop): 72 profitable
+  on train, 11 on test, 5 on both. The trend filters raise the train PF (1.13 – 1.15 median) and lower the test PF
+  (0.76 – 0.79): they fit the 2020 – 2023 swings, not a lasting edge. The best train rule set (15m, long only, daily
+  EMA 200, PF 2.04) has test PF 0.75.
+- Long only is a little better than both sides (median test PF 0.84 vs 0.77). Targets and a minimum stop change little.
+- The intrabar timeframe for delta matters on 4H: with 15m or 1H intrabars instead of 1m, 4H is profitable on both
+  train and test (PF 1.15 – 2.04 train, 1.16 – 1.66 test, 35 – 64 trades each). On 15m, 1H and 1D coarser intrabars
+  do not help, and on 4H the result swings from PF 0.40 to 1.66 with that one choice: a fragile edge.
+
 ## EMA Ribbon flip backtest (`scripts/ribbon_backtest.py`)
 
 Backtest of trading BTCUSDT.P on the flips of the **EMA Ribbon [Krypt]** (EMAs 20–55): long when all 8 EMAs
