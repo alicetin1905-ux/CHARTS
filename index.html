@@ -79,7 +79,7 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 .ex button.off{opacity:.45;text-decoration:line-through}
 .ex button[disabled]{cursor:default;opacity:.35}
 
-.stage{position:relative;height:620px}
+.stage{position:relative;height:620px;background:radial-gradient(130% 55% at 45% 50%,rgba(53,255,176,.07),transparent 65%),linear-gradient(180deg,rgba(110,200,255,.04),transparent 40%)}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
 #tip{position:absolute;pointer-events:none;z-index:5;background:rgba(14,20,18,.96);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;
   font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;color:var(--txt);min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
@@ -172,7 +172,6 @@ footer .dot.snap{background:var(--nt)}
   .exd>summary::-webkit-details-marker{display:none}
   .exd[open]>summary{color:var(--txt);border-color:var(--blue)}
   #cv{touch-action:pan-y}
-  .stage{background:radial-gradient(130% 55% at 45% 50%,rgba(53,255,176,.07),transparent 65%),linear-gradient(180deg,rgba(110,200,255,.04),transparent 40%)}
   .px b{font-size:24px}
   .bar .legend{margin-left:0}
   .reading{grid-template-columns:minmax(0,1fr)}
@@ -559,7 +558,7 @@ function draw() {
   const colW = narrow ? Math.round(W * 0.27) : Math.min(150, W * 0.12);
   const chartR = W - axisW - colW * cols.length - 6;
   const fs = narrow ? 11 : 10;
-  const glass = narrow;                              // GlassSphere look on phones
+  const glass = true;                                // GlassSphere look
   const rrect = (x, yy, w, h, r) => ctx.roundRect ? ctx.roundRect(x, yy, w, h, r) : ctx.rect(x, yy, w, h);
   const y = p => top + (model.hi - p) / (model.hi - model.lo) * (bot - top);
   const rowH = (bot - top) / model.N;
