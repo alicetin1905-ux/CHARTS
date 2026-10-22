@@ -1,5 +1,5 @@
 """Longer backtest of the GlassSphere reading on a Binance USDT perpetual (BTC, ETH, SOL, BNB, XRP, DOGE, SUI,
-ENA, GALA, 1000PEPE or WLD), 1H, Jan 2022 (or the listing) - Sep 2026.
+ENA, GALA, 1000PEPE, WLD or NEAR), 1H, Jan 2022 (or the listing) - Sep 2026.
 
 Same evaluation as glasssphere_backtest.py (stops, liquidations from hourly OI growth, signals, first touch of the
 largest pool above / below), on the free Binance archive at data.binance.vision:

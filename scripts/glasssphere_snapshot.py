@@ -6,7 +6,7 @@ cannot reach and the book history of past hours.
 
 Data shape:
   ts, price
-  asset     BTC, ETH, SOL, BNB, XRP, DOGE, SUI, ENA, GALA, PEPE or WLD
+  asset     BTC, ETH, SOL, BNB, XRP, DOGE, SUI, ENA, GALA, PEPE, WLD or NEAR
   bin, histBin  bin sizes of books and bookHist (about 0.012% and 0.12% of the price; BTC $10 / $100)
   books     {exchange: {b: [[price, usd], ...], a: [...]}} in bins of `bin`, within ±15% of the price
   candles   [[open_ms, open, high, low, close, volume_usd], ...] OKX <coin>-USDT-SWAP 1H (400), oldest first
@@ -78,7 +78,11 @@ ASSETS = {
     'wld': dict(bin=0.0001, hist_bin=0.0005, name='WLD', file='glasssphere-wld.json', okx='WLD-USDT-SWAP', okx_ct=1,
                 usdt='WLDUSDT', gate='WLD_USDT', gate_mul=1, gate_iv='0.0001', htx='WLD-USDT', htx_ct=1, mexc='WLD_USDT',
                 mexc_ct=1, deribit='WLD_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_WLDUSD', cdc='WLDUSD-PERP',
-                hl='WLD', hl_sig=3, dydx='WLD-USD', bitfinex=None, bitget_sc='scale0'),}
+                hl='WLD', hl_sig=3, dydx='WLD-USD', bitfinex=None, bitget_sc='scale0'),
+    'near': dict(bin=0.001, hist_bin=0.005, name='NEAR', file='glasssphere-near.json', okx='NEAR-USDT-SWAP', okx_ct=10,
+                 usdt='NEARUSDT', gate='NEAR_USDT', gate_mul=1, gate_iv='0.001', htx='NEAR-USDT', htx_ct=1, mexc='NEAR_USDT',
+                 mexc_ct=1, deribit='NEAR_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_NEARUSD',
+                 cdc='NEARUSD-PERP', hl='NEAR', hl_sig=3, dydx='NEAR-USD', bfx='tNEARF0:USTF0', bitget_sc='scale1'),}
 
 
 def get(url, body=None):

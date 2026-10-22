@@ -19,10 +19,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import glasssphere_model as M  # noqa: E402
 
 DECIMALS = {'BTC': 0, 'ETH': 1, 'SOL': 2, 'BNB': 2, 'XRP': 4, 'DOGE': 5, 'SUI': 4, 'ENA': 5, 'GALA': 6, 'PEPE': 9,
-            'WLD': 4}   # as the page shows prices
+            'WLD': 4, 'NEAR': 3}   # as the page shows prices
 # smallest liquidation wave worth an alert, USD per hour (Gate's liquidations in the smaller coins are small)
 LIQ_MIN = {'BTC': 1e6, 'ETH': 5e5, 'SOL': 2e5, 'BNB': 2.5e4, 'XRP': 1e5, 'DOGE': 1e5, 'SUI': 5e4, 'ENA': 2.5e4,
-           'GALA': 1e4, 'PEPE': 1e5, 'WLD': 5e4}
+           'GALA': 1e4, 'PEPE': 1e5, 'WLD': 5e4, 'NEAR': 5e4}
 
 
 def verdict(candles, oi, taker):
@@ -40,7 +40,7 @@ def label(p_up):
     if p_up is None:
         return 'Geen doelen'
     prob = max(p_up, 1 - p_up)
-    return 'Onbeslist' if prob < 0.6 else 'Eerst omhoog' if p_up > 0.5 else 'Eerst omlaag'
+    return 'Onbeslist' if round(prob * 100) < 60 else 'Eerst omhoog' if p_up > 0.5 else 'Eerst omlaag'
 
 
 DEC = 0
