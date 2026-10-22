@@ -6,7 +6,8 @@ cannot reach and the book history of past hours.
 
 Data shape:
   ts, price
-  asset     BTC, ETH, SOL, BNB, XRP, DOGE, SUI, ENA, GALA, PEPE, WLD or NEAR
+  asset     BTC, ETH, SOL, BNB, XRP, DOGE, SUI, ENA, PEPE, WLD, NEAR,
+            HYPE, ZEC, LTC, ADA, UNI or LINK
   bin, histBin  bin sizes of books and bookHist (about 0.012% and 0.12% of the price; BTC $10 / $100)
   books     {exchange: {b: [[price, usd], ...], a: [...]}} in bins of `bin`, within ±15% of the price
   candles   [[open_ms, open, high, low, close, volume_usd], ...] OKX <coin>-USDT-SWAP 1H (400), oldest first
@@ -64,10 +65,6 @@ ASSETS = {
                 usdt='ENAUSDT', gate='ENA_USDT', gate_mul=10, gate_iv='0.0001', htx='ENA-USDT', htx_ct=1, mexc='ENA_USDT',
                 mexc_ct=10, deribit='ENA_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_ENAUSD', cdc='ENAUSD-PERP',
                 hl='ENA', hl_sig=4, dydx='ENA-USD', bfx='tENAF0:USTF0', bitget_sc='scale1'),
-    'gala': dict(bin=0.000001, hist_bin=0.000002, name='GALA', file='glasssphere-gala.json', okx='GALA-USDT-SWAP', okx_ct=10,
-                 usdt='GALAUSDT', gate='GALA_USDT', gate_mul=10, gate_iv='0.000001', htx=None, mexc='GALA_USDT', mexc_ct=10,
-                 deribit=None, bitmex=None, kraken='PF_GALAUSD', cdc='GALAUSD-PERP', hl='GALA', hl_sig=4, dydx=None,
-                 bfx='tGALAF0:USTF0', bitget_sc='scale0'),
     # Binance, Bybit, Hyperliquid (kPEPE) and Deribit quote PEPE per 1000: their prices are divided by 1000 (div)
     'pepe': dict(bin=1e-9, hist_bin=5e-9, name='PEPE', file='glasssphere-pepe.json', okx='PEPE-USDT-SWAP', okx_ct=1e7,
                  usdt='1000PEPEUSDT', bitget_sym='PEPEUSDT', gate='PEPE_USDT', gate_mul=1e7, gate_iv='0.000000001',
@@ -82,7 +79,32 @@ ASSETS = {
     'near': dict(bin=0.001, hist_bin=0.005, name='NEAR', file='glasssphere-near.json', okx='NEAR-USDT-SWAP', okx_ct=10,
                  usdt='NEARUSDT', gate='NEAR_USDT', gate_mul=1, gate_iv='0.001', htx='NEAR-USDT', htx_ct=1, mexc='NEAR_USDT',
                  mexc_ct=1, deribit='NEAR_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_NEARUSD',
-                 cdc='NEARUSD-PERP', hl='NEAR', hl_sig=3, dydx='NEAR-USD', bfx='tNEARF0:USTF0', bitget_sc='scale1'),}
+                 cdc='NEARUSD-PERP', hl='NEAR', hl_sig=3, dydx='NEAR-USD', bfx='tNEARF0:USTF0', bitget_sc='scale1'),
+    'hype': dict(bin=0.01, hist_bin=0.05, name='HYPE', file='glasssphere-hype.json', okx='HYPE-USDT-SWAP', okx_ct=0.1,
+                 usdt='HYPEUSDT', gate='HYPE_USDT', gate_mul=0.1, gate_iv='0.1', htx='HYPE-USDT', htx_ct=0.1, mexc='HYPE_USDT',
+                 mexc_ct=0.1, deribit='HYPE_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_HYPEUSD',
+                 cdc='HYPEUSD-PERP', hl='HYPE', hl_sig=3, dydx='HYPE-USD', bfx='tHYPEF0:USTF0', bitget_sc='scale1'),
+    'zec': dict(bin=0.1, hist_bin=1, name='ZEC', file='glasssphere-zec.json', okx='ZEC-USDT-SWAP', okx_ct=0.01,
+                usdt='ZECUSDT', gate='ZEC_USDT', gate_mul=0.01, gate_iv='1', htx='ZEC-USDT', htx_ct=0.01, mexc='ZEC_USDT',
+                mexc_ct=0.01, deribit='ZEC_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_ZECUSD',
+                cryptocom=None, hl='ZEC', hl_sig=4, dydx='ZEC-USD', bfx='tZECF0:USTF0', bitget_sc='scale1'),
+    'ltc': dict(bin=0.01, hist_bin=0.05, name='LTC', file='glasssphere-ltc.json', okx='LTC-USDT-SWAP', okx_ct=1,
+                usdt='LTCUSDT', gate='LTC_USDT', gate_mul=0.1, gate_iv='0.1', htx='LTC-USDT', htx_ct=0.1, mexc='LTC_USDT',
+                mexc_ct=0.01, deribit='LTC_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_LTCUSD',
+                cdc='LTCUSD-PERP', hl='LTC', hl_sig=3, dydx='LTC-USD', bfx='tLTCF0:USTF0', bitget_sc='scale0'),
+    'ada': dict(bin=0.00001, hist_bin=0.0002, name='ADA', file='glasssphere-ada.json', okx='ADA-USDT-SWAP', okx_ct=100,
+                usdt='ADAUSDT', gate='ADA_USDT', gate_mul=10, gate_iv='0.0001', htx='ADA-USDT', htx_ct=10, mexc='ADA_USDT',
+                mexc_ct=1, deribit='ADA_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_ADAUSD',
+                cdc='ADAUSD-PERP', hl='ADA', hl_sig=4, dydx='ADA-USD', bfx='tADAF0:USTF0', bitget_sc='scale0'),
+    'uni': dict(bin=0.001, hist_bin=0.005, name='UNI', file='glasssphere-uni.json', okx='UNI-USDT-SWAP', okx_ct=1,
+                usdt='UNIUSDT', gate='UNI_USDT', gate_mul=1, gate_iv='0.01', htx='UNI-USDT', htx_ct=1, mexc='UNI_USDT',
+                mexc_ct=0.1, deribit='UNI_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_UNIUSD',
+                cdc='UNIUSD-PERP', hl='UNI', hl_sig=3, dydx='UNI-USD', bfx='tUNIF0:USTF0', bitget_sc='scale0'),
+    'link': dict(bin=0.001, hist_bin=0.01, name='LINK', file='glasssphere-link.json', okx='LINK-USDT-SWAP', okx_ct=1,
+                 usdt='LINKUSDT', gate='LINK_USDT', gate_mul=1, gate_iv='0.01', htx='LINK-USDT', htx_ct=0.1, mexc='LINK_USDT',
+                 mexc_ct=0.1, deribit='LINK_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_LINKUSD',
+                 cdc='LINKUSD-PERP', hl='LINK', hl_sig=4, dydx='LINK-USD', bfx='tLINKF0:USTF0', bitget_sc='scale0'),
+}
 
 
 def get(url, body=None):

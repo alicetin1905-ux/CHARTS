@@ -39,7 +39,7 @@ jobs:
           # (liquidity-data.json is the BTC file's name before the rename to GlassSphere)
           base="${{ steps.pages.outputs.base_url }}"
           python3 scripts/glasssphere_snapshot.py _site --asset btc --prev "$base/glasssphere-data.json" --prev "$base/liquidity-data.json"
-          for a in eth sol bnb xrp doge sui ena gala pepe wld near; do
+          for a in eth sol bnb xrp doge sui ena pepe wld near hype zec ltc ada uni link; do
             python3 scripts/glasssphere_snapshot.py _site --asset $a --prev "$base/glasssphere-$a.json"
           done
           # every asset's verdict in one small file, for the coin tiles on the start page

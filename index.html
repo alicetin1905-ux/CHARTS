@@ -321,10 +321,19 @@ body.swap header.top .px{opacity:.25}
 .back span{font-size:20px;line-height:0;margin-top:-2px;color:var(--up)}
 .back:hover,.back:focus-visible{border-color:rgba(53,255,176,.75);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 22px rgba(53,255,176,.35)}
 @media (max-width:760px){
-  #intro .ct{width:82px;padding:5px 3px 4px;gap:1px;border-radius:12px}
+  #intro .ct{width:82px;padding:4px 3px 3px;gap:0;border-radius:12px}
+  #intro .ct b{font-size:13px;line-height:1.15}
+  #intro .ct b img{width:16px;height:16px}
+  #intro .ct span,#intro .ct i{line-height:1.3}
   #intro .ct i em{margin-left:2px}
   #intro .ct i .lg{display:none}
   #intro .ct i .sh{display:inline}
+}
+@media (max-width:760px) and (max-height:620px){   /* short screens: an iPhone SE in Safari */
+  #intro .ct{width:74px}
+  #intro .ct b{font-size:11.5px;gap:4px}
+  #intro .ct b img{width:14px;height:14px}
+  #intro .ct span,#intro .ct i{font-size:9px}
 }
 @media (max-width:359px){            /* the smallest iPhones */
   #intro .ct{width:70px;padding:4px 2px 3px}
@@ -392,10 +401,15 @@ body.swap header.top .px{opacity:.25}
     <button data-a="doge"><img src="icons/coins/doge.png" alt="" width="16" height="16">DOGE</button>
     <button data-a="sui"><img src="icons/coins/sui.png" alt="" width="16" height="16">SUI</button>
     <button data-a="ena"><img src="icons/coins/ena.png" alt="" width="16" height="16">ENA</button>
-    <button data-a="gala"><img src="icons/coins/gala.png" alt="" width="16" height="16">GALA</button>
     <button data-a="pepe"><img src="icons/coins/pepe.png" alt="" width="16" height="16">PEPE</button>
     <button data-a="wld"><img src="icons/coins/wld.png" alt="" width="16" height="16">WLD</button>
     <button data-a="near"><img src="icons/coins/near.png" alt="" width="16" height="16">NEAR</button>
+    <button data-a="hype"><img src="icons/coins/hype.png" alt="" width="16" height="16">HYPE</button>
+    <button data-a="zec"><img src="icons/coins/zec.png" alt="" width="16" height="16">ZEC</button>
+    <button data-a="ltc"><img src="icons/coins/ltc.png" alt="" width="16" height="16">LTC</button>
+    <button data-a="ada"><img src="icons/coins/ada.png" alt="" width="16" height="16">ADA</button>
+    <button data-a="uni"><img src="icons/coins/uni.png" alt="" width="16" height="16">UNI</button>
+    <button data-a="link"><img src="icons/coins/link.png" alt="" width="16" height="16">LINK</button>
   </nav>
   <div class="px"><img class="clogo" id="coin-logo" src="icons/coins/btc.png" alt="" width="30" height="30"><b id="price">—</b><span id="upd">—</span></div>
   <div class="ctl">
@@ -532,9 +546,6 @@ const ASSETS = {
   ena: { name: 'ENA', file: 'glasssphere-ena.json', okx: 'ENA-USDT-SWAP', okxCt: 10, usdt: 'ENAUSDT', gate: 'ENA_USDT', gateMul: 10, gateIv: '0.0001',
     htx: 'ENA-USDT', htxCt: 1, deribit: 'ENA_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'ENAUSD-PERP', hl: 'ENA', hlSig: 4, dydx: 'ENA-USD', bitgetSc: 'scale1',
     bin: 0.00001, histBin: 0.0002, buckets: [0.00005, 0.0001, 0.0002, 0.0005, 0.001], auto: { 0.015: 0.0001, 0.03: 0.0002, 0.06: 0.0005, 0.12: 0.001 }, dec: 5 },
-  gala: { name: 'GALA', file: 'glasssphere-gala.json', okx: 'GALA-USDT-SWAP', okxCt: 10, usdt: 'GALAUSDT', gate: 'GALA_USDT', gateMul: 10, gateIv: '0.000001',
-    htx: null, deribit: null, bitmex: null, cdc: 'GALAUSD-PERP', hl: 'GALA', hlSig: 4, dydx: null, bitgetSc: 'scale0',
-    bin: 0.000001, histBin: 0.000002, buckets: [0.000001, 0.000002, 0.000005, 0.00001, 0.00002], auto: { 0.015: 0.000001, 0.03: 0.000002, 0.06: 0.000005, 0.12: 0.00001 }, dec: 6 },
   // Binance, Bybit, Hyperliquid (kPEPE) and Deribit quote PEPE per 1000 coins: div brings their prices back to one coin
   pepe: { name: 'PEPE', file: 'glasssphere-pepe.json', okx: 'PEPE-USDT-SWAP', okxCt: 1e7, usdt: '1000PEPEUSDT', bitgetSym: 'PEPEUSDT', gate: 'PEPE_USDT', gateMul: 1e7, gateIv: '0.000000001',
     htx: 'PEPE-USDT', htxCt: 1e6, deribit: '1000PEPE_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'PEPEUSD-PERP', hl: 'kPEPE', hlSig: 3, dydx: 'PEPE-USD', bitgetSc: 'scale1',
@@ -545,7 +556,24 @@ const ASSETS = {
     bin: 0.0001, histBin: 0.0005, buckets: [0.0001, 0.0002, 0.0005, 0.001, 0.0025], auto: { 0.015: 0.0002, 0.03: 0.0005, 0.06: 0.001, 0.12: 0.0025 }, dec: 4 },
   near: { name: 'NEAR', file: 'glasssphere-near.json', okx: 'NEAR-USDT-SWAP', okxCt: 10, usdt: 'NEARUSDT', gate: 'NEAR_USDT', gateMul: 1, gateIv: '0.001',
     htx: 'NEAR-USDT', htxCt: 1, deribit: 'NEAR_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'NEARUSD-PERP', hl: 'NEAR', hlSig: 3, dydx: 'NEAR-USD', bitgetSc: 'scale1',
+    bin: 0.001, histBin: 0.005, buckets: [0.001, 0.002, 0.005, 0.01, 0.025], auto: { 0.015: 0.002, 0.03: 0.005, 0.06: 0.01, 0.12: 0.025 }, dec: 3 },  hype: { name: 'HYPE', file: 'glasssphere-hype.json', okx: 'HYPE-USDT-SWAP', okxCt: 0.1, usdt: 'HYPEUSDT', gate: 'HYPE_USDT', gateMul: 0.1, gateIv: '0.1',
+    htx: 'HYPE-USDT', htxCt: 0.1, deribit: 'HYPE_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'HYPEUSD-PERP', hl: 'HYPE', hlSig: 3, dydx: 'HYPE-USD', bitgetSc: 'scale1',
+    bin: 0.01, histBin: 0.05, buckets: [0.01, 0.02, 0.05, 0.1, 0.25], auto: { 0.015: 0.02, 0.03: 0.05, 0.06: 0.1, 0.12: 0.25 }, dec: 2 },
+  zec: { name: 'ZEC', file: 'glasssphere-zec.json', okx: 'ZEC-USDT-SWAP', okxCt: 0.01, usdt: 'ZECUSDT', gate: 'ZEC_USDT', gateMul: 0.01, gateIv: '1',
+    htx: 'ZEC-USDT', htxCt: 0.01, deribit: 'ZEC_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: null, cryptocom: null, hl: 'ZEC', hlSig: 4, dydx: 'ZEC-USD', bitgetSc: 'scale1',
+    bin: 0.1, histBin: 1, buckets: [0.25, 0.5, 1, 2.5, 5], auto: { 0.015: 0.5, 0.03: 1, 0.06: 2.5, 0.12: 5 }, dec: 2 },
+  ltc: { name: 'LTC', file: 'glasssphere-ltc.json', okx: 'LTC-USDT-SWAP', okxCt: 1, usdt: 'LTCUSDT', gate: 'LTC_USDT', gateMul: 0.1, gateIv: '0.1',
+    htx: 'LTC-USDT', htxCt: 0.1, deribit: 'LTC_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'LTCUSD-PERP', hl: 'LTC', hlSig: 3, dydx: 'LTC-USD', bitgetSc: 'scale0',
+    bin: 0.01, histBin: 0.05, buckets: [0.01, 0.02, 0.05, 0.1, 0.25], auto: { 0.015: 0.02, 0.03: 0.05, 0.06: 0.1, 0.12: 0.25 }, dec: 2 },
+  ada: { name: 'ADA', file: 'glasssphere-ada.json', okx: 'ADA-USDT-SWAP', okxCt: 100, usdt: 'ADAUSDT', gate: 'ADA_USDT', gateMul: 10, gateIv: '0.0001',
+    htx: 'ADA-USDT', htxCt: 10, deribit: 'ADA_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'ADAUSD-PERP', hl: 'ADA', hlSig: 4, dydx: 'ADA-USD', bitgetSc: 'scale0',
+    bin: 0.00001, histBin: 0.0002, buckets: [0.0001, 0.0002, 0.0005, 0.001, 0.0025], auto: { 0.015: 0.0001, 0.03: 0.0002, 0.06: 0.0005, 0.12: 0.001 }, dec: 4 },
+  uni: { name: 'UNI', file: 'glasssphere-uni.json', okx: 'UNI-USDT-SWAP', okxCt: 1, usdt: 'UNIUSDT', gate: 'UNI_USDT', gateMul: 1, gateIv: '0.01',
+    htx: 'UNI-USDT', htxCt: 1, deribit: 'UNI_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'UNIUSD-PERP', hl: 'UNI', hlSig: 3, dydx: 'UNI-USD', bitgetSc: 'scale0',
     bin: 0.001, histBin: 0.005, buckets: [0.001, 0.002, 0.005, 0.01, 0.025], auto: { 0.015: 0.002, 0.03: 0.005, 0.06: 0.01, 0.12: 0.025 }, dec: 3 },
+  link: { name: 'LINK', file: 'glasssphere-link.json', okx: 'LINK-USDT-SWAP', okxCt: 1, usdt: 'LINKUSDT', gate: 'LINK_USDT', gateMul: 1, gateIv: '0.01',
+    htx: 'LINK-USDT', htxCt: 0.1, deribit: 'LINK_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'LINKUSD-PERP', hl: 'LINK', hlSig: 4, dydx: 'LINK-USD', bitgetSc: 'scale0',
+    bin: 0.001, histBin: 0.01, buckets: [0.002, 0.005, 0.01, 0.025, 0.05], auto: { 0.015: 0.005, 0.03: 0.01, 0.06: 0.025, 0.12: 0.05 }, dec: 3 },
 };
 // Decimals that keep multiples of a bin exact after rounding (PEPE bins are 1e-9)
 const digits = step => Math.max(0, -Math.floor(Math.log10(step))) + 3;
@@ -1375,17 +1403,43 @@ const intro = (() => {
   function geo() {
     // the tiles' real size (as the CSS lays them out), plus a little room for their drift and tilt
     const R = Math.max(56, Math.min(140, Math.min(W, H) * 0.16)), tw = (tiles[0].b.offsetWidth || 82) + 6, th = (tiles[0].b.offsetHeight || 52) + 6;
-    const rx = Math.min(W / 2 - tw / 2 - 10, R * 3.4), ry = Math.min(H / 2 - th / 2 - 72, R * 4);
-    // points spaced evenly along the ellipse in tile sizes (how far apart in widths or in heights, whichever is more),
-    // so neighbouring tiles keep the same room everywhere, also where the ring bends most
-    if (!arc || arc.rx !== rx || arc.ry !== ry || arc.tw !== tw) {
-      const N = 720, len = [0]; let L = 0;
-      for (let k = 1; k <= N; k++) { const a0 = (k - 1) / N * 2 * Math.PI, a1 = k / N * 2 * Math.PI;
-        L += Math.max(Math.abs(rx * (Math.cos(a1) - Math.cos(a0))) / tw, Math.abs(ry * (Math.sin(a1) - Math.sin(a0))) / th); len.push(L); }
-      arc = { rx, ry, tw, at: f => { let lo = 0, hi = N; const v = (((f % 1) + 1) % 1) * L;     // f: 0..1 of the length -> angle
-        while (hi - lo > 1) { const m = (lo + hi) >> 1; len[m] < v ? lo = m : hi = m; } return lo / N * 2 * Math.PI; } };
+    const mx = W / 2 - tw / 2 - 10, my = H / 2 - th / 2 - (W < 640 ? 60 : 72);   // as far as the ring may reach: the screen's edges
+    // the ring is a superellipse: p = 2 is an ellipse, a higher p bends it out toward the corners of the screen.
+    // Lengths and room are in tile sizes (how far apart in widths or in heights, whichever is more)
+    const N = 720, unit = (a, p) => { const c = Math.cos(a), s = Math.sin(a);
+      return [Math.sign(c) * Math.abs(c) ** (2 / p), Math.sign(s) * Math.abs(s) ** (2 / p)]; };
+    // sampled finely enough that no step is more than 2% of a tile (a high p bends sharply near the axes);
+    // top = the sample at the top of the ring
+    const ringLen = (rx, ry, p) => { const len = [0], pts = [unit(0, p)]; let L = 0, top = 0;
+      const gap = (a, b) => Math.max(Math.abs(rx * (a[0] - b[0])) / tw, Math.abs(ry * (a[1] - b[1])) / th);
+      for (let k = 1; k <= N; k++) { const u = unit(k / N * 2 * Math.PI, p), q = unit((k - 1) / N * 2 * Math.PI, p);
+        const m = Math.max(1, Math.ceil(gap(u, q) / 0.02)), dl = gap(u, q) / m;
+        for (let j = 1; j <= m; j++) { pts.push([q[0] + (u[0] - q[0]) * j / m, q[1] + (u[1] - q[1]) * j / m]); L += dl; len.push(L); }
+        if (k === 0.75 * N) top = pts.length - 1; }
+      len.pts = pts; len.top = top; return len; };
+    if (!arc || arc.W !== W || arc.H !== H || arc.tw !== tw || arc.th !== th) {
+      // every coin wants 1.3 tiles of room: the ring first grows (up to the screen's edges), then fills the corners
+      let rx = Math.min(mx, R * 3.4), ry = Math.min(my, R * 4), p = 2, len = ringLen(rx, ry, p);
+      for (let k = 0; k < 30 && len[len.length - 1] < n * 1.3 && (rx < mx || ry < my); k++) {
+        rx = Math.min(mx, rx * 1.04); ry = Math.min(my, ry * 1.04); len = ringLen(rx, ry, p); }
+      while (len[len.length - 1] < n * 1.3 && p < 6) { p += 0.25; len = ringLen(rx, ry, p); }
+      const M = len.length - 1, L = len[M], pts = len.pts, top = len.top;   // the last sample is the first again
+      // the coins' places: the largest room d (in tiles, straight from one coin to the next, so also across a corner)
+      // that still fits them all, walking from the top; as fractions of the length
+      const gap = (a, b) => Math.max(Math.abs(rx * (a[0] - b[0])) / tw, Math.abs(ry * (a[1] - b[1])) / th);
+      const place = d => { const out = [top]; let k = top;
+        for (let i = 1; i < n; i++) { let j = k; do { if (++j - top >= M) return null; } while (gap(pts[j % M], pts[k % M]) < d); out.push(j); k = j; }
+        return gap(pts[k % M], pts[top]) >= d ? out : null; };
+      let lo = 0.3, hi = 3, best = place(lo) || [...Array(n).keys()].map(i => top + Math.round(i * M / n));
+      for (let k = 0; k < 18; k++) { const m = (lo + hi) / 2, r = place(m); if (r) { best = r; lo = m; } else hi = m; }
+      const fr = best.map(j => (j >= M ? len[j - M] + L : len[j]) / L);
+      // f: 0..1 of the length -> point, in between two samples by length (a high p bends sharply near the axes)
+      arc = { W, H, tw, th, rx, ry, L, fr, at: f => { let lo = 0, hi = M; const v = (((f % 1) + 1) % 1) * L;
+        while (hi - lo > 1) { const m = (lo + hi) >> 1; len[m] < v ? lo = m : hi = m; }
+        const a = len.pts[lo], b = len.pts[hi], k = len[hi] > len[lo] ? (v - len[lo]) / (len[hi] - len[lo]) : 0;
+        return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]; } };
     }
-    return { cx: W / 2, cy: H / 2 + 6, R, tw, th, rx, ry };
+    return { cx: W / 2, cy: H / 2 + 6, R, tw, th, rx: arc.rx, ry: arc.ry };
   }
   let arc = null;
   // the orb: dark glass with order-book bands inside (asks red above, bids green below) and the price line
@@ -1451,11 +1505,11 @@ const intro = (() => {
       const { fr: f, ph: p } = T;
       // its place on the ring, wandering a little along it, plus a slow drift in both directions made of two
       // sines each (a different tempo per coin), a slight tilt and a soft breathing
-      const wob = still ? 0 : 0.012 * Math.sin(t * 0.13 * f[0] + p[0]);
-      const ang = arc.at(0.75 + T.i / n + wob);          // 0.75 of the length = the top
+      const wob = still ? 0 : 0.1 / arc.L * Math.sin(t * 0.13 * f[0] + p[0]);   // a tenth of a tile
+      const [ux, uy] = arc.at(arc.fr[T.i] + wob);
       T.strE += (T.str - T.strE) * 0.04;
       const near = 1 - (W < 640 ? 0 : 0.12) * T.strE;      // a stronger verdict floats closer to the sphere (not on a phone: no room)
-      let x = cx + Math.cos(ang) * G.rx * near, y = cy + Math.sin(ang) * G.ry * near;
+      let x = cx + ux * G.rx * near, y = cy + uy * G.ry * near;
       if (!still) {
         x += amp * (0.65 * Math.sin(t * 0.31 * f[1] + p[1]) + 0.35 * Math.sin(t * 0.73 * f[2] + p[2]));
         y += amp * (0.65 * Math.sin(t * 0.27 * f[3] + p[3]) + 0.35 * Math.sin(t * 0.61 * f[4] + p[4]));

@@ -1,7 +1,7 @@
 {
   "name": "GlassSphere",
   "short_name": "GlassSphere",
-  "description": "Liquiditeit van 12 crypto-termijncontracten: orderboeken van 14 beurzen, geschatte stops en liquidaties, en de kans op het eerste doel.",
+  "description": "Liquiditeit van 17 crypto-termijncontracten: orderboeken van 14 beurzen, geschatte stops en liquidaties, en de kans op het eerste doel.",
   "lang": "nl",
   "start_url": "./",
   "scope": "./",

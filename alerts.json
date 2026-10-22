@@ -1,7 +1,8 @@
 {
   "munten": {
     "btc": true, "eth": true, "sol": true, "bnb": false, "xrp": false, "doge": false,
-    "sui": false, "ena": false, "gala": false, "pepe": false, "wld": false, "near": false
+    "sui": false, "ena": false, "pepe": false, "wld": false, "near": false,
+    "hype": false, "zec": false, "ltc": false, "ada": false, "uni": false, "link": false
   },
   "stil": {
     "van": "01:00",
