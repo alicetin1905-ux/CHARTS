@@ -459,7 +459,6 @@ body.swap header.top .px{opacity:.25}
         <span><i class="sw" style="background:linear-gradient(90deg,var(--up),var(--dn))"></i>Doelen GlassSphere</span>
         <span><i class="sw" style="background:var(--stop)"></i>Stops (stippellijn, schatting)</span>
         <span><i class="sw" style="background:var(--liq)"></i>Liquidaties (stippellijn, schatting)</span>
-        <span><i class="sw" style="background:rgba(53,255,176,.35)"></i>Orderboek per uur (achtergrond)</span>
         <span><i class="sw" style="background:var(--dim)"></i>Echte liquidaties (onderin)</span>
       </div>
     </div>
@@ -478,7 +477,7 @@ body.swap header.top .px{opacity:.25}
     <span class="status"><i class="dot" id="dot"></i><span id="src">laden…</span></span>
     <details class="note">
       <summary>Uitleg: waar de cijfers vandaan komen</summary>
-      <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van de perp op tot 14 beurzen (niet elke munt staat op elke beurs; BitMEX heeft alleen BTC), in USD per blok. Waar een beurs PEPE per 1000 noteert (Binance, Bybit, Hyperliquid, Deribit) is de prijs teruggerekend naar 1 PEPE. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is het boek onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2%, dYdX ±1,5%, Hyperliquid ±2,4% (grove blokken), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json en glasssphere-&lt;munt&gt;.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de kaarsen toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke nepmuren) opvallen.</p>
+      <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van de perp op tot 14 beurzen (niet elke munt staat op elke beurs; BitMEX heeft alleen BTC), in USD per blok. Waar een beurs PEPE per 1000 noteert (Binance, Bybit, Hyperliquid, Deribit) is de prijs teruggerekend naar 1 PEPE. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is het boek onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2%, dYdX ±1,5%, Hyperliquid ±2,4% (grove blokken), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json en glasssphere-&lt;munt&gt;.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De kolom Stabiel in de tabel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke nepmuren) opvallen.</p>
       <p><b>Stops</b> (stop-loss, koopstop, verkoopstop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke top die nog niet is geraakt (koopstops van shorts en uitbraakkopers), net onder elke ongeraakte bodem (verkoopstops van longs), gewogen naar het volume rond die top of bodem en hoe recent die is, plus een kleine bijdrage op ronde $1000-niveaus. In de grafiek staan de sterkste stop-niveaus boven en onder de prijs als gele stippellijn; een score 0–100, geen bedrag.</p>
       <p><b>Liquidaties</b> zijn geschat uit de groei van de openstaande posities (open interest) per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de kaars sloot en voor de helft naar het aandeel kopende marktorders, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar de openstaande posities van alle beurzen samen. De grootste liquidatieniveaus staan in de grafiek als paarse stippellijn. Onderin de grafiek staan de echte liquidaties van Gate per kaars.</p>
       <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week; standaard 3 dagen) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddeld dagbereik × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, openstaande posities, financiering (funding), CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
@@ -843,7 +842,6 @@ function draw() {
   const glass = true;                                // GlassSphere look
   const rrect = (x, yy, w, h, r) => ctx.roundRect ? ctx.roundRect(x, yy, w, h, r) : ctx.rect(x, yy, w, h);
   const y = p => top + (model.hi - p) / (model.hi - model.lo) * (bot - top);
-  const rowH = (bot - top) / model.N;
   const cs = tfCandles(), barW = (narrow ? 6 : 7) * state.zoom, nBars = Math.min(cs.length, Math.floor((chartR - 10) / barW));
   const shown = cs.slice(cs.length - nBars), tfMs = state.tf * 60e3;
   const colOf = t => { for (let i = nBars - 1; i >= 0; i--) if (shown[i][0] <= t) return t < shown[i][0] + tfMs ? i : -1; return -1; };
@@ -862,22 +860,6 @@ function draw() {
     ctx.fillStyle = C.dim; ctx.textAlign = 'left'; ctx.fillText(fmtP(p), W - axisW + 5, yy);
   }
 
-  // book history as a heatmap behind the candles: one column per candle that has an hourly book snapshot
-  const bandA = (v, m) => Math.pow(Math.min(1, v / m), 1.4) * 0.38;
-  const cells = [];
-  for (const h of model.hist) { const i = colOf(h.t); if (i >= 0) cells.push([i, h]); }
-  if (cells.length) {
-    const all = []; for (const [, h] of cells) for (let j = 0; j < model.N; j++) if (h.b[j] + h.a[j]) all.push(h.b[j] + h.a[j]);
-    all.sort((a, b) => a - b); const ref = all[Math.floor(all.length * 0.98)] || 1;   // 98th percentile, so one huge wall does not wash out the rest
-    for (const [i, h] of cells) {
-      const x = 4 + i * barW, w = state.tf === 15 ? barW * 4 : barW;
-      for (let j = 0; j < model.N; j++) {
-        const v = h.b[j] + h.a[j]; if (!v) continue; const a = bandA(v, ref) * 1.6; if (a < 0.02) continue;
-        ctx.fillStyle = alpha(h.b[j] >= h.a[j] ? C.up : C.dn, Math.min(.6, a));
-        ctx.fillRect(x, top + (model.N - 1 - j) * rowH, Math.min(w, chartR - x), Math.max(1, rowH));
-      }
-    }
-  }
 
   // the way to the first target: a soft band from the current price to it, behind the candles
   if (glass && T && T.first != null) {
@@ -925,7 +907,8 @@ function draw() {
 
 
   // the strongest stop and liquidation levels above and below the price as dotted lines (one per kind and side, two
-  // on a wide screen when the second is nearly as strong), labelled at the right of the candles. Levels on a target
+  // on a wide screen when the second is nearly as strong), labelled at the left, over the older candles, so the newest
+  // stay clear. Levels on a target
   // line are left out: the target already marks them (the targets are chosen from these same pools).
   {
     const lines = [], busy = [y(model.price), ...tagYs], used = [];
@@ -938,16 +921,16 @@ function draw() {
         lines.push({ p, v: v / model.max[kind], col, txt: `${name} ${fmtP(p)}${kind === 'liq' ? ' · ' + fmtUsd(v) : ''}` });
       }
     }
-    ctx.font = `${fs}px ` + css('--mono'); ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.font = `${fs}px ` + css('--mono'); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     for (const L of lines.sort((a, b) => b.v - a.v)) {
       const yy = Math.round(y(L.p)) + .5;
       ctx.strokeStyle = alpha(L.col, .85); ctx.lineWidth = 1.3; ctx.setLineDash([2, 4]);
       ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W - axisW, yy); ctx.stroke(); ctx.setLineDash([]);
       if (busy.concat(used).some(b => Math.abs(b - yy) < 15)) continue;  // no room for its label
       used.push(yy);
-      const tw = ctx.measureText(L.txt).width + 12, xr = chartR - 4;
-      ctx.fillStyle = alpha(css('--bg'), .82); ctx.beginPath(); rrect(xr - tw, yy - 8, tw, 16, 8); ctx.fill();
-      ctx.fillStyle = L.col; ctx.fillText(L.txt, xr - 6, yy);
+      const tw = ctx.measureText(L.txt).width + 12;
+      ctx.fillStyle = alpha(css('--bg'), .82); ctx.beginPath(); rrect(6, yy - 8, tw, 16, 8); ctx.fill();
+      ctx.fillStyle = L.col; ctx.fillText(L.txt, 12, yy);
     }
     ctx.textAlign = 'left';
   }
