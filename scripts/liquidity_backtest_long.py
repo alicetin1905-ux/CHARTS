@@ -31,6 +31,8 @@ ARCHIVE = 'https://data.binance.vision/data/futures/um/'
 FIRST, LAST = (2022, 1), (2026, 9)
 STEP = 6          # evaluate every 6 hours
 MARK = '## 4. Longer test: Binance, 2022 – 2026'
+HORIZONS = [(1, 0.0), (1, 0.3), (3, 0.0), (3, 0.3), (3, 0.5), (7, 0.3), (7, 0.5)]   # (days, min distance / range)
+FEE = 0.001       # round trip, taker in and out
 
 
 def months():
@@ -97,6 +99,76 @@ def load():
     return candles, stats, funding
 
 
+def horizon_test(candles, stats, step=12):
+    """Targets for longer horizons: the largest pool above / below between lo x and 1 x the expected range of
+    `days` (one average day's range x sqrt(days)). Records which is hit first within `days`, and the result of a
+    trade toward the more likely target with the stop at the other one (closed at the horizon if neither)."""
+    book = M.LiqBook('taker')
+    out = {h: [] for h in HORIZONS}
+    n = len(candles)
+    for k, c in enumerate(candles):
+        t = c[0] // 1000
+        a, b = stats.get(str(t)), stats.get(str(t + 3600))
+        book.step(k, c, a and a['oi'], b and b['oi'], a['taker'] / (1 + a['taker']) if a else None)
+        if k < M.WINDOW or k % step or k + 24 * 7 >= n:
+            continue
+        win = candles[k - M.WINDOW + 1:k + 1]
+        P = c[4]
+        pl = M.pools(M.estimate_stops(win, P), [(q[0], q[1], q[2]) for q in book.pos], P, rng=0.15)
+        r24 = M.r24_of(win)
+        for days, lo in HORIZONS:
+            rh = r24 * days ** 0.5
+            ups = [q for q in pl if P + lo * rh < q[0] <= P + rh]
+            dns = [q for q in pl if P - rh <= q[0] < P - lo * rh]
+            if not ups or not dns:
+                continue
+            tu, td = max(ups, key=lambda q: q[1])[0], max(dns, key=lambda q: q[1])[0]
+            p_up = (P - td) / (tu - td)
+            first = None
+            for x in candles[k + 1:k + 1 + 24 * days]:
+                if x[2] >= tu or x[3] <= td:
+                    first = 'both' if x[2] >= tu and x[3] <= td else 'up' if x[2] >= tu else 'down'
+                    break
+            end = candles[k + 24 * days][4]
+            go_up = p_up >= 0.5                       # trade toward the more likely (nearer) target
+            tgt, stp = (tu / P - 1, 1 - td / P) if go_up else (1 - td / P, tu / P - 1)
+            if first in ('up', 'down'):
+                pnl = tgt if (first == 'up') == go_up else -stp
+            elif first == 'both':
+                pnl = -stp                            # same candle: assume the stop came first
+            else:
+                pnl = (end / P - 1) * (1 if go_up else -1)
+            out[(days, lo)].append({'t': c[0], 'p_up': p_up, 'first': first, 'tgt': tgt, 'stp': stp, 'pnl': pnl - FEE,
+                                    'gross': pnl})
+    return out
+
+
+def horizon_lines(out, step=12):
+    lines = ['', '### Bigger targets: which is hit first, and trading toward the more likely one', '',
+             'Targets: the largest pool above and below between *min* × and 1 × the expected range of the horizon '
+             '(average daily range × √days). Trade toward the more likely (nearer) target, stop at the other one, '
+             f'close at the horizon if neither is reached; {FEE:.1%} round-trip cost. Evaluated every {step}h.', '',
+             '| Horizon | Min distance | Points | Target / stop (median) | Predicted P(first) | Actual | Neither | '
+             'Avg trade (gross) | Avg trade (after cost) | t |',
+             '|---|---|---|---|---|---|---|---|---|---|']
+    for (days, lo), rs in out.items():
+        if not rs:
+            continue
+        pred = sum(max(r['p_up'], 1 - r['p_up']) for r in rs) / len(rs)
+        hit = [r for r in rs if r['first'] in ('up', 'down', 'both')]
+        act = sum(1 for r in hit if r['first'] != 'both' and (r['first'] == 'up') == (r['p_up'] >= 0.5)) / max(len(hit), 1)
+        neither = 1 - len(hit) / len(rs)
+        tg = sorted(r['tgt'] for r in rs)[len(rs) // 2]
+        sp = sorted(r['stp'] for r in rs)[len(rs) // 2]
+        g = sum(r['gross'] for r in rs) / len(rs)
+        m = sum(r['pnl'] for r in rs) / len(rs)
+        sd = (sum((r['pnl'] - m) ** 2 for r in rs) / len(rs)) ** 0.5
+        neff = max(len(rs) * step / (24 * days), 2)
+        lines.append(f'| {days} d | {lo:.1f} × | {len(rs)} | {tg:.2%} / {sp:.2%} | {pred:.0%} | {act:.0%} | {neither:.0%} | '
+                     f'{g:+.3%} | {m:+.3%} | {m / sd * neff ** 0.5 if sd else 0:+.1f} |')
+    return lines
+
+
 def main():
     candles, stats, funding = load()
     print(f'{len(candles)} candles, {len(stats)} hours with OI, {len(funding)} funding points')
@@ -138,6 +210,7 @@ def main():
         if b:
             lines.append(f'| {lo:.0%}–{min(hi, 1):.0%} (mean {sum(r["touch"][2] for r in b) / len(b):.0%}) | {len(b)} | '
                          f'{sum(r["touch"][0] == "up" for r in b) / len(b):.0%} |')
+    lines += horizon_lines(horizon_test(candles, stats))
     text = open(OUT).read()
     if MARK in text:
         text = text[:text.index(MARK)].rstrip() + '\n'

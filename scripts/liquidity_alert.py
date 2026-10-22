@@ -1,4 +1,4 @@
-"""Hourly check for the liquidity map: the first-target verdict now and an hour ago, and alerts.
+"""Hourly check for the liquidity map: the 3-day first-target verdict now and an hour ago, and alerts.
 
 Reads the liquidity-data.json written by `liquidity_snapshot.py DIR` and prints one status line, then one
 line per alert starting with "MELDING:". .github/workflows/pages.yml sends the alerts to ntfy. Alerts:
@@ -23,7 +23,7 @@ def verdict(candles, oi, taker):
     for k, c in enumerate(candles):
         book.step(k, c, oi.get(c[0]), oi.get(c[0] + 3600000), taker.get(c[0]))
     stops = M.estimate_stops(candles, price)
-    pl = M.pools(stops, [(q[0], q[1], q[2]) for q in book.pos], price)
+    pl = M.pools(stops, [(q[0], q[1], q[2]) for q in book.pos], price, rng=0.15)
     up, dn, p_up = M.first_targets(pl, price, M.r24_of(candles))
     return price, up, dn, p_up
 

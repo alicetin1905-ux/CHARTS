@@ -171,6 +171,11 @@ footer .dot.snap{background:var(--nt)}
     <summary class="bar"><span class="chev" aria-hidden="true"></span><h2>Lezing</h2><span class="chip" id="rd-chip">—</span><div class="legend"><span id="rd-at">—</span></div></summary>
     <div class="reading">
       <div class="verdict">
+        <div class="seg" id="hz" aria-label="Termijn van de doelen">
+          <button data-v="1">1 dag</button>
+          <button data-v="3" class="on">3 dagen</button>
+          <button data-v="7">1 week</button>
+        </div>
         <div class="k">Eerste doel</div>
         <div class="lab" id="rd-lab">—</div>
         <div class="sc" id="rd-sc">—</div>
@@ -220,7 +225,7 @@ footer .dot.snap{background:var(--nt)}
       <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van BTC-perps op 14 beurzen, in USD per bucket. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is de balk onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2% (in blokken van $10), dYdX ±1,5%, Hyperliquid ±2,4% (blokken van $100), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (liquidity-data.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de candles toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke spoofing) opvallen.</p>
       <p><b>Stops</b> (stop-loss, buy-stop, sell-stop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke swing-high die nog niet is geraakt (buy-stops van shorts en breakout-kopers), net onder elke ongeraakte swing-low (sell-stops van longs), gewogen naar het volume rond de swing en hoe recent hij is, plus een kleine bijdrage op ronde $1000-niveaus. Score 0–100, geen bedrag.</p>
       <p><b>Liquidaties</b> zijn geschat uit de groei van open interest per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de candle sloot en voor de helft naar de taker-koopratio, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar het open interest van alle beurzen samen. Onderin de chart staan de echte liquidaties van Gate per candle.</p>
-      <p><b>Eerste doel</b> in de Lezing: van het grootste cluster boven en onder de prijs (binnen een gemiddelde dagrange) is de kans dat het bovenste eerst geraakt wordt gelijk aan de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/liquidity_map.md</code>): die kansen kwamen elk jaar goed uit. Momentum, open interest, funding, CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
+      <p><b>Eerste doel</b> in de Lezing: voor de gekozen termijn (1 dag, 3 dagen of 1 week) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddelde dagrange × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/liquidity_map.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, open interest, funding, CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
     </div>
   </footer>
 </main>
@@ -256,16 +261,23 @@ const BT = {
   liqCorr: 0.78, neither: 0.44,
   calib: [['0–20%', 15, 5], ['20–40%', 32, 28], ['40–60%', 50, 49], ['60–80%', 68, 75], ['80–100%', 85, 87]],
   ic: { mom: [0.010, 3], cvd: [0.042, 5], oi: [0.010, 2], fund: [0.026, 4], pull: [-0.001, 1] },
+  // per horizon (targets between 0.3 x and 1 x the expected range): median target / stop in %, predicted and actual
+  // share where the more likely target came first, share with neither, average trade after 0.1% cost in %, t-stat
+  hz: { 1: { tgt: 2.02, stp: 2.95, pred: 59, act: 63, neither: 49, ev: -0.148, t: -3.1 },
+        3: { tgt: 3.10, stp: 4.49, pred: 59, act: 64, neither: 41, ev: -0.192, t: -1.4 },
+        7: { tgt: 4.35, stp: 7.00, pred: 60, act: 66, neither: 35, ev: 0.114, t: 0.4 } },
 };
+const HZ_MIN = 0.3;                   // targets at least 0.3 x the expected range away, so they are worth a trade
+const hzLabel = d => d === 1 ? '1 dag' : d === 7 ? '1 week' : d + ' dagen';
 
 const $ = id => document.getElementById(id);
-const state = { data: null, live: false, src: '', range: 0.03, bucket: 0, tf: 60, weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
+const state = { data: null, live: false, src: '', range: 0.03, bucket: 0, tf: 60, horizon: 3, weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
 try {
   const s = JSON.parse(localStorage.getItem('lm-prefs-v2') || '{}');
-  if (s.range) state.range = s.range; if (s.bucket) state.bucket = s.bucket; if (s.tf) state.tf = s.tf;
+  if (s.range) state.range = s.range; if (s.bucket) state.bucket = s.bucket; if (s.tf) state.tf = s.tf; if (s.horizon) state.horizon = s.horizon;
   if (s.weighted === false) state.weighted = false; (s.off || []).forEach(x => state.off.add(x));
 } catch (e) {}
-const savePrefs = () => { try { localStorage.setItem('lm-prefs-v2', JSON.stringify({ range: state.range, bucket: state.bucket, tf: state.tf, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
+const savePrefs = () => { try { localStorage.setItem('lm-prefs-v2', JSON.stringify({ range: state.range, bucket: state.bucket, tf: state.tf, horizon: state.horizon, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
 
 /* ---------- fetching ---------- */
 async function getJSON(url, opts = {}) {
@@ -666,9 +678,9 @@ function renderLevels() {
 }
 
 /* ---------- reading ----------
-   Fixed $100 buckets, ±6% and all exchanges (volume-weighted), so the reading does not change with the view.
+   Fixed $100 buckets, ±15% and all exchanges (volume-weighted), so the reading does not change with the view.
    Only the first-target probability is used as the verdict: it is the one part the backtest supports. */
-const READ = { range: 0.06, B: 100 };
+const READ = { range: 0.15, B: 100 };
 const clamp1 = x => Math.max(-1, Math.min(1, x));
 const ema = (xs, n) => { const k = 2 / (n + 1); let e = xs[0]; for (const x of xs) e = x * k + e * (1 - k); return e; };
 const pc = (x, d = 2) => (x > 0 ? '+' : '') + (x * 100).toFixed(d) + '%';
@@ -689,10 +701,11 @@ function analyze() {
   const ranges = [];
   for (let e = n; e >= 24 && ranges.length < 14; e -= 24) { const w = cs.slice(e - 24, e); ranges.push(Math.max(...w.map(c => c[2])) - Math.min(...w.map(c => c[3]))); }
   const range24 = ranges.reduce((s, x) => s + x, 0) / ranges.length;
+  // targets: the largest pool on each side between HZ_MIN x and 1 x the expected range of the horizon
+  const rH = range24 * Math.sqrt(state.horizon), minD = HZ_MIN * rH;
   const best = arr => arr.length ? arr.reduce((x, y) => y.v > x.v ? y : x) : undefined;
-  const side = above => pools.filter(q => (q.p > P) === above);
-  const tUp = best(side(true).filter(q => q.p - P <= range24)) || best(side(true));
-  const tDn = best(side(false).filter(q => P - q.p <= range24)) || best(side(false));
+  const tUp = best(pools.filter(q => q.p - P > minD && q.p - P <= rH));
+  const tDn = best(pools.filter(q => P - q.p > minD && P - q.p <= rH));
   const pUp = tUp && tDn ? (P - tDn.p) / (tUp.p - tDn.p) : null;
   // context factors (shown, not counted)
   const ret24 = P / cs[Math.max(0, n - 25)][4] - 1;
@@ -721,13 +734,14 @@ function analyze() {
       if (Math.abs(p / P - 1) > 0.01 || (key === 'b') !== (p < P)) continue;
       const k = Math.floor(p / B) * B; m.set(k, (m.get(k) || 0) + v * f); } }
     return [...m].map(([k, v]) => ({ p: k + B / 2, v })).sort((x, y) => y.v - x.v)[0]; };
-  return { P, range24, tUp, tDn, pUp, pull, up, dn, ret24, ef, es, mom, b05, a05, b10, a10, book, oiChg, oiS, oiTot,
+  return { P, range24, rH, minD, tUp, tDn, pUp, pull, up, dn, ret24, ef, es, mom, b05, a05, b10, a10, book, oiChg, oiS, oiTot,
     fund, fundS, netBuy, cvd, liq24, support: walls('b'), resist: walls('a') };
 }
 function renderReading() {
   const r = analyze(), P = r.P;
   const kind = q => q.stop >= q.liq ? (q.p > P ? 'buy-stops' : 'sell-stops') : (q.p > P ? 'short-liquidaties' : 'long-liquidaties');
   const at = q => `<b>${fmtP(q.p)}</b> (${kind(q)}, ${pc(q.p / P - 1)})`;
+  const H = state.horizon, hl = hzLabel(H), bt = BT.hz[H];
   let lab = 'Geen doelen', prob = null, first = null, other = null;
   if (r.pUp != null) {
     const upFirst = r.pUp >= 0.5; prob = upFirst ? r.pUp : 1 - r.pUp;
@@ -736,17 +750,24 @@ function renderReading() {
   }
   const col = prob == null || prob < 0.6 ? 'var(--nt)' : r.pUp > 0.5 ? 'var(--up)' : 'var(--dn)';
   $('rd-lab').textContent = lab; $('rd-lab').style.color = col;
-  $('rd-sc').textContent = prob == null ? 'niet beide kanten een cluster' : `${fmtP(first.p)} vóór ${fmtP(other.p)} · ${Math.round(prob * 100)}% kans`;
-  $('rd-chip').textContent = prob == null ? lab : `${lab} · ${Math.round(prob * 100)}%`; $('rd-chip').style.color = col;
+  $('rd-sc').textContent = prob == null ? `geen cluster aan beide kanten binnen ${hl}` : `${fmtP(first.p)} vóór ${fmtP(other.p)} · ${Math.round(prob * 100)}% kans`;
+  $('rd-chip').textContent = prob == null ? `${lab} · ${hl}` : `${lab} · ${Math.round(prob * 100)}% · ${hl}`; $('rd-chip').style.color = col;
   $('rd-g').style.left = (r.pUp == null ? 50 : r.pUp * 100) + '%';
   $('rd-at').textContent = 'data van ' + $('upd').textContent;
 
   const p = [];
+  const dist = x => (x / P * 100).toFixed(1) + '%', win = `tussen ${dist(r.minD)} en ${dist(r.rH)} van de prijs`;
   if (prob != null) {
-    const nearer = (r.tUp.p - P) < (P - r.tDn.p) ? r.tUp : r.tDn;
-    p.push(`Binnen een gemiddelde dagrange (${pc(r.range24 / P, 1)}, $${fmtP(r.range24)}) liggen de grootste clusters van stops en liquidaties op ${at(r.tUp)} boven en ${at(r.tDn)} onder de prijs. ` +
-      `${fmtP(nearer.p)} ligt dichterbij, dus de kans is <b>${Math.round(prob * 100)}%</b> dat de prijs ${fmtP(first.p)} eerder raakt dan ${fmtP(other.p)}: de afstand naar de ene kant gedeeld door beide afstanden samen. ` +
-      `In de backtest kwamen zulke kansen goed uit, maar in ${Math.round(BT.neither * 100)}% van de gevallen werd binnen 24 uur geen van beide geraakt.`);
+    const dT = Math.abs(first.p / P - 1), dS = Math.abs(other.p / P - 1);
+    p.push(`Voor <b>${hl}</b> is de verwachte bewegingsruimte ±${dist(r.rH)} (gemiddelde dagrange × √${H}). ` +
+      `${win.charAt(0).toUpperCase() + win.slice(1)} liggen de grootste clusters van stops en liquidaties op ${at(r.tUp)} boven en ${at(r.tDn)} onder. ` +
+      `De kans is <b>${Math.round(prob * 100)}%</b> dat de prijs ${fmtP(first.p)} eerder raakt dan ${fmtP(other.p)}: de afstand naar de ene kant gedeeld door beide afstanden samen. ` +
+      `In de backtest (Binance 2022–2026) kwam het meest waarschijnlijke doel in ${bt.act}% van de gevallen eerst (voorspeld gemiddeld ${bt.pred}%); in ${bt.neither}% werd binnen ${hl} geen van beide geraakt.`);
+    p.push(`<b>Als trade:</b> richting ${fmtP(first.p)} (${pc(first.p / P - 1)}) met de stop op ${fmtP(other.p)} (${pc(other.p / P - 1)}) is de verhouding winst : risico 1 : ${(dS / dT).toFixed(1)}. ` +
+      `Zo'n trade leverde in de backtest gemiddeld ${bt.ev > 0 ? '+' : ''}${bt.ev.toFixed(2)}% per keer op na 0,1% kosten (t = ${bt.t.toFixed(1)}), ` +
+      `${Math.abs(bt.t) < 2 ? 'niet te onderscheiden van nul' : bt.ev < 0 ? 'dus verliesgevend' : 'dus positief'}: de hogere trefkans wordt opgeheven doordat de stop verder weg ligt dan het doel.`);
+  } else {
+    p.push(`Voor <b>${hl}</b> (verwachte bewegingsruimte ±${dist(r.rH)}) ligt er niet aan beide kanten een cluster ${win}. Kies een andere termijn.`);
   }
   const trend = P > r.ef && r.ef > r.es ? 'boven de 1H-EMA20, die boven de EMA50 ligt (korte trend omhoog)'
     : P < r.ef && r.ef < r.es ? 'onder de 1H-EMA20, die onder de EMA50 ligt (korte trend omlaag)' : 'tussen de 1H-EMA20 en EMA50 in';
@@ -779,8 +800,11 @@ function renderReading() {
   $('rd-story').innerHTML =
     p.map(t => `<p>${t}</p>`).join('') +
     `<h3>Scenario's</h3><ul>${sc.map(t => `<li>${t}</li>`).join('')}` +
-    `<li><b>Bewegingsruimte:</b> gemiddeld ${fmtP(P - r.range24)} – ${fmtP(P + r.range24)} op één dag.</li></ul>` +
-    `<h3>Hoe goed klopt de kans</h3><div class="levels calc"><table><thead><tr><th>Voorspelde kans omhoog eerst</th><th>Gemiddeld voorspeld</th><th>Echt omhoog eerst</th></tr></thead><tbody>` +
+    `<li><b>Bewegingsruimte ${hl}:</b> gemiddeld ${fmtP(P - r.rH)} – ${fmtP(P + r.rH)}.</li></ul>` +
+    `<h3>Termijnen vergeleken (backtest 2022–2026)</h3><div class="levels calc"><table><thead><tr><th>Termijn</th><th>Doel / stop (mediaan)</th><th>Kans voorspeld / echt</th><th>Geen van beide</th><th>Gem. trade na kosten</th></tr></thead><tbody>` +
+    Object.entries(BT.hz).map(([d, h]) => `<tr${+d === H ? ' class="tot"' : ''}><td>${hzLabel(+d)}</td><td>${h.tgt.toFixed(1)}% / ${h.stp.toFixed(1)}%</td><td>${h.pred}% / ${h.act}%</td><td>${h.neither}%</td><td class="${h.ev > 0 ? 'up' : 'dn'}">${h.ev > 0 ? '+' : ''}${h.ev.toFixed(2)}% (t ${h.t.toFixed(1)})</td></tr>`).join('') +
+    `</tbody></table></div>` +
+    `<h3>Hoe goed klopt de kans (1 dag, alle afstanden)</h3><div class="levels calc"><table><thead><tr><th>Voorspelde kans omhoog eerst</th><th>Gemiddeld voorspeld</th><th>Echt omhoog eerst</th></tr></thead><tbody>` +
     BT.calib.map(([b, m, a]) => `<tr><td>${b}</td><td>${m}%</td><td>${a}%</td></tr>`).join('') +
     `</tbody></table></div>` +
     `<h3>Context (telt niet mee)</h3><div class="levels calc"><table><thead><tr><th>Factor</th><th>Nu</th><th>Signaal</th><th>Backtest IC 2022–2026 · jaren positief</th></tr></thead><tbody>` +
@@ -821,11 +845,12 @@ function seg(id, key) {
     state[key] = +b.dataset.v; el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); savePrefs(); refresh();
   });
 }
-seg('rng', 'range'); seg('bk', 'bucket'); seg('tf', 'tf');
+seg('rng', 'range'); seg('bk', 'bucket'); seg('tf', 'tf'); seg('hz', 'horizon');
 
 function refresh() {
   $('bk').querySelector('[data-v="0"]').textContent = 'Auto · $' + (AUTO_BUCKET[state.range] || 100);
   buildModel(); renderExchanges(); draw(); renderLevels();
+  if (state.data) renderReading();
 }
 new ResizeObserver(() => draw()).observe(cv);
 
@@ -855,7 +880,6 @@ function setData(raw, mode) {
     : mode === 'site' ? `elk uur ververst · ${n} orderboeken · ${state.data.bookHist.length} uur boekgeschiedenis`
     : `${n} orderboeken`;
   refresh();
-  renderReading();
 }
 // On GitHub Pages: liquidity-data.json next to the page, refreshed every hour by .github/workflows/pages.yml
 let site = null;

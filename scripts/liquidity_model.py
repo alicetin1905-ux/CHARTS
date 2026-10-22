@@ -164,12 +164,13 @@ def r24_of(candles):
     return sum(rngs) / len(rngs)
 
 
-def first_targets(pl, price, r24):
-    """Largest pool above and below within one average day (else anywhere), and the random-walk P(up first)."""
+def first_targets(pl, price, r24, days=3, lo=0.3):
+    """Largest pool above and below between lo x and 1 x the expected range of `days` (r24 x sqrt(days)),
+    and the random-walk P(up first). The page's analyze() does the same."""
+    rh = r24 * days ** 0.5
     def best(side):
-        near = [q for q in side if abs(q[0] - price) <= r24]
-        return max(near or side, key=lambda q: q[1]) if side else None
-    up = best([q for q in pl if q[0] > price])
-    dn = best([q for q in pl if q[0] < price])
+        return max(side, key=lambda q: q[1]) if side else None
+    up = best([q for q in pl if lo * rh < q[0] - price <= rh])
+    dn = best([q for q in pl if lo * rh < price - q[0] <= rh])
     p_up = (price - dn[0]) / (up[0] - dn[0]) if up and dn else None
     return up, dn, p_up

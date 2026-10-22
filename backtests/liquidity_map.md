@@ -53,7 +53,6 @@ A random walk without drift reaches the upper of two levels first with probabili
 
 Brier score 0.208 (0.25 = coin flip). Neither pool reached within 24h: 429 of 968 points.
 
-
 ## 4. Longer test: Binance, 2022 – 2026
 
 Binance BTCUSDT perpetual from the free archive at data.binance.vision: 1H candles, open interest (5-minute, sampled on the hour), taker buy volume and funding. 41616 hours, evaluated every 6h after the 400-bar warm-up (6865 points), the same model and leverage mix as above. No liquidation data in the archive, so section 1 cannot be repeated here.
@@ -86,3 +85,17 @@ Binance BTCUSDT perpetual from the free archive at data.binance.vision: 1H candl
 | 40%–60% (mean 50%) | 1666 | 49% |
 | 60%–80% (mean 68%) | 1102 | 75% |
 | 80%–100% (mean 85%) | 228 | 87% |
+
+### Bigger targets: which is hit first, and trading toward the more likely one
+
+Targets: the largest pool above and below between *min* × and 1 × the expected range of the horizon (average daily range × √days). Trade toward the more likely (nearer) target, stop at the other one, close at the horizon if neither is reached; 0.1% round-trip cost. Evaluated every 12h.
+
+| Horizon | Min distance | Points | Target / stop (median) | Predicted P(first) | Actual | Neither | Avg trade (gross) | Avg trade (after cost) | t |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 d | 0.0 × | 3412 | 1.79% / 2.88% | 62% | 66% | 44% | -0.067% | -0.167% | -3.7 |
+| 1 d | 0.3 × | 3409 | 2.02% / 2.95% | 59% | 63% | 49% | -0.048% | -0.148% | -3.1 |
+| 3 d | 0.0 × | 3419 | 2.35% / 4.24% | 64% | 69% | 32% | -0.106% | -0.206% | -1.6 |
+| 3 d | 0.3 × | 3419 | 3.10% / 4.49% | 59% | 64% | 41% | -0.092% | -0.192% | -1.4 |
+| 3 d | 0.5 × | 3416 | 3.99% / 5.02% | 56% | 60% | 54% | -0.037% | -0.137% | -0.9 |
+| 7 d | 0.3 × | 3420 | 4.35% / 7.00% | 60% | 66% | 35% | +0.214% | +0.114% | +0.4 |
+| 7 d | 0.5 × | 3416 | 6.17% / 7.97% | 55% | 60% | 50% | +0.034% | -0.066% | -0.2 |
