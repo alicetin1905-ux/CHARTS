@@ -48,7 +48,7 @@ Where open orders sit around the BTC perpetual price: 1H candles with three side
   exchanges can be switched off. Hover a level for the per-exchange breakdown.
   A table lists the 4 largest levels of each kind above and below the price.
 
-A **Reading** block at the top describes the chart in words and gives a direction score from −100 to +100, recomputed
+A **Reading** tab at the top (closed when the page opens; the header shows the verdict and score) describes the chart in words and gives a direction score from −100 to +100, recomputed
 on every data update (fixed $100 buckets, ±6%, all exchanges, so it does not change with the view):
 
 | Factor | Signal (−1 … +1) | Weight |

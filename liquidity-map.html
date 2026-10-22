@@ -108,6 +108,15 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 .calc tr.tot td{font-weight:700;color:var(--txt)}
 .story details summary{cursor:pointer;color:var(--dim);font-size:12px}
 .story details ul{margin-top:8px;font-size:12px;color:var(--dim)}
+#rd > summary{list-style:none;cursor:pointer;user-select:none}
+#rd > summary::-webkit-details-marker{display:none}
+#rd:not([open]) > summary{border-bottom:0}
+#rd > summary:hover h2{color:var(--txt)}
+#rd > summary:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.chev{width:7px;height:7px;border-right:2px solid var(--dim);border-bottom:2px solid var(--dim);transform:rotate(-45deg);transition:transform .15s}
+#rd[open] .chev{transform:rotate(45deg)}
+.chip{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;padding:1px 9px;border-radius:20px;border:1px solid var(--line2)}
+@media (prefers-reduced-motion:reduce){.chev{transition:none}}
 
 footer{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;color:var(--faint);font-size:11px}
 footer .status{font-family:var(--mono);padding:4px 9px;border-radius:20px;border:1px solid var(--line);color:var(--dim);display:inline-flex;align-items:center;gap:7px}
@@ -153,8 +162,8 @@ footer .dot.snap{background:var(--nt)}
 </header>
 
 <main>
-  <section class="card">
-    <div class="bar"><h2>Lezing</h2><div class="legend"><span id="rd-at">—</span></div></div>
+  <details class="card" id="rd">
+    <summary class="bar"><span class="chev" aria-hidden="true"></span><h2>Lezing</h2><span class="chip" id="rd-chip">—</span><div class="legend"><span id="rd-at">—</span></div></summary>
     <div class="reading">
       <div class="verdict">
         <div class="k">Richting</div>
@@ -165,7 +174,7 @@ footer .dot.snap{background:var(--nt)}
       </div>
       <div class="story" id="rd-story"></div>
     </div>
-  </section>
+  </details>
 
   <section class="readouts">
     <div class="ro"><div class="k">Grootste bid-muur</div><div class="v up" id="r-bid">—</div><div class="s" id="r-bid-s">—</div></div>
@@ -567,6 +576,8 @@ function renderReading() {
   $('rd-lab').textContent = lab;
   $('rd-lab').style.color = s >= 10 ? 'var(--up)' : s <= -10 ? 'var(--dn)' : 'var(--nt)';
   $('rd-sc').textContent = `score ${s > 0 ? '+' : ''}${s} van −100 tot +100`;
+  $('rd-chip').textContent = `${lab} · ${s > 0 ? '+' : ''}${s}`;
+  $('rd-chip').style.color = $('rd-lab').style.color;
   $('rd-g').style.left = (50 + s / 2) + '%';
   $('rd-at').textContent = 'data van ' + $('upd').textContent;
 
