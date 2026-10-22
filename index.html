@@ -13,6 +13,19 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<!-- launch screens for the home-screen app: the start sphere, drawn by scripts/glasssphere_splash.js -->
+<link rel="apple-touch-startup-image" href="icons/splash/splash-1320x2868.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-1206x2622.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -225,6 +238,23 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
 #intro .ct span{font-family:var(--mono);font-size:10px;color:var(--dim);white-space:nowrap}
 #intro .ct i{font-style:normal;font-family:var(--mono);font-size:10px;white-space:nowrap}
 #intro .ct i.nt{color:var(--nt)}
+/* the tile's edge glows in the colour of its verdict */
+#intro .ct.v-up{border-color:rgba(53,255,176,.45);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 18px rgba(53,255,176,.2),0 8px 24px rgba(0,0,0,.35)}
+#intro .ct.v-dn{border-color:rgba(255,77,106,.5);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 18px rgba(255,77,106,.22),0 8px 24px rgba(0,0,0,.35)}
+#intro .ct.v-nt{border-color:rgba(255,200,87,.28);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 14px rgba(255,200,87,.1),0 8px 24px rgba(0,0,0,.35)}
+/* a price that just moved lights up green or red for a moment */
+@keyframes flash-up{0%{color:var(--up);text-shadow:0 0 14px rgba(53,255,176,.9)}100%{}}
+@keyframes flash-dn{0%{color:var(--dn);text-shadow:0 0 14px rgba(255,77,106,.9)}100%{}}
+.flash-up{animation:flash-up .9s ease-out}
+.flash-dn{animation:flash-dn .9s ease-out}
+#intro .tilt{position:absolute;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 14px);font:inherit;font-size:11px;
+  color:var(--dim);background:rgba(14,20,18,.6);border:1px solid var(--edge);border-radius:999px;padding:5px 10px;cursor:pointer}
+#intro .tilt[hidden]{display:none}
+/* switching coins: the page fades over to the new coin */
+main,header.top .px{transition:opacity .28s ease,transform .28s ease}
+body.swap main{opacity:.12;transform:translateY(8px)}
+body.swap header.top .px{opacity:.25}
+@media (prefers-reduced-motion:reduce){main,header.top .px{transition:none}}
 #intro .ct:hover,#intro .ct:focus-visible{border-color:rgba(53,255,176,.55);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 22px rgba(53,255,176,.25)}
 .mark{cursor:pointer}
 /* back to the sphere: a clear glass pill at the start of the header */
@@ -277,7 +307,8 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
   <canvas id="intro-cv" aria-hidden="true"></canvas>
   <div class="ttl"><h2>GlassSphere</h2></div>
   <nav id="intro-coins" aria-label="Kies een munt"></nav>
-  <div class="hint">Kies een munt</div>
+  <div class="hint" id="intro-hint">Kies een munt</div>
+  <button class="tilt" id="intro-tilt" type="button" hidden>✦ Kantel-effect</button>
 </div>
 
 <header class="top">
@@ -795,6 +826,24 @@ const cv = $('cv'), ctx = cv.getContext('2d');
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 // numbers in Dutch notation: 81.732 and 5,002 (the ntfy alerts use the same)
 const fx = (x, d) => x.toFixed(d).replace('.', ',');
+// a price that moved lights up green or red for a moment
+function flash(el, up) { el.classList.remove('flash-up', 'flash-dn'); void el.offsetWidth; el.classList.add(up ? 'flash-up' : 'flash-dn'); }
+// the price in the header counts to its new value instead of jumping
+let shown = { a: null, p: null }, priceTween = 0;
+function showPrice(p) {
+  const el = $('price');
+  cancelAnimationFrame(priceTween);
+  if (shown.a !== state.asset || shown.p == null || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = fmtP(p); shown = { a: state.asset, p }; return;
+  }
+  const from = shown.p; shown.p = p;
+  if (from === p) { el.textContent = fmtP(p); return; }
+  flash(el, p > from);
+  const t0 = performance.now();
+  const step = now => { const k = Math.min(1, (now - t0) / 450), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = fmtP(from + (p - from) * e); if (k < 1) priceTween = requestAnimationFrame(step); };
+  priceTween = requestAnimationFrame(step);
+}
 const fmtP = p => p.toLocaleString('nl-NL', { minimumFractionDigits: A.dec, maximumFractionDigits: A.dec });
 const fmtUsd = v => v >= 1e9 ? '$' + fx(v / 1e9, 2) + ' mld' : v >= 1e6 ? '$' + fx(v / 1e6, 1) + ' mln' : v >= 1e3 ? '$' + fx(v / 1e3, 0) + 'K' : '$' + fx(v, 0);
 const pct = p => { const d = (p / model.price - 1) * 100; return (d > 0 ? '+' : '') + fx(d, 2) + '%'; };
@@ -1267,7 +1316,7 @@ function setData(raw, mode) {
   state.data = { ...raw, market, weights, stops: estimateStops(raw.candles, price, lo, hi), liqs, liqScale: scale,
     bookHist: [...hist.values()].sort((a, b) => a.t - b.t).slice(-48) };
   state.live = mode === 'live';
-  $('price').textContent = fmtP(price);
+  showPrice(price);
   const t = new Date(raw.ts);
   $('upd').textContent = t.toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
   $('dot').className = 'dot ' + (mode === 'live' ? 'live' : 'snap');
@@ -1276,6 +1325,7 @@ function setData(raw, mode) {
     : mode === 'site' ? `elk uur ververst · ${n} orderboeken · ${state.data.bookHist.length} uur boekgeschiedenis`
     : `${n} orderboeken`;
   refresh();
+  document.body.classList.remove('swap');
 }
 // On GitHub Pages: the asset's data file next to the page, refreshed every hour by .github/workflows/pages.yml
 let site = null;
@@ -1310,12 +1360,12 @@ async function start() {
   $('sub').textContent = A.name + '-termijncontract · 1u';
   document.title = state.asset === 'btc' ? 'GlassSphere' : 'GlassSphere · ' + A.name;
   $('price').textContent = '—'; $('upd').textContent = '—'; $('rd-chip').textContent = '—'; $('rd-lab').textContent = '—'; $('rd-sc').textContent = ''; $('rd-story').innerHTML = '';
-  $('src').textContent = 'laden…';
+  $('src').textContent = 'laden…'; shown = { a: null, p: null }; document.body.classList.add('swap');
   renderBuckets(); refresh();
   const s = await loadSite(); if (g !== gen) return;
   site = s; if (site) setData(site, 'site');
   if (await loadLive()) { if (g === gen) timer = setInterval(loadLive, 15e3); return; }
-  if (g === gen && !site) $('src').textContent = `geen data: beurzen en ${A.file} niet bereikbaar`;
+  if (g === gen && !site) { $('src').textContent = `geen data: beurzen en ${A.file} niet bereikbaar`; document.body.classList.remove('swap'); }
 }
 function selectAsset(a) {
   state.asset = a; A = ASSETS[a]; BT = BTS[a];
@@ -1334,6 +1384,15 @@ const intro = (() => {
   const el = $('intro'), cv = $('intro-cv'), g = cv.getContext('2d'), wrap = $('intro-coins');
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const keys = Object.keys(ASSETS), n = keys.length;
+  const TEAL = [130, 210, 255], VC = { up: [53, 255, 176], down: [255, 77, 106], neutral: [255, 200, 87] };
+  const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`, mixc = (a, b, k) => a.map((v, j) => v + (b[j] - v) * k);
+  // the market's mood over all coins (-1 all down .. +1 all up), eased so colour changes glide
+  let mood = 0, moodTo = 0;
+  // tilt: phone orientation or mouse position, -1..1 each way, eased
+  const tilt = { x: 0, y: 0, tx: 0, ty: 0, base: null, on: false };
+  // dust: slow specks of light at three depths behind the sphere
+  const dust = Array.from({ length: 46 }, (_, j) => { const r = q => { const v = Math.sin((j + 1) * (12.9898 + q) * 7.13) * 43758.5453; return v - Math.floor(v); };
+    return { x: r(1), y: r(2), z: 0.25 + 0.75 * r(3), sp: 0.004 + 0.012 * r(4), sw: r(5) * 6.28, tw: 0.5 + r(6) }; });
   const tiles = keys.map((k, i) => {
     const b = document.createElement('button');
     b.className = 'ct'; b.dataset.a = k; b.innerHTML = `<b><img src="icons/coins/${k}.png" alt="" width="18" height="18">${ASSETS[k].name}</b><span>—</span><i></i>`;
@@ -1341,9 +1400,10 @@ const intro = (() => {
     // each coin its own drift: frequencies and phases from a fixed hash, so the motion never repeats in step
     const h = j => { const v = Math.sin((i + 1) * 12.9898 + j * 78.233) * 43758.5453; return v - Math.floor(v); };
     const fr = [0, 1, 2, 3, 4, 5].map(j => 0.6 + 0.8 * h(j)), ph = [0, 1, 2, 3, 4, 5].map(j => h(j + 10) * Math.PI * 2);
-    return { k, i, b, x: 0, y: 0, s: 1, o: 0, fr, ph, hs: 1 };
+    return { k, i, b, x: 0, y: 0, s: 1, o: 0, fr, ph, hs: 1, vc: TEAL, last: null };
   });
-  let W = 0, H = 0, raf = 0, t0 = 0, hover = -1, pick = null;   // pick: { i, at } while a coin is being pulled in
+  let W = 0, H = 0, raf = 0, t0 = 0, hover = -1, pick = null;
+  let instant = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;   // first open of the app   // pick: { i, at } while a coin is being pulled in
   const ease = x => x * x * (3 - 2 * x), clamp = x => Math.max(0, Math.min(1, x));
   function size() {
     const dpr = window.devicePixelRatio || 1; W = el.clientWidth; H = el.clientHeight;
@@ -1364,9 +1424,11 @@ const intro = (() => {
   }
   let arc = null;
   // the orb: dark glass with order-book bands inside (asks red above, bids green below) and the price line
-  function orb(cx, cy, R, t, boost) {
+  function orb(cx, cy, R, t, boost, m = 0, lx = 0, ly = 0) {
+    // the glow takes the market's mood: green when most coins point up, red when most point down
+    const gc = m >= 0 ? mixc([60, 230, 190], VC.up, Math.min(1, m * 2.5)) : mixc([60, 230, 190], VC.down, Math.min(1, -m * 2.5));
     let h = g.createRadialGradient(cx, cy, R * 0.6, cx, cy, R * (1.9 + boost));
-    h.addColorStop(0, `rgba(53,255,176,${0.16 + boost * 0.35})`); h.addColorStop(1, 'rgba(53,255,176,0)');
+    h.addColorStop(0, rgba(gc, 0.16 + Math.abs(m) * 0.08 + boost * 0.35)); h.addColorStop(1, rgba(gc, 0));
     g.fillStyle = h; g.beginPath(); g.arc(cx, cy, R * (1.9 + boost), 0, 7); g.fill();
     g.save(); g.beginPath(); g.arc(cx, cy, R, 0, 7); g.clip();
     const body = g.createRadialGradient(cx - R * 0.25, cy - R * 0.3, R * 0.1, cx, cy, R);
@@ -1376,7 +1438,7 @@ const intro = (() => {
       if (!j) continue;
       const v = j * 0.105, half = R * Math.sqrt(Math.max(0, 1 - v * v));
       const len = half * (0.3 + 0.5 * (0.5 + 0.5 * Math.sin(j * 12.99 + t * 0.55 + Math.sin(t * 0.21 + j))));
-      const a = (0.75 - Math.abs(v) * 0.6) * (1 + boost);
+      const a = (0.75 - Math.abs(v) * 0.6) * (1 + boost) * (1 + 0.6 * (j < 0 ? Math.max(0, -m) : Math.max(0, m)));
       g.fillStyle = j < 0 ? `rgba(255,77,106,${a})` : `rgba(53,255,176,${a})`;
       g.beginPath(); g.roundRect ? g.roundRect(cx - len, cy + v * R - R * 0.022, 2 * len, R * 0.044, R * 0.022) : g.rect(cx - len, cy + v * R - R * 0.022, 2 * len, R * 0.044); g.fill();
     }
@@ -1386,18 +1448,19 @@ const intro = (() => {
     const fr = g.createRadialGradient(cx, cy, R * 0.72, cx, cy, R);      // fresnel: the glass edge
     fr.addColorStop(0, 'rgba(110,200,255,0)'); fr.addColorStop(1, 'rgba(110,200,255,.55)');
     g.fillStyle = fr; g.fillRect(cx - R, cy - R, 2 * R, 2 * R);
-    const sp = g.createRadialGradient(cx - R * 0.38, cy - R * 0.48, 0, cx - R * 0.38, cy - R * 0.48, R * 0.42);
+    const hx = cx - R * (0.38 + lx * 0.14), hy = cy - R * (0.48 + ly * 0.14);    // the highlight shifts as you tilt
+    const sp = g.createRadialGradient(hx, hy, 0, hx, hy, R * 0.42);
     sp.addColorStop(0, 'rgba(255,255,255,.55)'); sp.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = sp; g.fillRect(cx - R, cy - R, 2 * R, 2 * R);
     g.restore();
-    g.strokeStyle = `rgba(150,220,255,${0.35 + boost * 0.4})`; g.lineWidth = 1.2; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
+    g.strokeStyle = rgba(mixc([150, 220, 255], gc, Math.min(0.6, Math.abs(m) * 1.5)), 0.35 + boost * 0.4); g.lineWidth = 1.2; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
   }
   function frame(now) {
     raf = requestAnimationFrame(frame);
     const t = (now - t0) / 1000, G = geo(), { cx, cy, R } = G;
     g.clearRect(0, 0, W, H);
     // opening: the sphere fades in, then the coins come out of it along their lines
-    const open = still ? 1 : clamp(t / 0.5);
+    const open = still || instant ? 1 : clamp(t / 0.5);
     let boost = 0, zoom = 0, fade = 1;
     if (pick) {
       const u = (now - pick.at) / 1000;
@@ -1406,6 +1469,17 @@ const intro = (() => {
       if (u > 1.7 && !pick.done) { pick.done = true; finish(); return; }
     }
     el.style.opacity = fade; g.globalAlpha = fade;
+    mood += (moodTo - mood) * 0.03;
+    tilt.x += (tilt.tx - tilt.x) * 0.08; tilt.y += (tilt.ty - tilt.y) * 0.08;
+    // depth: the dust moves least, the sphere a little, the coins most, so tilting looks like looking into it
+    for (const D of dust) {
+      const y0 = still ? D.y : (D.y - t * D.sp * D.z + 1) % 1;
+      const px = D.x * W + (still ? 0 : Math.sin(t * 0.3 + D.sw) * 8 * D.z) + tilt.x * 14 * D.z, py = y0 * H + tilt.y * 14 * D.z;
+      const a = (0.12 + 0.3 * D.z) * (0.6 + 0.4 * Math.sin(t * D.tw + D.sw)) * open;
+      g.fillStyle = `rgba(190,255,235,${a})`; g.beginPath(); g.arc(px, py, 0.5 + 1.4 * D.z, 0, 7); g.fill();
+    }
+    const ox = tilt.x * R * 0.07, oy = tilt.y * R * 0.07, tx = tilt.x * R * 0.2, ty = tilt.y * R * 0.2;
+    const ocx = cx + ox, ocy = cy + oy;
     const bob = still ? 0 : Math.sin(t * 0.9) * R * 0.03;
     const amp = Math.max(7, R * 0.07);                  // how far a coin drifts from its place
     for (const T of tiles) {
@@ -1437,22 +1511,25 @@ const intro = (() => {
           x = cx + (x - cx) * out; y = cy + (y - cy) * out; T.o = Math.max(0.12, 1 - u * 1.5);
         }
       }
+      const pull = pick && T.i === pick.i ? 1 - Math.pow(clamp((now - pick.at) / 900), 2.2) : 1;
+      x += tx * pull; y += ty * pull;
       T.x = x; T.y = y;
-      // the line from the sphere's edge to the coin, swaying, with light running into the sphere
-      const d = Math.hypot(x - cx, y - cy);
+      // the line from the sphere's edge to the coin, swaying, in the coin's verdict colour, with light running in
+      const d = Math.hypot(x - ocx, y - ocy - bob);
       if (d > R + 4 && T.o > 0.02) {
-        const ux = (x - cx) / d, uy = (y - cy) / d, sx = cx + ux * R, sy = cy + bob + uy * R;
+        const ux = (x - ocx) / d, uy = (y - ocy - bob) / d, sx = ocx + ux * R, sy = ocy + bob + uy * R;
         const sw = still ? 0 : Math.sin(t * 0.8 + T.i * 2.1) * Math.min(14, d * 0.08);
         const mx = (sx + x) / 2 - uy * sw, my = (sy + y) / 2 + ux * sw;
         const hot = T.i === hover || (pick && T.i === pick.i);
         const lg = g.createLinearGradient(sx, sy, x, y);
-        lg.addColorStop(0, `rgba(53,255,176,${(hot ? 0.75 : 0.42) * T.o})`); lg.addColorStop(1, `rgba(130,210,255,${(hot ? 0.45 : 0.14) * T.o})`);
+        lg.addColorStop(0, rgba(T.vc, (hot ? 0.8 : 0.5) * T.o)); lg.addColorStop(1, rgba(T.vc, (hot ? 0.5 : 0.16) * T.o));
         g.strokeStyle = lg; g.lineWidth = hot ? 1.8 : 1.1; g.beginPath(); g.moveTo(sx, sy); g.quadraticCurveTo(mx, my, x, y); g.stroke();
         if (!still) {
           const f = 1 - ((t * 0.32 + T.i * 0.37) % 1), q = f;           // a pulse travelling from the coin into the sphere
           const px = (1 - q) * (1 - q) * sx + 2 * (1 - q) * q * mx + q * q * x, py2 = (1 - q) * (1 - q) * sy + 2 * (1 - q) * q * my + q * q * y;
           const pa = Math.sin(Math.PI * f) * 0.8 * T.o;
-          const pg = g.createRadialGradient(px, py2, 0, px, py2, 6); pg.addColorStop(0, `rgba(170,255,225,${pa})`); pg.addColorStop(1, 'rgba(170,255,225,0)');
+          const lc = mixc(T.vc, [255, 255, 255], 0.45);
+          const pg = g.createRadialGradient(px, py2, 0, px, py2, 6); pg.addColorStop(0, rgba(lc, pa)); pg.addColorStop(1, rgba(lc, 0));
           g.fillStyle = pg; g.beginPath(); g.arc(px, py2, 6, 0, 7); g.fill();
         }
       }
@@ -1460,7 +1537,7 @@ const intro = (() => {
       T.b.style.opacity = T.o;
     }
     g.globalAlpha = open;
-    orb(cx, cy + bob, R * (0.85 + 0.15 * ease(open)) * (1 + zoom * (Math.hypot(W, H) / R)), t, boost);
+    orb(ocx, ocy + bob, R * (0.85 + 0.15 * ease(open)) * (1 + zoom * (Math.hypot(W, H) / R)), t, boost, mood, tilt.x, tilt.y);
     g.globalAlpha = 1;
   }
   // each tile: the live price (OKX, every 15 s while the sphere is open) and the GlassSphere verdict for the chosen
@@ -1469,17 +1546,25 @@ const intro = (() => {
   const VERDICT = { up: ['Eerst omhoog', 'up'], down: ['Eerst omlaag', 'dn'], neutral: ['Neutraal', 'nt'] };
   let summary = null, ptimer = 0;
   function verdicts() {
+    const cnt = { up: 0, down: 0, neutral: 0 };
     for (const T of tiles) {
       const h = summary?.assets?.[T.k]?.hz?.[state.horizon], [txt, cls] = VERDICT[h?.v] || ['—', ''];
       T.b.children[2].textContent = txt; T.b.children[2].className = cls;
+      T.b.classList.remove('v-up', 'v-dn', 'v-nt'); if (cls) T.b.classList.add('v-' + cls);
+      T.vc = VC[h?.v] || TEAL; if (h?.v) cnt[h.v]++;
       T.b.title = h?.prob ? `${txt} · ${Math.round(h.prob * 100)}% · ${hzLabel(state.horizon)}` : '';
       if (T.b.children[1].textContent === '—' && summary?.assets?.[T.k]) T.b.children[1].textContent = fmt(T.k, summary.assets[T.k].price);
     }
+    const tot = cnt.up + cnt.down + cnt.neutral;
+    moodTo = tot ? (cnt.up - cnt.down) / tot : 0;
+    $('intro-hint').textContent = tot ? `Kies een munt · ${cnt.up} omhoog · ${cnt.down} omlaag · ${cnt.neutral} neutraal (${hzLabel(state.horizon)})` : 'Kies een munt';
   }
   async function prices() {
     await Promise.all(tiles.map(async T => { try {
-      const x = (await getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${ASSETS[T.k].okx}`)).data[0];
-      T.b.children[1].textContent = fmt(T.k, +x.last);
+      const x = (await getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${ASSETS[T.k].okx}`)).data[0], p = +x.last;
+      T.b.children[1].textContent = fmt(T.k, p);
+      if (T.last != null && p !== T.last) flash(T.b.children[1], p > T.last);
+      T.last = p;
     } catch (e) {} }));
   }
   async function loadSummary() {
@@ -1487,7 +1572,7 @@ const intro = (() => {
     try { const r = await fetch('glasssphere-summary.json', { cache: 'no-store' }); if (r.ok) { summary = await r.json(); verdicts(); } } catch (e) {}
   }
   function finish() {
-    cancelAnimationFrame(raf); raf = 0; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer);
+    cancelAnimationFrame(raf); raf = 0; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); instant = false;
     const a = tiles[pick.i].k; pick = null;
     if (location.hash !== '#' + a) location.hash = a;       // a history entry, so Back returns to the sphere
   }
@@ -1496,13 +1581,36 @@ const intro = (() => {
     size(); t0 = performance.now(); if (!raf) raf = requestAnimationFrame(frame);
     verdicts(); loadSummary(); prices(); clearInterval(ptimer); ptimer = setInterval(prices, 15e3);
   }
-  function hide() { if (el.hidden) return; cancelAnimationFrame(raf); raf = 0; pick = null; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); }
+  function hide() { if (el.hidden) return; cancelAnimationFrame(raf); raf = 0; pick = null; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); instant = false; }
   wrap.addEventListener('click', e => {
     const b = e.target.closest('.ct'); if (!b || pick) return;
     const T = tiles.find(x => x.b === b);
     pick = { i: T.i, at: performance.now() - (still ? 1600 : 0) };
     selectAsset(T.k);                                          // load while the sphere pulls the coin in
   });
+  function onTilt(e) {
+    if (e.gamma == null) return;
+    if (!tilt.base) tilt.base = e.beta;                         // how you hold the phone is the rest position
+    tilt.tx = clamp1(e.gamma / 22); tilt.ty = clamp1((e.beta - tilt.base) / 22); tilt.on = true; $('intro-tilt').hidden = true;
+  }
+  const needAsk = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
+  const touch = matchMedia('(pointer: coarse)').matches;
+  async function askTilt() {
+    try { if (await DeviceOrientationEvent.requestPermission() === 'granted') {
+      addEventListener('deviceorientation', onTilt); try { localStorage.setItem('glasssphere-tilt', '1'); } catch (e) {} }
+    } catch (e) {}
+    $('intro-tilt').hidden = true;
+  }
+  if (!still && touch) {
+    if (!needAsk) addEventListener('deviceorientation', onTilt);   // Android: no permission needed
+    else {
+      let known = false; try { known = localStorage.getItem('glasssphere-tilt') === '1'; } catch (e) {}
+      $('intro-tilt').hidden = known;
+      $('intro-tilt').addEventListener('click', askTilt);
+      if (known) el.addEventListener('pointerup', () => { if (!tilt.on) askTilt(); }, { once: true });   // granted before: no prompt
+    }
+  }
+  if (!still && !touch) el.addEventListener('pointermove', e => { tilt.tx = clamp1((e.clientX / W - 0.5) * 2); tilt.ty = clamp1((e.clientY / H - 0.5) * 2); });
   wrap.addEventListener('pointerover', e => { const b = e.target.closest('.ct'); hover = b ? tiles.findIndex(x => x.b === b) : -1; });
   wrap.addEventListener('pointerout', () => { hover = -1; });
   addEventListener('resize', () => { if (!el.hidden) size(); });
