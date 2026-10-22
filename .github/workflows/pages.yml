@@ -1,6 +1,6 @@
 # Publishes GlassSphere (index.html, installable on the iOS home screen) to GitHub Pages, with the data files
-# (glasssphere-data.json for BTC, glasssphere-eth.json, glasssphere-sol.json) refreshed every hour, and sends BTC
-# alerts to ntfy.
+# (glasssphere-data.json for BTC, glasssphere-eth.json, glasssphere-sol.json) refreshed every hour, and sends
+# alerts for each of them to ntfy.
 # One-time setup: Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
 # Alerts: add the repository secret NTFY_TOPIC and subscribe to that topic in the ntfy app (no secret, no alerts).
 name: GlassSphere
@@ -53,8 +53,13 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          python3 scripts/glasssphere_alert.py _site/glasssphere-data.json | tee alert.txt
-          if [ -n "$NTFY_TOPIC" ] && grep -q '^MELDING:' alert.txt; then
-            curl -sS --fail -H "Title: GlassSphere" -H "Click: ${{ steps.pages.outputs.base_url }}/" \
-              --data-binary @alert.txt "https://ntfy.sh/$NTFY_TOPIC"
-          fi
+          # one message per asset, titled with the asset and opening its tab
+          for a in btc eth sol; do
+            f=glasssphere-$a.json; hash="#$a"; [ $a = btc ] && f=glasssphere-data.json && hash=""
+            name=$(echo $a | tr a-z A-Z)
+            echo "== $name"; python3 scripts/glasssphere_alert.py "_site/$f" | tee alert.txt || continue
+            if [ -n "$NTFY_TOPIC" ] && grep -q '^MELDING:' alert.txt; then
+              curl -sS --fail -H "Title: GlassSphere $name" -H "Click: ${{ steps.pages.outputs.base_url }}/$hash" \
+                --data-binary @alert.txt "https://ntfy.sh/$NTFY_TOPIC" || true
+            fi
+          done

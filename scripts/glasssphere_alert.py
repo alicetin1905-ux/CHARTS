@@ -1,13 +1,15 @@
 """Hourly check for GlassSphere: the 3-day first-target verdict (the default of the page) now and an hour ago, and alerts.
 
-Reads the glasssphere-data.json written by `glasssphere_snapshot.py DIR` and prints one status line, then one
-line per alert starting with "MELDING:". .github/workflows/pages.yml sends the alerts to ntfy. Alerts:
+Reads a data file written by `glasssphere_snapshot.py DIR --asset ...` (BTC, ETH or SOL) and prints one status line,
+then one line per alert starting with "MELDING:". .github/workflows/pages.yml sends the alerts to ntfy, one message
+per asset. Alerts:
   - the price is within 0.3% of the cluster it is most likely to reach first
   - a cluster from an hour ago was hit in the last hour
   - the most likely first target switched side since an hour ago
-  - Gate's real liquidations in the last hour were over $1M and 3x the hourly average of the day before
+  - Gate's real liquidations in the last hour were over a minimum (BTC $1M, ETH $0.5M, SOL $0.2M) and 3x the hourly
+    average of the day before
 
-    python3 scripts/glasssphere_alert.py DIR/glasssphere-data.json
+    python3 scripts/glasssphere_alert.py DIR/glasssphere-data.json      (or glasssphere-eth.json, glasssphere-sol.json)
 """
 import json
 import os
@@ -15,6 +17,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import glasssphere_model as M  # noqa: E402
+
+DECIMALS = {'BTC': 0, 'ETH': 1, 'SOL': 2}        # as the page shows prices
+LIQ_MIN = {'BTC': 1e6, 'ETH': 5e5, 'SOL': 2e5}   # smallest liquidation wave worth an alert, USD per hour
 
 
 def verdict(candles, oi, taker):
@@ -35,12 +40,19 @@ def label(p_up):
     return 'Onbeslist' if prob < 0.6 else 'Eerst omhoog' if p_up > 0.5 else 'Eerst omlaag'
 
 
+DEC = 0
+
+
 def fmt(p):
-    return f'{p:,.0f}'.replace(',', '.')
+    """Dutch notation: 81.700 / 2.399,5 / 104,36"""
+    return f'{p:,.{DEC}f}'.replace(',', ' ').replace('.', ',').replace(' ', '.')
 
 
 def main():
+    global DEC
     snap = json.load(open(sys.argv[1]))
+    asset = snap.get('asset', 'BTC')   # files from before ETH / SOL have no asset field: BTC
+    DEC = DECIMALS.get(asset, 2)
     candles = snap['candles']
     oi = {t: v for t, v in snap['oi']}
     taker = {t: v for t, v in snap['taker']}
@@ -66,7 +78,7 @@ def main():
         prev = [r[1] + r[2] for r in liq[-25:-1]]
         lu, su = liq[-1][1], liq[-1][2]
         avg = sum(prev) / len(prev)
-        if lu + su > 1e6 and lu + su > 3 * avg:
+        if lu + su > LIQ_MIN.get(asset, 1e6) and lu + su > 3 * avg:
             side = 'longs' if lu > su else 'shorts'
             print(f'MELDING: liquidatiegolf op Gate: ${(lu + su) / 1e6:.1f}M in het laatste uur, vooral {side} '
                   f'({(lu + su) / max(avg, 1):.0f}× het uurgemiddelde)')
