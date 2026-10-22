@@ -35,6 +35,9 @@ jobs:
         run: |
           mkdir -p _site
           cp *.html manifest.webmanifest _site/ && cp -r icons _site/
+          # the commit, so an open page or a resumed home-screen app sees a new version and reloads
+          sed -i 's/name="glasssphere-build" content="dev"/name="glasssphere-build" content="${{ github.sha }}"/' _site/index.html
+          echo "${{ github.sha }}" > _site/build.txt
           # data for index.html, one file per asset; the book history of the live site is carried forward
           # (liquidity-data.json is the BTC file's name before the rename to GlassSphere)
           base="${{ steps.pages.outputs.base_url }}"

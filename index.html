@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="glasssphere-build" content="dev" />
 <title>GlassSphere</title>
 <meta name="theme-color" content="#070a09">
 <!-- installable as a home screen app: Safari -> Share -> Add to Home Screen -->
@@ -1728,6 +1729,24 @@ addEventListener('hashchange', () => {          // Back / Forward between the sp
   else intro.show();
 });
 if (ASSETS[location.hash.slice(1)]) start(); else intro.show();
+
+// a new version: the workflow writes its commit into build.txt and into the meta tag above. When they differ (an old
+// copy from the browser's cache, or a home-screen app resumed from the background) the page reloads once
+(() => {
+  const build = document.querySelector('meta[name="glasssphere-build"]').content;
+  if (build === 'dev') return;
+  const check = async () => {
+    try {
+      const r = await fetch('build.txt', { cache: 'no-store' }); if (!r.ok) return;
+      const now = (await r.text()).trim();
+      if (now && now !== build && sessionStorage.getItem('glasssphere-reload') !== now) {
+        sessionStorage.setItem('glasssphere-reload', now); location.reload();
+      }
+    } catch (e) {}
+  };
+  check();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+})();
 </script>
 </body>
 </html>
