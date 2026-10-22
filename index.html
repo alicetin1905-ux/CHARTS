@@ -202,6 +202,9 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
 .tabs button{font:inherit;font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--dim);background:none;border:0;
   border-radius:9px;padding:6px 14px;cursor:pointer}
 .tabs button:hover{color:var(--txt)}
+.tabs button{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.tabs button img{width:16px;height:16px;border-radius:50%;opacity:.75;transition:opacity .2s}
+.tabs button.on img,.tabs button:hover img{opacity:1}
 .tabs button.on{color:var(--txt);background:rgba(53,255,176,.12);box-shadow:inset 0 0 0 1px rgba(53,255,176,.42),0 0 16px rgba(53,255,176,.2);
   text-shadow:0 0 12px rgba(53,255,176,.5)}
 /* Start page: the sphere with the coin tiles around it */
@@ -246,7 +249,8 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
   .back{padding:6px 12px 6px 8px;font-size:12.5px}
   .tabs{order:-1;width:100%}
   .tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
-  .tabs button{padding:8px 0;font-size:12.5px;letter-spacing:0}
+  .tabs button{padding:8px 0;font-size:12px;letter-spacing:0;gap:3px}
+  .tabs button img{width:13px;height:13px}
   .stage{height:max(480px,68vh)}
   .pcol{display:flex}
   .exd{width:100%}
@@ -284,18 +288,18 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
     <span id="sub">BTC-termijncontract · 1u</span>
   </div>
   <nav class="tabs" id="asset" aria-label="Munt">
-    <button data-a="btc" class="on">BTC</button>
-    <button data-a="eth">ETH</button>
-    <button data-a="sol">SOL</button>
-    <button data-a="bnb">BNB</button>
-    <button data-a="xrp">XRP</button>
-    <button data-a="doge">DOGE</button>
-    <button data-a="sui">SUI</button>
-    <button data-a="ena">ENA</button>
-    <button data-a="gala">GALA</button>
-    <button data-a="pepe">PEPE</button>
-    <button data-a="wld">WLD</button>
-    <button data-a="near">NEAR</button>
+    <button data-a="btc" class="on"><img src="icons/coins/btc.png" alt="" width="16" height="16">BTC</button>
+    <button data-a="eth"><img src="icons/coins/eth.png" alt="" width="16" height="16">ETH</button>
+    <button data-a="sol"><img src="icons/coins/sol.png" alt="" width="16" height="16">SOL</button>
+    <button data-a="bnb"><img src="icons/coins/bnb.png" alt="" width="16" height="16">BNB</button>
+    <button data-a="xrp"><img src="icons/coins/xrp.png" alt="" width="16" height="16">XRP</button>
+    <button data-a="doge"><img src="icons/coins/doge.png" alt="" width="16" height="16">DOGE</button>
+    <button data-a="sui"><img src="icons/coins/sui.png" alt="" width="16" height="16">SUI</button>
+    <button data-a="ena"><img src="icons/coins/ena.png" alt="" width="16" height="16">ENA</button>
+    <button data-a="gala"><img src="icons/coins/gala.png" alt="" width="16" height="16">GALA</button>
+    <button data-a="pepe"><img src="icons/coins/pepe.png" alt="" width="16" height="16">PEPE</button>
+    <button data-a="wld"><img src="icons/coins/wld.png" alt="" width="16" height="16">WLD</button>
+    <button data-a="near"><img src="icons/coins/near.png" alt="" width="16" height="16">NEAR</button>
   </nav>
   <div class="px"><b id="price">—</b><span id="upd">—</span></div>
   <div class="ctl">
