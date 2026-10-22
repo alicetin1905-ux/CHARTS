@@ -105,7 +105,7 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 .gauge{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--dn),var(--line2) 50%,var(--up));margin-top:4px}
 .gauge i{position:absolute;top:-4px;width:3px;height:16px;background:var(--txt);border-radius:2px;transform:translateX(-50%)}
 .gauge-sc{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--faint)}
-.story{padding:14px 16px;display:grid;gap:12px;min-width:0;line-height:1.6}
+.story{padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0;line-height:1.6}
 .story p{max-width:90ch}
 .story h3{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 .story ul{padding-left:18px;display:grid;gap:4px;max-width:90ch}
@@ -116,10 +116,35 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 .calc tr.tot td{font-weight:700;color:var(--txt)}
 .story details summary{cursor:pointer;color:var(--dim);font-size:12px}
 .story details ul{margin-top:8px;font-size:12px;color:var(--dim)}
+.tg{display:grid;gap:6px;max-width:560px}
+.tg-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+.tg-row b{font-size:17px}
+.tg-ar{width:14px;font-size:12px}
+.tg-row.up .tg-ar{color:var(--up)} .tg-row.dn .tg-ar{color:var(--dn)} .tg-row.now .tg-ar{color:var(--txt)}
+.tg-row.now{background:transparent;border-style:dashed}
+.tg-row.first{border-color:var(--nt)}
+.tg-pc{font-family:var(--mono);font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.tg-k{font-size:12px;color:var(--dim)}
+.tg-badge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--nt);border:1px solid var(--nt);border-radius:20px;padding:0 8px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;max-width:760px}
+.kv div{display:grid;gap:2px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);min-width:0}
+.kv span{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.kv b{font-size:17px}
+.kv em{font-style:normal;font-size:11px;color:var(--dim);line-height:1.35}
+.story .lead{color:var(--dim);font-size:12px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px 18px;max-width:760px}
+.facts dt{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.facts dd{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums}
+.story ul.sc{gap:6px}
+.story details.more{border-top:1px solid var(--line);padding-top:10px}
+.story details.more>summary{color:var(--txt);font-size:13px;font-weight:600}
+.story details.more[open]{display:grid;gap:12px}
+.story details.more ul.why{font-size:12px;color:var(--dim)}
 #rd > summary{list-style:none;cursor:pointer;user-select:none}
 #rd > summary::-webkit-details-marker{display:none}
 #rd:not([open]) > summary{border-bottom:0}
 #rd > summary:hover h2{color:var(--txt)}
+#rd > summary h2{text-transform:none;letter-spacing:.02em;font-size:13px;color:var(--txt)}
 #rd > summary:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
 .chev{width:7px;height:7px;border-right:2px solid var(--dim);border-bottom:2px solid var(--dim);transform:rotate(-45deg);transition:transform .15s}
 #rd[open] .chev{transform:rotate(45deg)}
@@ -151,6 +176,11 @@ footer .dot.snap{background:var(--nt)}
   .bar .legend{margin-left:0}
   .reading{grid-template-columns:minmax(0,1fr)}
   .verdict{border-right:0;border-bottom:1px solid var(--line)}
+  .verdict .lab{font-size:20px}
+  .story{padding:12px}
+  .calc table{font-size:11px}
+  .calc th,.calc td{white-space:normal;padding:6px 6px}
+  .calc th{font-size:9px}
 }
 </style>
 </head>
@@ -191,7 +221,7 @@ footer .dot.snap{background:var(--nt)}
 
 <main>
   <details class="card" id="rd">
-    <summary class="bar"><span class="chev" aria-hidden="true"></span><h2>Lezing</h2><span class="chip" id="rd-chip">—</span><div class="legend"><span id="rd-at">—</span></div></summary>
+    <summary class="bar"><span class="chev" aria-hidden="true"></span><h2>GlassSphere</h2><span class="chip" id="rd-chip">—</span><div class="legend"><span id="rd-at">—</span></div></summary>
     <div class="reading">
       <div class="verdict">
         <div class="seg" id="hz" aria-label="Termijn van de doelen">
@@ -255,7 +285,7 @@ footer .dot.snap{background:var(--nt)}
       <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van BTC-perps op 14 beurzen, in USD per bucket. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is de balk onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2% (in blokken van $10), dYdX ±1,5%, Hyperliquid ±2,4% (blokken van $100), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de candles toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke spoofing) opvallen.</p>
       <p><b>Stops</b> (stop-loss, buy-stop, sell-stop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke swing-high die nog niet is geraakt (buy-stops van shorts en breakout-kopers), net onder elke ongeraakte swing-low (sell-stops van longs), gewogen naar het volume rond de swing en hoe recent hij is, plus een kleine bijdrage op ronde $1000-niveaus. Score 0–100, geen bedrag.</p>
       <p><b>Liquidaties</b> zijn geschat uit de groei van open interest per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de candle sloot en voor de helft naar de taker-koopratio, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar het open interest van alle beurzen samen. Onderin de chart staan de echte liquidaties van Gate per candle.</p>
-      <p><b>Eerste doel</b> in de Lezing: voor de gekozen termijn (1 dag, 3 dagen of 1 week) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddelde dagrange × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, open interest, funding, CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
+      <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddelde dagrange × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, open interest, funding, CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
     </div>
   </footer>
 </main>
@@ -780,8 +810,7 @@ function analyze() {
 function renderReading() {
   const r = analyze(), P = r.P;
   const kind = q => q.stop >= q.liq ? (q.p > P ? 'buy-stops' : 'sell-stops') : (q.p > P ? 'short-liquidaties' : 'long-liquidaties');
-  const at = q => `<b>${fmtP(q.p)}</b> (${kind(q)}, ${pc(q.p / P - 1)})`;
-  const H = state.horizon, hl = hzLabel(H), bt = BT.hz[H];
+    const H = state.horizon, hl = hzLabel(H), bt = BT.hz[H];
   let lab = 'Geen doelen', prob = null, first = null, other = null;
   if (r.pUp != null) {
     const upFirst = r.pUp >= 0.5; prob = upFirst ? r.pUp : 1 - r.pUp;
@@ -795,68 +824,78 @@ function renderReading() {
   $('rd-g').style.left = (r.pUp == null ? 50 : r.pUp * 100) + '%';
   $('rd-at').textContent = 'data van ' + $('upd').textContent;
 
-  const p = [];
-  const dist = x => (x / P * 100).toFixed(1) + '%', win = `tussen ${dist(r.minD)} en ${dist(r.rH)} van de prijs`;
+  const dist = x => (x / P * 100).toFixed(1) + '%';
+  const sg = x => (x > 0 ? '+' : '') + x.toFixed(2);
+  const bidShare = Math.round(r.b05 / (r.b05 + r.a05) * 100);
+  let html = '';
+  // 1. the two targets and the price, as a ladder; the more likely one is marked
   if (prob != null) {
     const dT = Math.abs(first.p / P - 1), dS = Math.abs(other.p / P - 1);
-    p.push(`Voor <b>${hl}</b> is de verwachte bewegingsruimte ±${dist(r.rH)} (gemiddelde dagrange × √${H}). ` +
-      `${win.charAt(0).toUpperCase() + win.slice(1)} liggen de grootste clusters van stops en liquidaties op ${at(r.tUp)} boven en ${at(r.tDn)} onder. ` +
-      `De kans is <b>${Math.round(prob * 100)}%</b> dat de prijs ${fmtP(first.p)} eerder raakt dan ${fmtP(other.p)}: de afstand naar de ene kant gedeeld door beide afstanden samen. ` +
-      `In de backtest (Binance 2022–2026) kwam het meest waarschijnlijke doel in ${bt.act}% van de gevallen eerst (voorspeld gemiddeld ${bt.pred}%); in ${bt.neither}% werd binnen ${hl} geen van beide geraakt.`);
-    p.push(`<b>Als trade:</b> richting ${fmtP(first.p)} (${pc(first.p / P - 1)}) met de stop op ${fmtP(other.p)} (${pc(other.p / P - 1)}) is de verhouding winst : risico 1 : ${(dS / dT).toFixed(1)}. ` +
-      `Zo'n trade leverde in de backtest gemiddeld ${bt.ev > 0 ? '+' : ''}${bt.ev.toFixed(2)}% per keer op na 0,1% kosten (t = ${bt.t.toFixed(1)}), ` +
-      `${Math.abs(bt.t) < 2 ? 'niet te onderscheiden van nul' : bt.ev < 0 ? 'dus verliesgevend' : 'dus positief'}: de hogere trefkans wordt opgeheven doordat de stop verder weg ligt dan het doel.`);
+    const row = (q, isUp) => {
+      const isFirst = q === first;
+      return `<div class="tg-row ${isUp ? 'up' : 'dn'}${isFirst ? ' first' : ''}"><span class="tg-ar">${isUp ? '▲' : '▼'}</span>` +
+        `<b>${fmtP(q.p)}</b><span class="tg-pc">${pc(q.p / P - 1)}</span><span class="tg-k">${kind(q)}</span>` +
+        `${isFirst ? `<span class="tg-badge">eerst · ${Math.round(prob * 100)}%</span>` : ''}</div>`;
+    };
+    html += `<div class="tg">${row(r.tUp, true)}<div class="tg-row now"><span class="tg-ar">●</span><b>${fmtP(P)}</b><span class="tg-pc">nu</span>` +
+      `<span class="tg-k">bewegingsruimte ${hl} ±${dist(r.rH)}</span></div>${row(r.tDn, false)}</div>`;
+    const evTxt = Math.abs(bt.t) < 2 ? 'niet te onderscheiden van nul' : bt.ev < 0 ? 'verliesgevend' : 'positief';
+    html += `<div class="kv">` +
+      `<div><span>Kans eerst</span><b>${Math.round(prob * 100)}%</b><em>${fmtP(first.p)} vóór ${fmtP(other.p)}</em></div>` +
+      `<div><span>Winst : risico</span><b>1 : ${(dS / dT).toFixed(1)}</b><em>doel ${dist(Math.abs(first.p - P))}, stop ${dist(Math.abs(other.p - P))}</em></div>` +
+      `<div><span>Backtest-trade</span><b class="${bt.ev > 0 ? 'up' : 'dn'}">${bt.ev > 0 ? '+' : ''}${bt.ev.toFixed(2)}%</b><em>per trade na kosten, ${evTxt}</em></div>` +
+      `<div><span>Geen van beide</span><b>${bt.neither}%</b><em>binnen ${hl} (backtest)</em></div></div>`;
+    html += `<p class="lead">De kans komt alleen uit de afstanden: het dichtste cluster wordt vaker eerst geraakt. Omdat de stop dan verder weg ligt dan het doel, levert een trade erop gemiddeld niets op.</p>`;
   } else {
-    p.push(`Voor <b>${hl}</b> (verwachte bewegingsruimte ±${dist(r.rH)}) ligt er niet aan beide kanten een cluster ${win}. Kies een andere termijn.`);
+    html += `<p class="lead">Voor ${hl} (bewegingsruimte ±${dist(r.rH)}) ligt er niet aan beide kanten een cluster tussen ${dist(r.minD)} en ${dist(r.rH)} van de prijs. Kies een andere termijn.</p>`;
   }
-  const trend = P > r.ef && r.ef > r.es ? 'boven de 1H-EMA20, die boven de EMA50 ligt (korte trend omhoog)'
-    : P < r.ef && r.ef < r.es ? 'onder de 1H-EMA20, die onder de EMA50 ligt (korte trend omlaag)' : 'tussen de 1H-EMA20 en EMA50 in';
-  p.push(`De prijs staat op <b>${fmtP(P)}</b>, ${pc(r.ret24)} in 24 uur, ${trend}. ` +
-    `Takers ${r.netBuy >= 0 ? 'kochten' : 'verkochten'} per saldo ${Math.abs(r.netBuy * 100).toFixed(1)}% van het volume (Gate, 24 uur).`);
-  const bidShare = Math.round(r.b05 / (r.b05 + r.a05) * 100);
-  p.push(`Binnen ±0,5% staat ${fmtUsd(r.b05)} aan kooporders tegenover ${fmtUsd(r.a05)} aan verkooporders (${bidShare}% koopkant, gewogen naar volume)` +
-    (r.support ? `. Grootste koopmuur <b>${fmtP(r.support.p)}</b> (${fmtUsd(r.support.v)})` : '') +
-    (r.resist ? `, grootste verkoopmuur <b>${fmtP(r.resist.p)}</b> (${fmtUsd(r.resist.v)})` : '') + '.');
-  const parts = [];
-  if (r.oiTot) parts.push(`Open interest over ${Object.keys(state.data.market).length} beurzen: ${fmtUsd(r.oiTot)}` +
-    (r.oiChg != null ? `, op Gate ${pc(r.oiChg, 1)} in 24 uur` : ''));
-  if (r.fund != null) parts.push(`gemiddelde funding ${(r.fund * 100).toFixed(4)}% per 8 uur (${r.fund > 0.00015 ? 'longs betalen meer dan normaal' : r.fund < 0.00005 ? 'onder het normale 0,01%: weinig druk aan de longkant' : 'rond het normale 0,01%'})`);
-  parts.push(`echte liquidaties op Gate in 24 uur: ${fmtUsd(r.liq24[0])} longs, ${fmtUsd(r.liq24[1])} shorts`);
-  p.push(parts.join('; ') + '.');
-
-  const scDn = r.tDn ? `<b>Omlaag:</b> ${r.support ? `breekt de koopmuur op ${fmtP(r.support.p)}, dan` : 'dan'} is ${at(r.tDn)} het eerstvolgende doel.` : null;
-  const scUp = r.tUp ? `<b>Omhoog:</b> ${r.resist ? `eerst moet de verkoopmuur op ${fmtP(r.resist.p)} worden opgekocht; daarna` : 'dan'} is ${at(r.tUp)} het eerstvolgende doel.` : null;
+  // 2. the market now, as a compact list
+  const trend = P > r.ef && r.ef > r.es ? 'omhoog' : P < r.ef && r.ef < r.es ? 'omlaag' : 'zijwaarts';
+  const facts = [
+    ['Prijs 24 uur', `<span class="${r.ret24 >= 0 ? 'up' : 'dn'}">${pc(r.ret24)}</span>`],
+    ['Korte trend (1H EMA)', trend],
+    ['Takers (Gate, 24u)', `${r.netBuy >= 0 ? 'kopen' : 'verkopen'} ${Math.abs(r.netBuy * 100).toFixed(1)}%`],
+    ['Orderboek ±0,5%', `${bidShare}% koopkant`],
+    r.support && ['Grootste koopmuur', `${fmtP(r.support.p)} · ${fmtUsd(r.support.v)}`],
+    r.resist && ['Grootste verkoopmuur', `${fmtP(r.resist.p)} · ${fmtUsd(r.resist.v)}`],
+    r.oiTot && ['Open interest', `${fmtUsd(r.oiTot)}${r.oiChg != null ? ` · Gate ${pc(r.oiChg, 1)}` : ''}`],
+    r.fund != null && ['Funding / 8u', `${(r.fund * 100).toFixed(4)}% · ${r.fund > 0.00015 ? 'hoog' : r.fund < 0.00005 ? 'laag' : 'normaal'}`],
+    ['Liquidaties 24u (Gate)', `longs ${fmtUsd(r.liq24[0])} · shorts ${fmtUsd(r.liq24[1])}`],
+  ].filter(Boolean);
+  html += `<h3>Markt nu</h3><dl class="facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
+  // 3. scenarios
+  const scDn = r.tDn ? `<b>Omlaag:</b> ${r.support ? `breekt ${fmtP(r.support.p)} (koopmuur), dan` : 'dan'} ${fmtP(r.tDn.p)} (${pc(r.tDn.p / P - 1)}).` : null;
+  const scUp = r.tUp ? `<b>Omhoog:</b> ${r.resist ? `eerst ${fmtP(r.resist.p)} (verkoopmuur) opkopen, dan` : 'dan'} ${fmtP(r.tUp.p)} (${pc(r.tUp.p / P - 1)}).` : null;
   const sc = ((r.pUp ?? 0.5) < 0.5 ? [scDn, scUp] : [scUp, scDn]).filter(Boolean);
-  const sg = x => (x > 0 ? '+' : '') + x.toFixed(2);
-  const ic = k => `${BT.ic[k][0] > 0 ? '+' : ''}${BT.ic[k][0].toFixed(3)} · ${BT.ic[k][1]}/5 jaar`;
+  html += `<h3>Scenario's</h3><ul class="sc">${sc.map(t => `<li>${t}</li>`).join('')}</ul>`;
+  // 4. backtest and context, folded away
+  const ic = k => `${BT.ic[k][0] > 0 ? '+' : ''}${BT.ic[k][0].toFixed(3)} · ${BT.ic[k][1]}/5 jr`;
   const rows = [
-    ['Momentum', `24u ${pc(r.ret24)} · EMA20/50 ${pc(r.ef / r.es - 1)}`, r.mom, ic('mom')],
-    ['CVD (taker)', `${r.netBuy >= 0 ? '+' : ''}${(r.netBuy * 100).toFixed(1)}% netto kopen`, r.cvd, ic('cvd')],
-    ['Open interest', r.oiChg == null ? 'geen data' : `${pc(r.oiChg, 1)} in 24u`, r.oiS, ic('oi')],
-    ['Funding', r.fund == null ? 'geen data' : `${(r.fund * 100).toFixed(4)}% / 8u`, r.fundS, ic('fund')],
-    ['Liquiditeitstrek', `boven ${Math.round(r.up / (r.up + r.dn) * 100)}% · onder ${Math.round(r.dn / (r.up + r.dn) * 100)}%`, r.pull, ic('pull')],
-    ['Orderboek', `koopkant ${bidShare}% (±0,5%)`, r.book, 'niet te testen'],
+    ['Momentum', `${pc(r.ret24)} · EMA ${pc(r.ef / r.es - 1)}`, r.mom, ic('mom')],
+    ['CVD (taker)', `${r.netBuy >= 0 ? '+' : ''}${(r.netBuy * 100).toFixed(1)}%`, r.cvd, ic('cvd')],
+    ['Open interest', r.oiChg == null ? '—' : pc(r.oiChg, 1), r.oiS, ic('oi')],
+    ['Funding', r.fund == null ? '—' : `${(r.fund * 100).toFixed(4)}%`, r.fundS, ic('fund')],
+    ['Liquiditeitstrek', `${Math.round(r.up / (r.up + r.dn) * 100)}% boven`, r.pull, ic('pull')],
+    ['Orderboek', `${bidShare}% koop`, r.book, 'niet te testen'],
   ];
-  $('rd-story').innerHTML =
-    p.map(t => `<p>${t}</p>`).join('') +
-    `<h3>Scenario's</h3><ul>${sc.map(t => `<li>${t}</li>`).join('')}` +
-    `<li><b>Bewegingsruimte ${hl}:</b> gemiddeld ${fmtP(P - r.rH)} – ${fmtP(P + r.rH)}.</li></ul>` +
-    `<h3>Termijnen vergeleken (backtest 2022–2026)</h3><div class="levels calc"><table><thead><tr><th>Termijn</th><th>Doel / stop (mediaan)</th><th>Kans voorspeld / echt</th><th>Geen van beide</th><th>Gem. trade na kosten</th></tr></thead><tbody>` +
-    Object.entries(BT.hz).map(([d, h]) => `<tr${+d === H ? ' class="tot"' : ''}><td>${hzLabel(+d)}</td><td>${h.tgt.toFixed(1)}% / ${h.stp.toFixed(1)}%</td><td>${h.pred}% / ${h.act}%</td><td>${h.neither}%</td><td class="${h.ev > 0 ? 'up' : 'dn'}">${h.ev > 0 ? '+' : ''}${h.ev.toFixed(2)}% (t ${h.t.toFixed(1)})</td></tr>`).join('') +
+  html += `<details class="more"><summary>Backtest en context</summary>` +
+    `<h3>Termijnen vergeleken (Binance 2022–2026)</h3><div class="levels calc"><table><thead><tr><th>Termijn</th><th>Doel / stop</th><th>Kans voorsp. / echt</th><th>Geen</th><th>Trade na kosten</th></tr></thead><tbody>` +
+    Object.entries(BT.hz).map(([d, h]) => `<tr${+d === H ? ' class="tot"' : ''}><td>${hzLabel(+d)}</td><td>${h.tgt.toFixed(1)} / ${h.stp.toFixed(1)}%</td><td>${h.pred} / ${h.act}%</td><td>${h.neither}%</td><td class="${h.ev > 0 ? 'up' : 'dn'}">${h.ev > 0 ? '+' : ''}${h.ev.toFixed(2)}% (t ${h.t.toFixed(1)})</td></tr>`).join('') +
     `</tbody></table></div>` +
-    `<h3>Hoe goed klopt de kans (1 dag, alle afstanden)</h3><div class="levels calc"><table><thead><tr><th>Voorspelde kans omhoog eerst</th><th>Gemiddeld voorspeld</th><th>Echt omhoog eerst</th></tr></thead><tbody>` +
+    `<h3>Klopt de kans? (1 dag)</h3><div class="levels calc"><table><thead><tr><th>Voorspeld omhoog eerst</th><th>Gemiddeld</th><th>Echt</th></tr></thead><tbody>` +
     BT.calib.map(([b, m, a]) => `<tr><td>${b}</td><td>${m}%</td><td>${a}%</td></tr>`).join('') +
     `</tbody></table></div>` +
-    `<h3>Context (telt niet mee)</h3><div class="levels calc"><table><thead><tr><th>Factor</th><th>Nu</th><th>Signaal</th><th>Backtest IC 2022–2026 · jaren positief</th></tr></thead><tbody>` +
+    `<h3>Context (telt niet mee)</h3><div class="levels calc"><table><thead><tr><th>Factor</th><th>Nu</th><th>Signaal</th><th>Backtest-IC</th></tr></thead><tbody>` +
     rows.map(([f, m, v, t]) => `<tr><td>${f}</td><td>${m}</td><td class="${v > 0.05 ? 'up' : v < -0.05 ? 'dn' : ''}">${sg(v)}</td><td>${t}</td></tr>`).join('') +
     `</tbody></table></div>` +
-    `<details><summary>Waarom deze factoren niet meetellen</summary><ul>
+    `<ul class="why">
       <li>Getest op Binance BTC-perp (1H) van januari 2022 tot september 2026: elke factor tegen het rendement van de volgende 24 uur. IC is de correlatie; 0 betekent geen verband.</li>
-      <li>Momentum, open interest en de liquiditeitstrek zitten rond 0 en wisselen per jaar van teken. Funding (tegendraads) en vooral CVD waren in bijna elk jaar licht positief, maar met een IC van 0,03–0,04 te zwak om op te handelen. Op 161 dagen Gate-data draaiden gewichten die op de eerste periode waren afgesteld om in de laatste (37% goed).</li>
-      <li>De liquiditeitstrek (de kant met de meeste stops en liquidaties, gewogen naar afstand) wees minder vaak het eerst geraakte cluster aan (60%) dan simpelweg het dichtstbijzijnde (67%), in elk jaar.</li>
+      <li>Momentum, open interest en de liquiditeitstrek zitten rond 0 en wisselen per jaar van teken. Funding (tegendraads) en vooral CVD waren bijna elk jaar licht positief, maar met een IC van 0,03–0,04 te zwak om op te handelen.</li>
+      <li>De liquiditeitstrek wees minder vaak het eerst geraakte cluster aan (60%) dan simpelweg het dichtstbijzijnde (67%), in elk jaar.</li>
       <li>Het liquidatiemodel zelf klopt wel: de geschatte liquidaties vallen op dezelfde uren als de echte (correlatie ${BT.liqCorr.toFixed(2)}).</li>
-    </ul></details>` +
-    `<p class="fine">Een rekensom op de orders en posities van dit moment, geen advies. Muren in het orderboek kunnen binnen seconden verdwijnen, en stops en liquidaties zijn schattingen.</p>`;
+    </ul></details>`;
+  html += `<p class="fine">Een rekensom op de orders en posities van dit moment, geen advies. Muren in het orderboek kunnen binnen seconden verdwijnen, en stops en liquidaties zijn schattingen.</p>`;
+  $('rd-story').innerHTML = html;
 }
 
 /* ---------- controls ---------- */
