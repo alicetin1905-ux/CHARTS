@@ -53,3 +53,36 @@ A random walk without drift reaches the upper of two levels first with probabili
 
 Brier score 0.208 (0.25 = coin flip). Neither pool reached within 24h: 429 of 968 points.
 
+
+## 4. Longer test: Binance, 2022 – 2026
+
+Binance BTCUSDT perpetual from the free archive at data.binance.vision: 1H candles, open interest (5-minute, sampled on the hour), taker buy volume and funding. 41616 hours, evaluated every 6h after the 400-bar warm-up (6865 points), the same model and leverage mix as above. No liquidation data in the archive, so section 1 cannot be repeated here.
+
+### Signals against the next 24h return, IC per year
+
+| Signal | 2022 | 2023 | 2024 | 2025 | 2026 | All |
+|---|---|---|---|---|---|---|
+| Momentum | -0.034 | +0.060 | +0.022 | -0.036 | +0.028 | +0.010 (t +0.4) |
+| Liquidity pull | -0.019 | +0.040 | -0.010 | -0.025 | -0.013 | -0.001 (t -0.0) |
+| Open interest | -0.023 | +0.093 | +0.039 | -0.024 | -0.049 | +0.010 (t +0.4) |
+| Funding (contrarian) | +0.141 | +0.090 | -0.016 | +0.011 | +0.024 | +0.026 (t +1.1) |
+| CVD (taker buying) | +0.031 | +0.102 | +0.044 | +0.069 | +0.012 | +0.042 (t +1.8) |
+
+### Which pool is hit first, per year
+
+| Year | Points with a hit | Pull side first | Closer side first | Brier (distance rule) | Neither within 24h |
+|---|---|---|---|---|---|
+| 2022 | 798 | 63% | 68% | 0.206 | 43% |
+| 2023 | 736 | 58% | 67% | 0.209 | 49% |
+| 2024 | 861 | 64% | 69% | 0.204 | 41% |
+| 2025 | 828 | 56% | 65% | 0.207 | 43% |
+| 2026 | 635 | 58% | 65% | 0.213 | 41% |
+| All | 3858 | 60% | 67% | 0.207 | 44% |
+
+| Predicted P(up first) | Points | Actually up first |
+|---|---|---|
+| 0%–20% (mean 15%) | 93 | 5% |
+| 20%–40% (mean 32%) | 769 | 28% |
+| 40%–60% (mean 50%) | 1666 | 49% |
+| 60%–80% (mean 68%) | 1102 | 75% |
+| 80%–100% (mean 85%) | 228 | 87% |

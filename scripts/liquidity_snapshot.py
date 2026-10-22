@@ -1,12 +1,10 @@
-"""Fetch the data behind index.html and embed it in the page, or write it for the page's database.
+"""Fetch the data behind index.html into liquidity-data.json.
 
-The page fetches the same data live in the browser where the exchanges allow it. On GitHub Pages it also reads
-liquidity-data.json next to it (written every hour by .github/workflows/pages.yml with --site), for the exchanges a
-browser cannot reach and the book history of past hours. The hosted claude.ai page cannot reach the exchanges: it
-reads the newest snapshot from its database (written every hour by a scheduled task with --db). Both fall back to
-the snapshot embedded between /*SNAPSHOT*/ and /*END SNAPSHOT*/.
+index.html fetches the same data live in the browser where the exchanges allow it. On GitHub Pages it first reads
+liquidity-data.json next to it, written every hour by .github/workflows/pages.yml, for the exchanges a browser
+cannot reach and the book history of past hours.
 
-Snapshot shape:
+Data shape:
   ts, price
   books     {exchange: {b: [[price, usd], ...], a: [...]}} in $10 bins, within ±15% of the price
   candles   [[open_ms, open, high, low, close, volume_usd], ...] OKX BTC-USDT-SWAP 1H (400), oldest first
@@ -15,24 +13,18 @@ Snapshot shape:
   taker     [[ms, buy share 0..1], ...] Gate taker buy / (buy + sell), 1H
   liqReal   [[ms, long_usd, short_usd], ...] Gate real liquidations, 1H
   market    {exchange: {oi, vol, fund}} open interest (USD), 24h volume (USD), funding per 8h
-  bookHist  [{t, b: [[price, bid_usd, ask_usd], ...]}] hourly combined books, $100 bins within ±6%
+  bookHist  [{t, b: [[price, bid_usd, ask_usd], ...]}] hourly combined books, $100 bins within ±6%, last 48 hours
 
-    python3 scripts/liquidity_snapshot.py                 embed into index.html
-    python3 scripts/liquidity_snapshot.py --db DIR        write DIR/snap.json and DIR/bookhist.json (no embed)
-    python3 scripts/liquidity_snapshot.py --site DIR [--prev URL]
-                                                          write DIR/liquidity-data.json (no embed), carrying the
-                                                          book history of the file at URL forward
+    python3 scripts/liquidity_snapshot.py DIR [--prev URL]
+        writes DIR/liquidity-data.json, carrying the book history of the file at URL forward
 """
 import json
 import math
 import os
-import re
 import sys
 import time
 import urllib.request
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGE = os.path.join(ROOT, 'index.html')
 BIN = 10
 HIST_BIN = 100
 
@@ -269,8 +261,10 @@ def book_hist_entry(books, weights, price, ts):
 
 
 def main():
-    arg = lambda name: sys.argv[sys.argv.index(name) + 1] if name in sys.argv else None
-    db_dir, site_dir, prev_url = arg('--db'), arg('--site'), arg('--prev')
+    if len(sys.argv) < 2 or sys.argv[1].startswith('--'):
+        raise SystemExit('usage: liquidity_snapshot.py DIR [--prev URL]')
+    out_dir = sys.argv[1]
+    prev_url = sys.argv[sys.argv.index('--prev') + 1] if '--prev' in sys.argv else None
     books = {}
     for name, fn in BOOKS:
         try:
@@ -306,49 +300,19 @@ def main():
             'candles4h': candles4h, 'oi': oi, 'taker': taker, 'liqReal': liq_real, 'market': market}
     print(f'{len(candles)} 1H candles, {len(oi)} Gate stat hours, price {price}')
 
-    if db_dir:
-        os.makedirs(db_dir, exist_ok=True)
-        body = json.dumps(snap, separators=(',', ':'))
-        json.dump({'ts': ts, 'json': body}, open(os.path.join(db_dir, 'snap.json'), 'w'), separators=(',', ':'))
-        json.dump({'t': entry['t'], 'json': json.dumps(entry, separators=(',', ':'))},
-                  open(os.path.join(db_dir, 'bookhist.json'), 'w'), separators=(',', ':'))
-        print(f'wrote {db_dir}/snap.json ({len(body) // 1024} KB) and bookhist.json, doc id h{ts // 3600000}')
-        if len(body) > 250 * 1024:
-            raise SystemExit('snapshot is over the 256 KiB document limit')
-        return
-
-    def with_history(prev):  # carry the previous book history forward, one entry per hour, last 48
-        hist = {e['t']: e for e in prev}
-        hist[entry['t']] = entry
-        snap['bookHist'] = [hist[k] for k in sorted(hist)][-48:]
-
-    if site_dir:
-        prev = []
-        if prev_url:
-            try:
-                prev = get(prev_url).get('bookHist', [])
-            except Exception as e:
-                print(f'no previous data at {prev_url}: {e}')
-        with_history(prev)
-        os.makedirs(site_dir, exist_ok=True)
-        path = os.path.join(site_dir, 'liquidity-data.json')
-        json.dump(snap, open(path, 'w'), separators=(',', ':'))
-        print(f'wrote {path} ({os.path.getsize(path) // 1024} KB, {len(snap["bookHist"])} hours of book history)')
-        return
-
-    html = open(PAGE, encoding='utf-8').read()
-    old = re.search(r'/\*SNAPSHOT\*/(.*?)/\*END SNAPSHOT\*/', html, re.S)
-    if not old:
-        raise SystemExit('snapshot markers not found in index.html')
-    try:
-        with_history(json.loads(old.group(1)).get('bookHist', []))
-    except (ValueError, AttributeError):
-        with_history([])
-    body = json.dumps(snap, separators=(',', ':'))
-    html = html[:old.start()] + '/*SNAPSHOT*/' + body + '/*END SNAPSHOT*/' + html[old.end():]
-    open(PAGE, 'w', encoding='utf-8').write(html)
-    print(f'wrote {PAGE} ({len(html) // 1024} KB, {len(snap["bookHist"])} hours of book history)')
-
+    prev = []
+    if prev_url:  # carry the book history of the live site forward, one entry per hour, last 48
+        try:
+            prev = get(prev_url).get('bookHist', [])
+        except Exception as e:
+            print(f'no previous data at {prev_url}: {e}')
+    hist = {e['t']: e for e in prev}
+    hist[entry['t']] = entry
+    snap['bookHist'] = [hist[k] for k in sorted(hist)][-48:]
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, 'liquidity-data.json')
+    json.dump(snap, open(path, 'w'), separators=(',', ':'))
+    print(f'wrote {path} ({os.path.getsize(path) // 1024} KB, {len(snap["bookHist"])} hours of book history)')
 
 if __name__ == '__main__':
     main()

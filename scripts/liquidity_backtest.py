@@ -120,33 +120,18 @@ def calibrate(candles, stats):
     return res
 
 
-def run():
-    data = load()
-    candles, stats, funding = data['candles'], data['stats'], data['funding']
+def evaluate(candles, stats, funding, split='taker', lev=M.LEV, step=STEP, train_end=None):
+    """Signals and first-touch outcome every `step` hours. stats: {str(sec): {oi, taker (buy/sell ratio)}}."""
     n = len(candles)
-    print(f'{n} candles, {len(stats)} stat hours, {len(funding)} funding points')
-
-    calib = calibrate(candles, stats)
-    best = max(calib, key=lambda k: calib[k][2])
-    split, lev = ('taker', M.LEV)
-    old = [(10, .35), (25, .30), (50, .20), (100, .15)]
-    for name, (s, l) in {'candle split, mix 10/25/50/100× = 35/30/20/15%': ('candle', old),
-                         'candle + taker split, same mix': ('taker', old),
-                         'candle + taker split, low leverage (5/10/25/50× = 30/35/25/10%)': ('taker', [(5, .3), (10, .35), (25, .25), (50, .1)]),
-                         'candle + taker split, high leverage (25/50/100× = 40/35/25%)': ('taker', [(25, .4), (50, .35), (100, .25)])}.items():
-        if name == best:
-            split, lev = s, l
-
     book = M.LiqBook(split, lev)
     rows = []
-    t_end_train = candles[0][0] + TRAIN_DAYS * 86400e3
     for k in range(n - HORIZON):
         c = candles[k]
         t = c[0] // 1000
         a, b = stats.get(str(t)), stats.get(str(t + 3600))
         tk = a['taker'] / (1 + a['taker']) if a else None
         book.step(k, c, a and a['oi'], b and b['oi'], tk)
-        if k < M.WINDOW or k % STEP:
+        if k < M.WINDOW or k % step:
             continue
         win = candles[k - M.WINDOW + 1:k + 1]
         P = c[4]
@@ -181,17 +166,38 @@ def run():
                     touch = 'up' if hu else 'down'
                     break
             touch = (touch, 'up' if tu - P < P - td else 'down', (P - td) / (tu - td))  # random-walk P(up first)
-        rows.append({'t': c[0], 'train': c[0] < t_end_train, 'fwd': fwd, 'mom': mom, 'pull': pull, 'oi': oi_s,
+        rows.append({'t': c[0], 'train': train_end is None or c[0] < train_end, 'fwd': fwd, 'mom': mom, 'pull': pull, 'oi': oi_s,
                      'fund': fund, 'cvd': cvd, 'touch': touch})
+    return rows
+
+
+def run():
+    data = load()
+    candles, stats, funding = data['candles'], data['stats'], data['funding']
+    n = len(candles)
+    print(f'{n} candles, {len(stats)} stat hours, {len(funding)} funding points')
+
+    calib = calibrate(candles, stats)
+    best = max(calib, key=lambda k: calib[k][2])
+    split, lev = ('taker', M.LEV)
+    old = [(10, .35), (25, .30), (50, .20), (100, .15)]
+    for name, (s, l) in {'candle split, mix 10/25/50/100× = 35/30/20/15%': ('candle', old),
+                         'candle + taker split, same mix': ('taker', old),
+                         'candle + taker split, low leverage (5/10/25/50× = 30/35/25/10%)': ('taker', [(5, .3), (10, .35), (25, .25), (50, .1)]),
+                         'candle + taker split, high leverage (25/50/100× = 40/35/25%)': ('taker', [(25, .4), (50, .35), (100, .25)])}.items():
+        if name == best:
+            split, lev = s, l
+
+    rows = evaluate(candles, stats, funding, split, lev, STEP, candles[0][0] + TRAIN_DAYS * 86400e3)
     return calib, best, rows
 
 
-def stats_for(rows, key):
+def stats_for(rows, key, step=STEP):
     xs, ys = [r[key] for r in rows], [r['fwd'] for r in rows]
     ic = corr(xs, ys)
     sel = [r for r in rows if abs(r[key]) > 0.2]
     hit = sum((r[key] > 0) == (r['fwd'] > 0) for r in sel) / len(sel) if sel else float('nan')
-    neff = len(rows) * STEP / HORIZON
+    neff = len(rows) * step / HORIZON
     return ic, ic * math.sqrt(max(neff - 2, 1)) / math.sqrt(max(1 - ic * ic, 1e-9)), hit, len(sel)
 
 

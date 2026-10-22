@@ -1,13 +1,13 @@
 """Hourly check for the liquidity map: the first-target verdict now and an hour ago, and alerts.
 
-Reads the snap.json written by `liquidity_snapshot.py --db DIR` and prints one status line, then one
-line per alert starting with "MELDING:". Alerts:
+Reads the liquidity-data.json written by `liquidity_snapshot.py DIR` and prints one status line, then one
+line per alert starting with "MELDING:". .github/workflows/pages.yml sends the alerts to ntfy. Alerts:
   - the price is within 0.3% of the cluster it is most likely to reach first
   - a cluster from an hour ago was hit in the last hour
   - the most likely first target switched side since an hour ago
   - Gate's real liquidations in the last hour were over $1M and 3x the hourly average of the day before
 
-    python3 scripts/liquidity_alert.py DIR/snap.json
+    python3 scripts/liquidity_alert.py DIR/liquidity-data.json
 """
 import json
 import os
@@ -40,8 +40,7 @@ def fmt(p):
 
 
 def main():
-    doc = json.load(open(sys.argv[1]))
-    snap = json.loads(doc['json']) if 'json' in doc else doc
+    snap = json.load(open(sys.argv[1]))
     candles = snap['candles']
     oi = {t: v for t, v in snap['oi']}
     taker = {t: v for t, v in snap['taker']}
