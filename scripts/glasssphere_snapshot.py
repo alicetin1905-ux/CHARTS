@@ -6,7 +6,7 @@ cannot reach and the book history of past hours.
 
 Data shape:
   ts, price
-  asset     BTC, ETH, SOL, BNB, XRP, DOGE or SUI
+  asset     BTC, ETH, SOL, BNB, XRP, DOGE, SUI, ENA, GALA, PEPE or WLD
   bin, histBin  bin sizes of books and bookHist (about 0.012% and 0.12% of the price; BTC $10 / $100)
   books     {exchange: {b: [[price, usd], ...], a: [...]}} in bins of `bin`, within ±15% of the price
   candles   [[open_ms, open, high, low, close, volume_usd], ...] OKX <coin>-USDT-SWAP 1H (400), oldest first
@@ -18,7 +18,7 @@ Data shape:
   bookHist  [{t, b: [[price, bid_usd, ask_usd], ...]}] hourly combined books in bins of `histBin` within ±6%,
             last 48 hours
 
-    python3 scripts/glasssphere_snapshot.py DIR [--asset btc|eth|sol|bnb|xrp|doge|sui] [--prev URL ...]
+    python3 scripts/glasssphere_snapshot.py DIR [--asset btc|eth|...|wld] [--prev URL ...]
         writes the asset's file into DIR, carrying the book history of the first --prev URL that answers forward
 """
 import json
@@ -59,7 +59,26 @@ ASSETS = {
     'sui': dict(bin=0.0001, hist_bin=0.001, name='SUI', file='glasssphere-sui.json', okx='SUI-USDT-SWAP', okx_ct=1,
                 usdt='SUIUSDT', gate='SUI_USDT', gate_mul=1, gate_iv='0.001', htx='SUI-USDT', htx_ct=1, mexc='SUI_USDT',
                 mexc_ct=1, deribit='SUI_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_SUIUSD', cdc='SUIUSD-PERP',
-                hl='SUI', hl_sig=3, dydx='SUI-USD', bfx='tSUIF0:USTF0', bitget_sc='scale1'),}
+                hl='SUI', hl_sig=3, dydx='SUI-USD', bfx='tSUIF0:USTF0', bitget_sc='scale1'),
+    'ena': dict(bin=0.00001, hist_bin=0.0002, name='ENA', file='glasssphere-ena.json', okx='ENA-USDT-SWAP', okx_ct=10,
+                usdt='ENAUSDT', gate='ENA_USDT', gate_mul=10, gate_iv='0.0001', htx='ENA-USDT', htx_ct=1, mexc='ENA_USDT',
+                mexc_ct=10, deribit='ENA_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_ENAUSD', cdc='ENAUSD-PERP',
+                hl='ENA', hl_sig=4, dydx='ENA-USD', bfx='tENAF0:USTF0', bitget_sc='scale1'),
+    'gala': dict(bin=0.000001, hist_bin=0.000002, name='GALA', file='glasssphere-gala.json', okx='GALA-USDT-SWAP', okx_ct=10,
+                 usdt='GALAUSDT', gate='GALA_USDT', gate_mul=10, gate_iv='0.000001', htx=None, mexc='GALA_USDT', mexc_ct=10,
+                 deribit=None, bitmex=None, kraken='PF_GALAUSD', cdc='GALAUSD-PERP', hl='GALA', hl_sig=4, dydx=None,
+                 bfx='tGALAF0:USTF0', bitget_sc='scale0'),
+    # Binance, Bybit, Hyperliquid (kPEPE) and Deribit quote PEPE per 1000: their prices are divided by 1000 (div)
+    'pepe': dict(bin=1e-9, hist_bin=5e-9, name='PEPE', file='glasssphere-pepe.json', okx='PEPE-USDT-SWAP', okx_ct=1e7,
+                 usdt='1000PEPEUSDT', bitget_sym='PEPEUSDT', gate='PEPE_USDT', gate_mul=1e7, gate_iv='0.000000001',
+                 htx='PEPE-USDT', htx_ct=1e6, mexc='PEPE_USDT', mexc_ct=1e7, deribit='1000PEPE_USDC-PERPETUAL',
+                 deribit_usd=False, bitmex=None, kraken='PF_PEPEUSD', cdc='PEPEUSD-PERP', hl='kPEPE', hl_sig=3,
+                 dydx='PEPE-USD', bfx='tPEPEF0:USTF0', bitget_sc='scale1',
+                 div={'binance': 1000, 'bybit': 1000, 'hyperliquid': 1000, 'deribit': 1000}),
+    'wld': dict(bin=0.0001, hist_bin=0.0005, name='WLD', file='glasssphere-wld.json', okx='WLD-USDT-SWAP', okx_ct=1,
+                usdt='WLDUSDT', gate='WLD_USDT', gate_mul=1, gate_iv='0.0001', htx='WLD-USDT', htx_ct=1, mexc='WLD_USDT',
+                mexc_ct=1, deribit='WLD_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_WLDUSD', cdc='WLDUSD-PERP',
+                hl='WLD', hl_sig=3, dydx='WLD-USD', bitfinex=None, bitget_sc='scale0'),}
 
 
 def get(url, body=None):
@@ -72,13 +91,18 @@ def get(url, body=None):
         return json.load(r)
 
 
+def digits(step):
+    """Decimals that keep multiples of step exact after rounding (PEPE bins are 1e-9)."""
+    return max(0, -math.floor(math.log10(step))) + 3
+
+
 def bin_levels(rows, side, step):
     m = {}
     for p, usd in rows:
         if usd <= 0:
             continue
         k = (math.floor(p / step + 1e-9) if side == 'b' else math.ceil(p / step - 1e-9)) * step
-        k = round(k, 8)
+        k = round(k, digits(step))
         m[k] = m.get(k, 0) + usd
     return [[k, round(v)] for k, v in sorted(m.items())]
 
@@ -123,7 +147,7 @@ def book_bybit(A):
 
 def book_bitget(A):
     d = get('https://api.bitget.com/api/v2/mix/market/merge-depth'
-            f'?productType=usdt-futures&symbol={A["usdt"]}&limit=max&precision={A.get("bitget_sc", "scale2")}')['data']
+            f'?productType=usdt-futures&symbol={A.get("bitget_sym", A["usdt"])}&limit=max&precision={A.get("bitget_sc", "scale2")}')['data']
     f = lambda x: (float(x[0]), float(x[1]) * float(x[0]))
     return [f(x) for x in d['bids']], [f(x) for x in d['asks']]
 
@@ -192,7 +216,7 @@ def mk_gate(A):
 
 
 def mk_bitget(A):
-    t = get(f'https://api.bitget.com/api/v2/mix/market/ticker?symbol={A["usdt"]}&productType=usdt-futures')['data'][0]
+    t = get(f'https://api.bitget.com/api/v2/mix/market/ticker?symbol={A.get("bitget_sym", A["usdt"])}&productType=usdt-futures')['data'][0]
     return {'oi': float(t['holdingAmount']) * float(t['lastPr']), 'vol': float(t['usdtVolume']), 'fund': float(t['fundingRate'])}
 
 
@@ -291,14 +315,14 @@ def book_hist_entry(books, weights, price, ts, step):
         for side, i in (('b', 0), ('a', 1)):
             for p, u in v[side]:
                 if lo <= p <= hi:
-                    k = round(math.floor(p / step + 1e-9) * step, 8)
+                    k = round(math.floor(p / step + 1e-9) * step, digits(step))
                     m.setdefault(k, [0, 0])[i] += u * w
     return {'t': ts // 3600000 * 3600000, 'b': [[k, round(a), round(b)] for k, (a, b) in sorted(m.items()) if a + b > 0]}
 
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1].startswith('--'):
-        raise SystemExit('usage: glasssphere_snapshot.py DIR [--asset btc|eth|sol|bnb|xrp|doge|sui] [--prev URL ...]')
+        raise SystemExit('usage: glasssphere_snapshot.py DIR [--asset btc|eth|...|wld] [--prev URL ...]')
     out_dir = sys.argv[1]
     key = sys.argv[sys.argv.index('--asset') + 1] if '--asset' in sys.argv else 'btc'
     A = ASSETS[key]
@@ -316,6 +340,9 @@ def main():
             continue
         try:
             bids, asks = fn(A)
+            d = A.get('div', {}).get(name, 1)   # quoted per 1000 coins: back to the price of one
+            if d != 1:
+                bids, asks = [(p / d, u) for p, u in bids], [(p / d, u) for p, u in asks]
             books[name] = {'b': bin_levels(bids, 'b', step), 'a': bin_levels(asks, 'a', step)}
             print(f'book   {name:12s} {len(bids):5d} bids {len(asks):5d} asks')
         except Exception as e:

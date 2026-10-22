@@ -1,5 +1,5 @@
-"""Longer backtest of the GlassSphere reading on a Binance USDT perpetual (BTC, ETH, SOL, BNB, XRP, DOGE or SUI),
-1H, Jan 2022 - Sep 2026.
+"""Longer backtest of the GlassSphere reading on a Binance USDT perpetual (BTC, ETH, SOL, BNB, XRP, DOGE, SUI,
+ENA, GALA, 1000PEPE or WLD), 1H, Jan 2022 (or the listing) - Sep 2026.
 
 Same evaluation as glasssphere_backtest.py (stops, liquidations from hourly OI growth, signals, first touch of the
 largest pool above / below), on the free Binance archive at data.binance.vision:
@@ -220,7 +220,7 @@ def main():
     lines += horizon_lines(hz)
     # the page's BT constants for this asset
     tot = [r for r in rows if r['touch']]
-    bt = {'years': len(years), 'neither': round(sum(1 for r in tot if r['touch'][0] is None) / len(tot), 2), 'calib': [],
+    bt = {'years': len(years), 'from': years[0], 'neither': round(sum(1 for r in tot if r['touch'][0] is None) / len(tot), 2), 'calib': [],
           'ic': {k: [round(BT.stats_for(rows, k, STEP)[0], 3),
                      sum(BT.stats_for(by_year[y], k, STEP)[0] > 0 for y in years)] for k in keys}, 'hz': {}}
     for lo, hi in ((0, .2), (.2, .4), (.4, .6), (.6, .8), (.8, 1.01)):

@@ -1,5 +1,5 @@
 # Publishes GlassSphere (index.html, installable on the iOS home screen) to GitHub Pages, with the data files
-# (glasssphere-data.json for BTC, glasssphere-<asset>.json for ETH, SOL, BNB, XRP, DOGE and SUI) refreshed every
+# (glasssphere-data.json for BTC, glasssphere-<asset>.json for the other assets) refreshed every
 # hour, and sends alerts for each of them to ntfy.
 # One-time setup: Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
 # Alerts: add the repository secret NTFY_TOPIC and subscribe to that topic in the ntfy app (no secret, no alerts).
@@ -39,7 +39,7 @@ jobs:
           # (liquidity-data.json is the BTC file's name before the rename to GlassSphere)
           base="${{ steps.pages.outputs.base_url }}"
           python3 scripts/glasssphere_snapshot.py _site --asset btc --prev "$base/glasssphere-data.json" --prev "$base/liquidity-data.json"
-          for a in eth sol bnb xrp doge sui; do
+          for a in eth sol bnb xrp doge sui ena gala pepe wld; do
             python3 scripts/glasssphere_snapshot.py _site --asset $a --prev "$base/glasssphere-$a.json"
           done
       - uses: actions/upload-pages-artifact@v3
@@ -55,7 +55,7 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           # one message per asset, titled with the asset and opening its tab
-          for a in btc eth sol bnb xrp doge sui; do
+          for a in btc eth sol bnb xrp doge sui ena gala pepe wld; do
             f=glasssphere-$a.json; hash="#$a"; [ $a = btc ] && f=glasssphere-data.json && hash=""
             name=$(echo $a | tr a-z A-Z)
             echo "== $name"; python3 scripts/glasssphere_alert.py "_site/$f" | tee alert.txt || continue

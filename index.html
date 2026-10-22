@@ -50,7 +50,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .px{display:flex;align-items:baseline;gap:10px;margin-right:auto}
 .px b{font-size:30px;font-weight:600;letter-spacing:-.02em}
 .px span{font-family:var(--mono);font-size:12px;color:var(--dim)}
-.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0;max-width:100%}
 .ctl .grp{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%}
 .ctl .seg{min-width:0}
 .ctl label{font-size:10px;color:var(--faint);letter-spacing:.08em;text-transform:uppercase;font-weight:600}
@@ -210,8 +210,8 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
 @media (max-width:760px){
   header.top{position:static}
   .tabs{order:-1;width:100%}
-  .tabs{gap:2px}
-  .tabs button{flex:1;padding:9px 0;font-size:12.5px;letter-spacing:0}
+  .tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
+  .tabs button{padding:8px 0;font-size:12.5px;letter-spacing:0}
   .stage{height:max(480px,68vh)}
   .pcol{display:flex}
   .exd{width:100%}
@@ -248,6 +248,10 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
     <button data-a="xrp">XRP</button>
     <button data-a="doge">DOGE</button>
     <button data-a="sui">SUI</button>
+    <button data-a="ena">ENA</button>
+    <button data-a="gala">GALA</button>
+    <button data-a="pepe">PEPE</button>
+    <button data-a="wld">WLD</button>
   </nav>
   <div class="px"><b id="price">—</b><span id="upd">—</span></div>
   <div class="ctl">
@@ -332,7 +336,7 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
   <footer>
     <span class="status"><i class="dot" id="dot"></i><span id="src">laden…</span></span>
     <div class="note">
-      <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van de perp op 14 beurzen (BitMEX alleen voor BTC, Crypto.com niet voor BNB), in USD per bucket. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is de balk onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2%, dYdX ±1,5%, Hyperliquid ±2,4% (grove blokken), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json en glasssphere-&lt;munt&gt;.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de candles toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke spoofing) opvallen.</p>
+      <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van de perp op tot 14 beurzen (niet elke munt staat op elke beurs; BitMEX heeft alleen BTC), in USD per bucket. Waar een beurs PEPE per 1000 noteert (Binance, Bybit, Hyperliquid, Deribit) is de prijs teruggerekend naar 1 PEPE. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is de balk onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2%, dYdX ±1,5%, Hyperliquid ±2,4% (grove blokken), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json en glasssphere-&lt;munt&gt;.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de candles toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke spoofing) opvallen.</p>
       <p><b>Stops</b> (stop-loss, buy-stop, sell-stop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke swing-high die nog niet is geraakt (buy-stops van shorts en breakout-kopers), net onder elke ongeraakte swing-low (sell-stops van longs), gewogen naar het volume rond de swing en hoe recent hij is, plus een kleine bijdrage op ronde $1000-niveaus. Score 0–100, geen bedrag.</p>
       <p><b>Liquidaties</b> zijn geschat uit de groei van open interest per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de candle sloot en voor de helft naar de taker-koopratio, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar het open interest van alle beurzen samen. Onderin de chart staan de echte liquidaties van Gate per candle.</p>
       <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddelde dagrange × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, open interest, funding, CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
@@ -382,7 +386,25 @@ const ASSETS = {
   sui: { name: 'SUI', file: 'glasssphere-sui.json', okx: 'SUI-USDT-SWAP', okxCt: 1, usdt: 'SUIUSDT', gate: 'SUI_USDT', gateMul: 1, gateIv: '0.001',
     htx: 'SUI-USDT', htxCt: 1, deribit: 'SUI_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'SUIUSD-PERP', hl: 'SUI', hlSig: 3, dydx: 'SUI-USD', bitgetSc: 'scale1',
     bin: 0.0001, histBin: 0.001, buckets: [0.0002, 0.0005, 0.001, 0.0025, 0.005], auto: { 0.015: 0.0005, 0.03: 0.001, 0.06: 0.0025, 0.12: 0.005 }, dec: 4 },
+  ena: { name: 'ENA', file: 'glasssphere-ena.json', okx: 'ENA-USDT-SWAP', okxCt: 10, usdt: 'ENAUSDT', gate: 'ENA_USDT', gateMul: 10, gateIv: '0.0001',
+    htx: 'ENA-USDT', htxCt: 1, deribit: 'ENA_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'ENAUSD-PERP', hl: 'ENA', hlSig: 4, dydx: 'ENA-USD', bitgetSc: 'scale1',
+    bin: 0.00001, histBin: 0.0002, buckets: [0.00005, 0.0001, 0.0002, 0.0005, 0.001], auto: { 0.015: 0.0001, 0.03: 0.0002, 0.06: 0.0005, 0.12: 0.001 }, dec: 5 },
+  gala: { name: 'GALA', file: 'glasssphere-gala.json', okx: 'GALA-USDT-SWAP', okxCt: 10, usdt: 'GALAUSDT', gate: 'GALA_USDT', gateMul: 10, gateIv: '0.000001',
+    htx: null, deribit: null, bitmex: null, cdc: 'GALAUSD-PERP', hl: 'GALA', hlSig: 4, dydx: null, bitgetSc: 'scale0',
+    bin: 0.000001, histBin: 0.000002, buckets: [0.000001, 0.000002, 0.000005, 0.00001, 0.00002], auto: { 0.015: 0.000001, 0.03: 0.000002, 0.06: 0.000005, 0.12: 0.00001 }, dec: 6 },
+  // Binance, Bybit, Hyperliquid (kPEPE) and Deribit quote PEPE per 1000 coins: div brings their prices back to one coin
+  pepe: { name: 'PEPE', file: 'glasssphere-pepe.json', okx: 'PEPE-USDT-SWAP', okxCt: 1e7, usdt: '1000PEPEUSDT', bitgetSym: 'PEPEUSDT', gate: 'PEPE_USDT', gateMul: 1e7, gateIv: '0.000000001',
+    htx: 'PEPE-USDT', htxCt: 1e6, deribit: '1000PEPE_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'PEPEUSD-PERP', hl: 'kPEPE', hlSig: 3, dydx: 'PEPE-USD', bitgetSc: 'scale1',
+    div: { binance: 1000, bybit: 1000, hyperliquid: 1000, deribit: 1000 },
+    bin: 1e-9, histBin: 5e-9, buckets: [1e-9, 2e-9, 5e-9, 1e-8, 2.5e-8], auto: { 0.015: 2e-9, 0.03: 5e-9, 0.06: 1e-8, 0.12: 2.5e-8 }, dec: 9 },
+  wld: { name: 'WLD', file: 'glasssphere-wld.json', okx: 'WLD-USDT-SWAP', okxCt: 1, usdt: 'WLDUSDT', gate: 'WLD_USDT', gateMul: 1, gateIv: '0.0001',
+    htx: 'WLD-USDT', htxCt: 1, deribit: 'WLD_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'WLDUSD-PERP', hl: 'WLD', hlSig: 3, dydx: 'WLD-USD', bitfinex: null, bitgetSc: 'scale0',
+    bin: 0.0001, histBin: 0.0005, buckets: [0.0001, 0.0002, 0.0005, 0.001, 0.0025], auto: { 0.015: 0.0002, 0.03: 0.0005, 0.06: 0.001, 0.12: 0.0025 }, dec: 4 },
 };
+// Decimals that keep multiples of a bin exact after rounding (PEPE bins are 1e-9)
+const digits = step => Math.max(0, -Math.floor(Math.log10(step))) + 3;
+// A bucket size as a dollar amount without exponent: 1e-9 -> $0.000000001
+const fmtStep = v => '$' + v.toLocaleString('en-US', { maximumFractionDigits: 12 });
 // The nearest of 1, 2, 2.5, 5 x 10^k: level sizes that scale with the price (as nice() in scripts/glasssphere_model.py)
 const nice = x => { const m = 10 ** Math.floor(Math.log10(x));
   return [1, 2, 2.5, 5, 10].map(c => c * m).reduce((a, b) => Math.abs(Math.log(x / b)) < Math.abs(Math.log(x / a)) ? b : a); };
@@ -453,6 +475,38 @@ const BTS = {
     hz: { 1: { tgt: 4.28, stp: 6.41, pred: 59, act: 64, neither: 47, ev: -0.186, t: -1.5 },
           3: { tgt: 6.62, stp: 10.05, pred: 59, act: 64, neither: 33, ev: 0.006, t: 0.0 },
           7: { tgt: 9.10, stp: 11.72, pred: 56, act: 60, neither: 20, ev: 0.440, t: 0.6 } } },
+  ena: {
+    years: 3, from: 2024, neither: 0.14, pullOk: 55, nearOk: 68,
+    why: 'ENA staat pas sinds 2024 op Binance, dus dit is maar 3 jaar. De liquiditeitstrek was elk jaar licht positief (IC 0,03) en momentum ook (0,03); funding was elk jaar negatief, open interest en CVD wisselden van teken. Te zwak en te kort getest om op te handelen.',
+    calib: [['0–20%', 14, 8], ['20–40%', 32, 25], ['40–60%', 50, 51], ['60–80%', 69, 68], ['80–100%', 88, 88]],
+    ic: { mom: [0.030, 2], cvd: [0.014, 2], oi: [-0.003, 1], fund: [-0.037, 0], pull: [0.033, 3] },
+    hz: { 1: { tgt: 5.54, stp: 8.27, pred: 59, act: 64, neither: 48, ev: -0.192, t: -1.1 },
+          3: { tgt: 8.25, stp: 11.23, pred: 58, act: 62, neither: 27, ev: 0.142, t: 0.3 },
+          7: { tgt: 10.19, stp: 12.63, pred: 55, act: 59, neither: 9, ev: 0.639, t: 0.7 } } },
+  gala: {
+    neither: 0.24, pullOk: 56, nearOk: 68,
+    why: 'CVD was elk jaar positief (IC 0,06) en de liquiditeitstrek ook (0,03); momentum, open interest en funding wisselden van teken. Nog steeds te zwak om op te handelen.',
+    calib: [['0–20%', 15, 20], ['20–40%', 32, 26], ['40–60%', 50, 48], ['60–80%', 69, 71], ['80–100%', 89, 88]],
+    ic: { mom: [0.013, 2], cvd: [0.057, 5], oi: [0.013, 4], fund: [0.003, 3], pull: [0.030, 5] },
+    hz: { 1: { tgt: 4.61, stp: 6.63, pred: 59, act: 66, neither: 49, ev: 0.017, t: 0.2 },
+          3: { tgt: 7.17, stp: 10.29, pred: 59, act: 63, neither: 38, ev: 0.021, t: 0.1 },
+          7: { tgt: 9.22, stp: 11.97, pred: 56, act: 59, neither: 22, ev: 0.112, t: 0.2 } } },
+  pepe: {
+    years: 4, from: 2023, neither: 0.20, pullOk: 56, nearOk: 67,
+    why: 'PEPE staat sinds 2023 op Binance (als 1000PEPE), dus dit is 4 jaar. Momentum, de liquiditeitstrek, open interest en CVD waren licht positief (IC 0,02–0,04); funding sprong heen en weer (2024 sterk negatief). Te zwak om op te handelen.',
+    calib: [['0–20%', 15, 15], ['20–40%', 32, 23], ['40–60%', 50, 49], ['60–80%', 68, 70], ['80–100%', 89, 86]],
+    ic: { mom: [0.039, 3], cvd: [0.029, 3], oi: [0.024, 3], fund: [-0.064, 3], pull: [0.032, 4] },
+    hz: { 1: { tgt: 5.01, stp: 7.42, pred: 59, act: 65, neither: 49, ev: -0.179, t: -1.3 },
+          3: { tgt: 7.63, stp: 10.74, pred: 58, act: 64, neither: 35, ev: 0.090, t: 0.2 },
+          7: { tgt: 9.61, stp: 12.21, pred: 56, act: 57, neither: 15, ev: 0.126, t: 0.2 } } },
+  wld: {
+    years: 4, from: 2023, neither: 0.16, pullOk: 55, nearOk: 69,
+    why: 'WLD staat sinds 2023 op Binance, dus dit is 4 jaar. CVD (IC 0,06) en momentum (0,05) waren licht positief, maar in 2023 sterk negatief; de liquiditeitstrek was elk jaar positief (0,03). Te zwak en te kort getest om op te handelen.',
+    calib: [['0–20%', 15, 7], ['20–40%', 32, 27], ['40–60%', 50, 49], ['60–80%', 68, 71], ['80–100%', 88, 89]],
+    ic: { mom: [0.046, 3], cvd: [0.055, 3], oi: [0.014, 2], fund: [-0.027, 1], pull: [0.034, 4] },
+    hz: { 1: { tgt: 5.38, stp: 7.84, pred: 59, act: 68, neither: 48, ev: 0.054, t: 0.4 },
+          3: { tgt: 8.10, stp: 11.22, pred: 58, act: 62, neither: 35, ev: -0.164, t: -0.4 },
+          7: { tgt: 10.05, stp: 12.74, pred: 55, act: 58, neither: 16, ev: 0.197, t: 0.2 } } },
 };
 const HZ_MIN = 0.3;                   // targets at least 0.3 x the expected range away, so they are worth a trade
 const hzLabel = d => d === 1 ? '1 dag' : d === 7 ? '1 week' : d + ' dagen';
@@ -483,7 +537,7 @@ function binLevels(rows, side) {
   const m = {}, B = A.bin;
   for (const [p, usd] of rows) {
     if (!(usd > 0)) continue;
-    const k = +((side === 'b' ? Math.floor(p / B + 1e-9) : Math.ceil(p / B - 1e-9)) * B).toFixed(8);
+    const k = +((side === 'b' ? Math.floor(p / B + 1e-9) : Math.ceil(p / B - 1e-9)) * B).toFixed(digits(B));
     m[k] = (m[k] || 0) + usd;
   }
   return Object.entries(m).map(([k, v]) => [+k, Math.round(v)]);
@@ -502,7 +556,7 @@ const BOOKS = {
     const f = r => [+r.px, +r.sz * +r.px]; return { b: j.levels[0].map(f), a: j.levels[1].map(f) }; },
   bybit: async () => { const r = (await getJSON(`https://api.bybit.com/v5/market/orderbook?category=linear&symbol=${A.usdt}&limit=500`)).result;
     const f = x => [+x[0], +x[1] * +x[0]]; return { b: r.b.map(f), a: r.a.map(f) }; },
-  bitget: async () => { const d = (await getJSON(`https://api.bitget.com/api/v2/mix/market/merge-depth?productType=usdt-futures&symbol=${A.usdt}&limit=max&precision=${A.bitgetSc || 'scale2'}`)).data;
+  bitget: async () => { const d = (await getJSON(`https://api.bitget.com/api/v2/mix/market/merge-depth?productType=usdt-futures&symbol=${A.bitgetSym || A.usdt}&limit=max&precision=${A.bitgetSc || 'scale2'}`)).data;
     const f = x => [+x[0], +x[1] * +x[0]]; return { b: d.bids.map(f), a: d.asks.map(f) }; },
   htx: async () => { const t = (await getJSON(`https://api.hbdm.com/linear-swap-ex/market/depth?contract_code=${A.htx}&type=step0`)).tick;
     const f = x => [x[0], x[1] * A.htxCt * x[0]]; return { b: t.bids.map(f), a: t.asks.map(f) }; },
@@ -522,7 +576,7 @@ const MARKET = {
     return { oi: +o.data[0].oiUsd, vol: +t.data[0].volCcy24h * +t.data[0].last, fund: +f.data[0].fundingRate }; },
   gate: async () => { const [t] = await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/tickers?contract=${A.gate}`);
     return { oi: +t.total_size * A.gateMul * +t.mark_price, vol: +t.volume_24h_quote, fund: +t.funding_rate }; },
-  bitget: async () => { const t = (await getJSON(`https://api.bitget.com/api/v2/mix/market/ticker?symbol=${A.usdt}&productType=usdt-futures`)).data[0];
+  bitget: async () => { const t = (await getJSON(`https://api.bitget.com/api/v2/mix/market/ticker?symbol=${A.bitgetSym || A.usdt}&productType=usdt-futures`)).data[0];
     return { oi: +t.holdingAmount * +t.lastPr, vol: +t.usdtVolume, fund: +t.fundingRate }; },
   htx: async () => ({ vol: +(await getJSON(`https://api.hbdm.com/linear-swap-ex/market/detail/merged?contract_code=${A.htx}`)).tick.trade_turnover }),
   deribit: async () => { const r = (await getJSON(`https://www.deribit.com/api/v2/public/get_book_summary_by_instrument?instrument_name=${A.deribit}`)).result[0];
@@ -544,10 +598,15 @@ const MARKET = {
 };
 async function fetchAll(table, wrap) {
   const out = {};
-  await Promise.all(Object.entries(table).map(async ([k, fn]) => { try { out[k] = wrap(await fn()); } catch (e) {} }));
+  await Promise.all(Object.entries(table).map(async ([k, fn]) => {
+    if (A[k] === null) return;                     // not listed there for this asset
+    try { out[k] = wrap(await fn(), k); } catch (e) {} }));
   return out;
 }
-const fetchBooks = () => fetchAll(BOOKS, r => ({ b: binLevels(r.b, 'b'), a: binLevels(r.a, 'a') }));
+const fetchBooks = () => fetchAll(BOOKS, (r, k) => {
+  const d = A.div?.[k] || 1, f = d === 1 ? x => x : x => x.map(([p, u]) => [p / d, u]);   // per 1000 coins -> one coin
+  return { b: binLevels(f(r.b), 'b'), a: binLevels(f(r.a), 'a') };
+});
 const fetchMarket = () => fetchAll(MARKET, r => r);
 async function fetchSeries() {
   const base = 'https://www.okx.com/api/v5/market/';
@@ -631,7 +690,7 @@ function histEntry(books, weights, P, ts) {
     const w = weights[ex] ?? 1;
     [['b', 0], ['a', 1]].forEach(([side, i]) => { for (const [p, v] of bk[side]) {
       if (p < P * 0.94 || p > P * 1.06) continue;
-      const k = +(Math.floor(p / HB + 1e-9) * HB).toFixed(8), o = m.get(k) || [0, 0]; o[i] += v * w; m.set(k, o); } });
+      const k = +(Math.floor(p / HB + 1e-9) * HB).toFixed(digits(HB)), o = m.get(k) || [0, 0]; o[i] += v * w; m.set(k, o); } });
   }
   return { t: Math.floor(ts / 3.6e6) * 3.6e6, b: [...m].sort((x, y) => x[0] - y[0]).map(([k, [b, a]]) => [k, Math.round(b), Math.round(a)]) };
 }
@@ -689,12 +748,13 @@ function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
   const C = { up: css('--up'), dn: css('--dn'), stop: css('--stop'), liq: css('--liq'), txt: css('--txt'), dim: css('--dim'), faint: css('--faint'), line: css('--line'), line2: css('--line2') };
   // on a phone one profile column (chosen with #pcol), wider, so the candles keep most of the width
-  const narrow = W < 640, axisW = narrow ? 50 : 62, top = 26, stripH = 44, bot = H - 8 - stripH - 6;
+  const narrow = W < 640, fs = narrow ? 11 : 10, top = 26, stripH = 44, bot = H - 8 - stripH - 6;
+  ctx.font = fs + 'px ' + css('--mono');
+  const axisW = Math.max(narrow ? 50 : 62, Math.ceil(ctx.measureText(fmtP(model.hi)).width) + 12);   // room for long prices (PEPE)
   const allCols = [{ key: 'book', name: 'Limiet' }, { key: 'stop', name: 'Stops' }, { key: 'liq', name: 'Liquidaties' }];
   const cols = narrow ? allCols.filter(c => c.key === state.pcol) : allCols;
   const colW = narrow ? Math.round(W * 0.27) : Math.min(150, W * 0.12);
   const chartR = W - axisW - colW * cols.length - 6;
-  const fs = narrow ? 11 : 10;
   const glass = true;                                // GlassSphere look
   const rrect = (x, yy, w, h, r) => ctx.roundRect ? ctx.roundRect(x, yy, w, h, r) : ctx.rect(x, yy, w, h);
   const y = p => top + (model.hi - p) / (model.hi - model.lo) * (bot - top);
@@ -1106,7 +1166,7 @@ function seg(id, key) {
   });
 }
 function renderBuckets() {
-  $('bk').innerHTML = [0, ...A.buckets].map(v => `<button data-v="${v}"${v === state.bucket ? ' class="on"' : ''}${v ? '' : ' title="Bucket volgt het bereik"'}>${v ? '$' + v : 'Auto'}</button>`).join('');
+  $('bk').innerHTML = [0, ...A.buckets].map(v => `<button data-v="${v}"${v === state.bucket ? ' class="on"' : ''}${v ? '' : ' title="Bucket volgt het bereik"'}>${v ? fmtStep(v) : 'Auto'}</button>`).join('');
 }
 renderBuckets();
 seg('rng', 'range'); seg('bk', 'bucket'); seg('tf', 'tf'); seg('hz', 'horizon');
@@ -1117,7 +1177,7 @@ $('pcol').addEventListener('click', e => {
 });
 
 function refresh() {
-  $('bk').querySelector('[data-v="0"]').textContent = 'Auto · $' + A.auto[state.range];
+  $('bk').querySelector('[data-v="0"]').textContent = 'Auto · ' + fmtStep(A.auto[state.range]);
   if (!state.data) {     // switching asset: clear the old asset's numbers until the new data is in
     renderExchanges(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
     ['r-bid', 'r-ask', 'r-bs', 'r-ss', 'r-sl', 'r-ll'].forEach(id => { $(id).textContent = '—'; $(id + '-s').textContent = ''; });
