@@ -93,6 +93,22 @@ Filters and exits, ranked on train (Oct 2020 – Dec 2023), judged on test (Jan 
   train and test (PF 1.15 – 2.04 train, 1.16 – 1.66 test, 35 – 64 trades each). On 15m, 1H and 1D coarser intrabars
   do not help, and on 4H the result swings from PF 0.40 to 1.66 with that one choice: a fragile edge.
 
+With 1H intrabars on 2H – 1D charts (indicator: Auto lower timeframe off, Lower timeframe 1 hour):
+[`backtests/cvd_divergence_1h.md`](backtests/cvd_divergence_1h.md) (`scripts/cvd_divergence_1h.py`).
+
+| Chart | Exit | Trades / yr | PF | Net (6 yr) | Max DD | Train PF | Test PF |
+|---|---|---|---|---|---|---|---|
+| 2H | no target | 32 | 1.33 | +115% | 63% | 1.15 | 1.78 |
+| **4H** | **no target** | **15** | **1.74** | **+274%** | **39%** | **2.04** | **1.21** |
+| 4H | 2R | 19 | 1.31 | +85% | 36% | 1.39 | 1.16 |
+| 6H – 1D | either | 2 – 9 | 0.15 – 1.44 | −75% to +70% | 48 – 80% | | |
+
+- 4H with 1H intrabars is the best result so far, but most of it came in 2021 – 2022 (+82%, +123%); 2023 – 2026 was
+  −16%, +12%, +6%, −8%. It was also picked after seeing the intrabar test, so expect worse live. Buy & hold: +676%,
+  with a deeper drawdown (~77%).
+- With 1H intrabars TradingView has intrabar data for the whole chart history, so the indicator's past signals on 4H
+  match this backtest (with 1m intrabars only the last few weeks do).
+
 ## EMA Ribbon flip backtest (`scripts/ribbon_backtest.py`)
 
 Backtest of trading BTCUSDT.P on the flips of the **EMA Ribbon [Krypt]** (EMAs 20–55): long when all 8 EMAs
