@@ -84,6 +84,14 @@ Full tables: [`backtests/liquidity_map.md`](backtests/liquidity_map.md).
 
 ### Data and hourly refresh (`scripts/liquidity_snapshot.py`, `scripts/liquidity_alert.py`)
 
+**GitHub Pages**: https://alicetin1905-ux.github.io/CHARTS/liquidity-map.html (also `index.html` and
+`flow-radar.html`). `.github/workflows/pages.yml` publishes the HTML pages on every push to this branch and every hour
+(at :17), with `liquidity-data.json` from `liquidity_snapshot.py --site`, which carries the book history of the live
+site forward (48 hours). There the page fetches everything live from the browser (books every 15 s) and takes the
+exchanges a browser cannot read (MEXC, Kraken, Bitfinex: open interest and volume only) and the book history of past
+hours from that file. One-time setup: Settings → Pages → Source: GitHub Actions. GitHub pauses scheduled workflows in
+a public repository after 60 days without activity.
+
 Opened as a file the page fetches everything live (books every 15 s) and keeps one book per hour in memory for the
 heatmap. The hosted claude.ai page cannot reach the exchanges: a scheduled task runs every hour (at :21) that runs
 `liquidity_snapshot.py --db DIR` and writes `snap.json` / `bookhist.json` into the page's database (`snaps/h<hour>`,

@@ -1,8 +1,10 @@
 """Fetch the data behind liquidity-map.html and embed it in the page, or write it for the page's database.
 
-The page fetches the same data live in the browser where the exchanges allow it. The hosted claude.ai
-page cannot reach the exchanges: it reads the newest snapshot from its database (written every hour by a
-scheduled task with --db) and falls back to the snapshot embedded between /*SNAPSHOT*/ and /*END SNAPSHOT*/.
+The page fetches the same data live in the browser where the exchanges allow it. On GitHub Pages it also reads
+liquidity-data.json next to it (written every hour by .github/workflows/pages.yml with --site), for the exchanges a
+browser cannot reach and the book history of past hours. The hosted claude.ai page cannot reach the exchanges: it
+reads the newest snapshot from its database (written every hour by a scheduled task with --db). Both fall back to
+the snapshot embedded between /*SNAPSHOT*/ and /*END SNAPSHOT*/.
 
 Snapshot shape:
   ts, price
@@ -17,6 +19,9 @@ Snapshot shape:
 
     python3 scripts/liquidity_snapshot.py                 embed into liquidity-map.html
     python3 scripts/liquidity_snapshot.py --db DIR        write DIR/snap.json and DIR/bookhist.json (no embed)
+    python3 scripts/liquidity_snapshot.py --site DIR [--prev URL]
+                                                          write DIR/liquidity-data.json (no embed), carrying the
+                                                          book history of the file at URL forward
 """
 import json
 import math
@@ -264,7 +269,8 @@ def book_hist_entry(books, weights, price, ts):
 
 
 def main():
-    db_dir = sys.argv[sys.argv.index('--db') + 1] if '--db' in sys.argv else None
+    arg = lambda name: sys.argv[sys.argv.index(name) + 1] if name in sys.argv else None
+    db_dir, site_dir, prev_url = arg('--db'), arg('--site'), arg('--prev')
     books = {}
     for name, fn in BOOKS:
         try:
@@ -311,17 +317,33 @@ def main():
             raise SystemExit('snapshot is over the 256 KiB document limit')
         return
 
+    def with_history(prev):  # carry the previous book history forward, one entry per hour, last 48
+        hist = {e['t']: e for e in prev}
+        hist[entry['t']] = entry
+        snap['bookHist'] = [hist[k] for k in sorted(hist)][-48:]
+
+    if site_dir:
+        prev = []
+        if prev_url:
+            try:
+                prev = get(prev_url).get('bookHist', [])
+            except Exception as e:
+                print(f'no previous data at {prev_url}: {e}')
+        with_history(prev)
+        os.makedirs(site_dir, exist_ok=True)
+        path = os.path.join(site_dir, 'liquidity-data.json')
+        json.dump(snap, open(path, 'w'), separators=(',', ':'))
+        print(f'wrote {path} ({os.path.getsize(path) // 1024} KB, {len(snap["bookHist"])} hours of book history)')
+        return
+
     html = open(PAGE, encoding='utf-8').read()
     old = re.search(r'/\*SNAPSHOT\*/(.*?)/\*END SNAPSHOT\*/', html, re.S)
     if not old:
         raise SystemExit('snapshot markers not found in liquidity-map.html')
-    try:  # carry the book history of the previous embedded snapshot forward, one entry per hour, last 48
-        prev = json.loads(old.group(1)).get('bookHist', [])
+    try:
+        with_history(json.loads(old.group(1)).get('bookHist', []))
     except (ValueError, AttributeError):
-        prev = []
-    hist = {e['t']: e for e in prev}
-    hist[entry['t']] = entry
-    snap['bookHist'] = [hist[k] for k in sorted(hist)][-48:]
+        with_history([])
     body = json.dumps(snap, separators=(',', ':'))
     html = html[:old.start()] + '/*SNAPSHOT*/' + body + '/*END SNAPSHOT*/' + html[old.end():]
     open(PAGE, 'w', encoding='utf-8').write(html)
