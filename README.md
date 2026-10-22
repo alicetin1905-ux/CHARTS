@@ -35,9 +35,13 @@ SoSoValue's public API.
 
 Where open orders sit around the BTC perpetual price: 1H candles with three side profiles on one price axis.
 
-- **Limit orders** (real): the visible order books of OKX, Binance, Deribit, Gate and Hyperliquid BTC perps,
-  in USD per price bucket, stacked per exchange. Each book only reaches as far as the exchange returns
-  (OKX ±0.8%, Hyperliquid ±2.4% in $100 blocks, Gate ±3.5%, Binance 1000 levels, Deribit the full book).
+- **Limit orders** (real): the visible order books of BTC perps on 14 exchanges, in USD per price bucket, stacked
+  per exchange. Each book only reaches as far as the exchange returns: HTX ±0.35%, Crypto.com ±0.4%, OKX ±0.8%,
+  MEXC ±1%, Bitget ±1.2% ($10 blocks), dYdX ±1.5%, Hyperliquid ±2.4% ($100 blocks), Gate ±3.5%, Bitfinex ±11%,
+  Binance 1000 levels, Bybit 500 levels, Deribit / BitMEX / Kraken the full book. MEXC, Kraken and Bitfinex send no
+  CORS header, so the browser cannot read them: they appear in the snapshot only. Binance, Bybit and BitMEX block the
+  server the snapshot was made on, so they appear only live in a browser that can reach them (Bybit and BitMEX
+  parsing is untested for that reason).
 - **Stops** (estimate): no exchange publishes stop orders. Placed just above unswept swing highs (buy stops) and
   below unswept swing lows (sell stops), weighted by volume around the swing and recency (half-life 1 week), plus a
   small weight on round $1000 levels. Shown as a 0–100 score.

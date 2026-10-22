@@ -71,10 +71,67 @@ def book_hyperliquid():
     return [f(r) for r in j['levels'][0]], [f(r) for r in j['levels'][1]]
 
 
+def book_bybit():
+    r = get('https://api.bybit.com/v5/market/orderbook?category=linear&symbol=BTCUSDT&limit=500')['result']
+    f = lambda x: (float(x[0]), float(x[1]) * float(x[0]))
+    return [f(x) for x in r['b']], [f(x) for x in r['a']]
+
+
+def book_bitget():
+    d = get('https://api.bitget.com/api/v2/mix/market/merge-depth'
+            '?productType=usdt-futures&symbol=BTCUSDT&limit=max&precision=scale2')['data']
+    f = lambda x: (float(x[0]), float(x[1]) * float(x[0]))
+    return [f(x) for x in d['bids']], [f(x) for x in d['asks']]
+
+
+def book_htx():
+    t = get('https://api.hbdm.com/linear-swap-ex/market/depth?contract_code=BTC-USDT&type=step0')['tick']
+    f = lambda x: (x[0], x[1] * 0.001 * x[0])
+    return [f(x) for x in t['bids']], [f(x) for x in t['asks']]
+
+
+def book_mexc():
+    d = get('https://contract.mexc.com/api/v1/contract/depth/BTC_USDT?limit=2000')['data']
+    f = lambda x: (x[0], x[1] * 0.0001 * x[0])
+    return [f(x) for x in d['bids']], [f(x) for x in d['asks']]
+
+
+def book_bitmex():
+    j = get('https://www.bitmex.com/api/v1/orderBook/L2?symbol=XBTUSD&depth=0')
+    f = lambda x: (x['price'], x['size'])  # XBTUSD contracts are $1 each
+    return [f(x) for x in j if x['side'] == 'Buy'], [f(x) for x in j if x['side'] == 'Sell']
+
+
+def book_kraken():
+    b = get('https://futures.kraken.com/derivatives/api/v3/orderbook?symbol=PF_XBTUSD')['orderBook']
+    f = lambda x: (x[0], x[1] * x[0])
+    return [f(x) for x in b['bids']], [f(x) for x in b['asks']]
+
+
+def book_cryptocom():
+    d = get('https://api.crypto.com/exchange/v1/public/get-book?instrument_name=BTCUSD-PERP&depth=150')['result']['data'][0]
+    f = lambda x: (float(x[0]), float(x[1]) * float(x[0]))
+    return [f(x) for x in d['bids']], [f(x) for x in d['asks']]
+
+
+def book_dydx():
+    j = get('https://indexer.dydx.trade/v4/orderbooks/perpetualMarket/BTC-USD')
+    f = lambda x: (float(x['price']), float(x['size']) * float(x['price']))
+    return [f(x) for x in j['bids']], [f(x) for x in j['asks']]
+
+
+def book_bitfinex():
+    rows = get('https://api-pub.bitfinex.com/v2/book/tBTCF0:USTF0/P0?len=250')
+    return ([(r[0], r[2] * r[0]) for r in rows if r[2] > 0],
+            [(r[0], -r[2] * r[0]) for r in rows if r[2] < 0])
+
+
 def main():
     books = {}
-    for name, fn in [('okx', book_okx), ('binance', book_binance), ('deribit', book_deribit),
-                     ('gate', book_gate), ('hyperliquid', book_hyperliquid)]:
+    for name, fn in [('binance', book_binance), ('okx', book_okx), ('bybit', book_bybit), ('bitget', book_bitget),
+                     ('gate', book_gate), ('htx', book_htx), ('mexc', book_mexc), ('deribit', book_deribit),
+                     ('bitmex', book_bitmex), ('kraken', book_kraken), ('cryptocom', book_cryptocom),
+                     ('hyperliquid', book_hyperliquid), ('dydx', book_dydx), ('bitfinex', book_bitfinex)]:
         try:
             bids, asks = fn()
             books[name] = {'b': bin_levels(bids, 'b'), 'a': bin_levels(asks, 'a')}
