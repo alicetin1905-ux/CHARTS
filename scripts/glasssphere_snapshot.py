@@ -1,4 +1,4 @@
-"""Fetch the data behind index.html into glasssphere-data.json (BTC), glasssphere-eth.json or glasssphere-sol.json.
+"""Fetch the data behind index.html into glasssphere-data.json (BTC) or glasssphere-<asset>.json (eth, sol, ...).
 
 index.html fetches the same data live in the browser where the exchanges allow it. On GitHub Pages it first reads
 that file next to it, written every hour by .github/workflows/pages.yml, for the exchanges a browser
@@ -6,8 +6,8 @@ cannot reach and the book history of past hours.
 
 Data shape:
   ts, price
-  asset     BTC, ETH or SOL
-  bin, histBin  bin sizes of books and bookHist (BTC $10 / $100, ETH $0.25 / $2.5, SOL $0.01 / $0.1)
+  asset     BTC, ETH, SOL, BNB, XRP, DOGE or SUI
+  bin, histBin  bin sizes of books and bookHist (about 0.012% and 0.12% of the price; BTC $10 / $100)
   books     {exchange: {b: [[price, usd], ...], a: [...]}} in bins of `bin`, within ±15% of the price
   candles   [[open_ms, open, high, low, close, volume_usd], ...] OKX <coin>-USDT-SWAP 1H (400), oldest first
   candles15, candles4h   the same for 15m and 4H (300 each), for display only
@@ -18,7 +18,7 @@ Data shape:
   bookHist  [{t, b: [[price, bid_usd, ask_usd], ...]}] hourly combined books in bins of `histBin` within ±6%,
             last 48 hours
 
-    python3 scripts/glasssphere_snapshot.py DIR [--asset btc|eth|sol] [--prev URL ...]
+    python3 scripts/glasssphere_snapshot.py DIR [--asset btc|eth|sol|bnb|xrp|doge|sui] [--prev URL ...]
         writes the asset's file into DIR, carrying the book history of the first --prev URL that answers forward
 """
 import json
@@ -43,7 +43,23 @@ ASSETS = {
                 gate='SOL_USDT', gate_mul=1, gate_iv='0.1', htx='SOL-USDT', htx_ct=1, mexc='SOL_USDT', mexc_ct=0.1,
                 deribit='SOL_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_SOLUSD', cdc='SOLUSD-PERP',
                 hl='SOL', hl_sig=4, dydx='SOL-USD', bfx='tSOLF0:USTF0'),
-}
+
+    'bnb': dict(bin=0.1, hist_bin=1, name='BNB', file='glasssphere-bnb.json', okx='BNB-USDT-SWAP', okx_ct=0.01, usdt='BNBUSDT',
+                gate='BNB_USDT', gate_mul=0.001, gate_iv='1', htx='BNB-USDT', htx_ct=0.1, mexc='BNB_USDT', mexc_ct=0.01,
+                deribit='BNB_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_BNBUSD', cryptocom=None,
+                hl='BNB', hl_sig=3, dydx='BNB-USD', bfx='tBNBF0:USTF0'),
+    'xrp': dict(bin=0.0001, hist_bin=0.002, name='XRP', file='glasssphere-xrp.json', okx='XRP-USDT-SWAP', okx_ct=100,
+                usdt='XRPUSDT', gate='XRP_USDT', gate_mul=10, gate_iv='0.001', htx='XRP-USDT', htx_ct=10, mexc='XRP_USDT',
+                mexc_ct=1, deribit='XRP_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_XRPUSD', cdc='XRPUSD-PERP',
+                hl='XRP', hl_sig=4, dydx='XRP-USD', bfx='tXRPF0:USTF0', bitget_sc='scale1'),
+    'doge': dict(bin=0.00001, hist_bin=0.0001, name='DOGE', file='glasssphere-doge.json', okx='DOGE-USDT-SWAP', okx_ct=1000,
+                 usdt='DOGEUSDT', gate='DOGE_USDT', gate_mul=10, gate_iv='0.0001', htx='DOGE-USDT', htx_ct=100, mexc='DOGE_USDT',
+                 mexc_ct=100, deribit='DOGE_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_DOGEUSD',
+                 cdc='DOGEUSD-PERP', hl='DOGE', hl_sig=3, dydx='DOGE-USD', bfx='tDOGEF0:USTF0', bitget_sc='scale1'),
+    'sui': dict(bin=0.0001, hist_bin=0.001, name='SUI', file='glasssphere-sui.json', okx='SUI-USDT-SWAP', okx_ct=1,
+                usdt='SUIUSDT', gate='SUI_USDT', gate_mul=1, gate_iv='0.001', htx='SUI-USDT', htx_ct=1, mexc='SUI_USDT',
+                mexc_ct=1, deribit='SUI_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_SUIUSD', cdc='SUIUSD-PERP',
+                hl='SUI', hl_sig=3, dydx='SUI-USD', bfx='tSUIF0:USTF0', bitget_sc='scale1'),}
 
 
 def get(url, body=None):
@@ -107,7 +123,7 @@ def book_bybit(A):
 
 def book_bitget(A):
     d = get('https://api.bitget.com/api/v2/mix/market/merge-depth'
-            f'?productType=usdt-futures&symbol={A["usdt"]}&limit=max&precision=scale2')['data']
+            f'?productType=usdt-futures&symbol={A["usdt"]}&limit=max&precision={A.get("bitget_sc", "scale2")}')['data']
     f = lambda x: (float(x[0]), float(x[1]) * float(x[0]))
     return [f(x) for x in d['bids']], [f(x) for x in d['asks']]
 
@@ -282,7 +298,7 @@ def book_hist_entry(books, weights, price, ts, step):
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1].startswith('--'):
-        raise SystemExit('usage: glasssphere_snapshot.py DIR [--asset btc|eth|sol] [--prev URL ...]')
+        raise SystemExit('usage: glasssphere_snapshot.py DIR [--asset btc|eth|sol|bnb|xrp|doge|sui] [--prev URL ...]')
     out_dir = sys.argv[1]
     key = sys.argv[sys.argv.index('--asset') + 1] if '--asset' in sys.argv else 'btc'
     A = ASSETS[key]

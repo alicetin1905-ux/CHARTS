@@ -1,15 +1,15 @@
 """Hourly check for GlassSphere: the 3-day first-target verdict (the default of the page) now and an hour ago, and alerts.
 
-Reads a data file written by `glasssphere_snapshot.py DIR --asset ...` (BTC, ETH or SOL) and prints one status line,
+Reads a data file written by `glasssphere_snapshot.py DIR --asset ...` (BTC, ETH, SOL, BNB, XRP, DOGE or SUI) and prints one status line,
 then one line per alert starting with "MELDING:". .github/workflows/pages.yml sends the alerts to ntfy, one message
 per asset. Alerts:
   - the price is within 0.3% of the cluster it is most likely to reach first
   - a cluster from an hour ago was hit in the last hour
   - the most likely first target switched side since an hour ago
-  - Gate's real liquidations in the last hour were over a minimum (BTC $1M, ETH $0.5M, SOL $0.2M) and 3x the hourly
+  - Gate's real liquidations in the last hour were over a minimum per asset (LIQ_MIN, BTC $1M) and 3x the hourly
     average of the day before
 
-    python3 scripts/glasssphere_alert.py DIR/glasssphere-data.json      (or glasssphere-eth.json, glasssphere-sol.json)
+    python3 scripts/glasssphere_alert.py DIR/glasssphere-data.json      (or glasssphere-eth.json, ...)
 """
 import json
 import os
@@ -18,8 +18,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import glasssphere_model as M  # noqa: E402
 
-DECIMALS = {'BTC': 0, 'ETH': 1, 'SOL': 2}        # as the page shows prices
-LIQ_MIN = {'BTC': 1e6, 'ETH': 5e5, 'SOL': 2e5}   # smallest liquidation wave worth an alert, USD per hour
+DECIMALS = {'BTC': 0, 'ETH': 1, 'SOL': 2, 'BNB': 2, 'XRP': 4, 'DOGE': 5, 'SUI': 4}   # as the page shows prices
+# smallest liquidation wave worth an alert, USD per hour (Gate's liquidations in BNB, XRP, DOGE and SUI are small)
+LIQ_MIN = {'BTC': 1e6, 'ETH': 5e5, 'SOL': 2e5, 'BNB': 2.5e4, 'XRP': 1e5, 'DOGE': 1e5, 'SUI': 5e4}
 
 
 def verdict(candles, oi, taker):

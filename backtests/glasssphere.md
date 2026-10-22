@@ -193,3 +193,190 @@ Targets: the largest pool above and below between *min* × and 1 × the expected
 | 3 d | 0.5 × | 3349 | 7.71% / 9.61% | 55% | 60% | 51% | +0.136% | +0.036% | +0.1 |
 | 7 d | 0.3 × | 3360 | 8.10% / 10.82% | 57% | 59% | 25% | -0.108% | -0.208% | -0.4 |
 | 7 d | 0.5 × | 3098 | 10.19% / 12.45% | 54% | 55% | 38% | -0.114% | -0.214% | -0.3 |
+
+## 4. Longer test: Binance BNBUSDT, 2022 – 2026
+
+Binance BNBUSDT perpetual from the free archive at data.binance.vision: 1H candles, open interest (5-minute, sampled on the hour), taker buy volume and funding. 41616 hours, evaluated every 6h after the 400-bar warm-up (6865 points), the same model and leverage mix as above. No liquidation data in the archive, so section 1 cannot be repeated here.
+
+### Signals against the next 24h return, IC per year
+
+| Signal | 2022 | 2023 | 2024 | 2025 | 2026 | All |
+|---|---|---|---|---|---|---|
+| Momentum | -0.036 | -0.059 | +0.007 | +0.011 | +0.031 | -0.009 (t -0.4) |
+| Liquidity pull | -0.010 | +0.020 | +0.040 | +0.017 | -0.000 | +0.016 (t +0.7) |
+| Open interest | -0.009 | -0.016 | -0.009 | +0.019 | -0.032 | -0.007 (t -0.3) |
+| Funding (contrarian) | +0.032 | +0.014 | -0.083 | -0.007 | -0.108 | -0.030 (t -1.3) |
+| CVD (taker buying) | +0.005 | -0.056 | -0.019 | +0.038 | -0.084 | -0.018 (t -0.7) |
+
+### Which pool is hit first, per year
+
+| Year | Points with a hit | Pull side first | Closer side first | Brier (distance rule) | Neither within 24h |
+|---|---|---|---|---|---|
+| 2022 | 842 | 58% | 69% | 0.203 | 39% |
+| 2023 | 799 | 58% | 66% | 0.211 | 45% |
+| 2024 | 841 | 61% | 71% | 0.193 | 42% |
+| 2025 | 810 | 62% | 72% | 0.196 | 44% |
+| 2026 | 639 | 57% | 70% | 0.199 | 41% |
+| All | 3931 | 59% | 70% | 0.200 | 43% |
+
+| Predicted P(up first) | Points | Actually up first |
+|---|---|---|
+| 0%–20% (mean 15%) | 86 | 12% |
+| 20%–40% (mean 32%) | 660 | 24% |
+| 40%–60% (mean 50%) | 1682 | 49% |
+| 60%–80% (mean 69%) | 1183 | 74% |
+| 80%–100% (mean 86%) | 320 | 92% |
+
+### Bigger targets: which is hit first, and trading toward the more likely one
+
+Targets: the largest pool above and below between *min* × and 1 × the expected range of the horizon (average daily range × √days). Trade toward the more likely (nearer) target, stop at the other one, close at the horizon if neither is reached; 0.1% round-trip cost. Evaluated every 12h.
+
+| Horizon | Min distance | Points | Target / stop (median) | Predicted P(first) | Actual | Neither | Avg trade (gross) | Avg trade (after cost) | t |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 d | 0.0 × | 3420 | 1.97% / 3.18% | 62% | 70% | 45% | +0.046% | -0.054% | -1.1 |
+| 1 d | 0.3 × | 3418 | 2.23% / 3.24% | 59% | 66% | 50% | +0.041% | -0.059% | -1.1 |
+| 3 d | 0.0 × | 3420 | 2.68% / 4.89% | 64% | 71% | 33% | +0.025% | -0.075% | -0.5 |
+| 3 d | 0.3 × | 3420 | 3.45% / 5.21% | 60% | 65% | 41% | -0.026% | -0.126% | -0.8 |
+| 3 d | 0.5 × | 3420 | 4.46% / 5.73% | 56% | 63% | 52% | +0.065% | -0.035% | -0.2 |
+| 7 d | 0.3 × | 3420 | 5.14% / 8.07% | 59% | 66% | 35% | +0.156% | +0.056% | +0.2 |
+| 7 d | 0.5 × | 3384 | 7.04% / 8.81% | 55% | 59% | 50% | +0.008% | -0.092% | -0.2 |
+
+## 4. Longer test: Binance XRPUSDT, 2022 – 2026
+
+Binance XRPUSDT perpetual from the free archive at data.binance.vision: 1H candles, open interest (5-minute, sampled on the hour), taker buy volume and funding. 41496 hours, evaluated every 6h after the 400-bar warm-up (6845 points), the same model and leverage mix as above. No liquidation data in the archive, so section 1 cannot be repeated here.
+
+### Signals against the next 24h return, IC per year
+
+| Signal | 2022 | 2023 | 2024 | 2025 | 2026 | All |
+|---|---|---|---|---|---|---|
+| Momentum | -0.024 | -0.056 | +0.052 | +0.014 | +0.005 | +0.002 (t +0.1) |
+| Liquidity pull | -0.008 | +0.033 | +0.001 | +0.075 | +0.024 | +0.028 (t +1.2) |
+| Open interest | +0.016 | -0.046 | +0.016 | +0.047 | -0.018 | +0.005 (t +0.2) |
+| Funding (contrarian) | +0.126 | +0.049 | -0.017 | +0.054 | -0.013 | +0.016 (t +0.7) |
+| CVD (taker buying) | -0.001 | -0.067 | -0.008 | +0.079 | +0.041 | +0.003 (t +0.1) |
+
+### Which pool is hit first, per year
+
+| Year | Points with a hit | Pull side first | Closer side first | Brier (distance rule) | Neither within 24h |
+|---|---|---|---|---|---|
+| 2022 | 874 | 58% | 67% | 0.204 | 36% |
+| 2023 | 800 | 60% | 68% | 0.208 | 45% |
+| 2024 | 928 | 59% | 68% | 0.206 | 36% |
+| 2025 | 910 | 62% | 70% | 0.199 | 37% |
+| 2026 | 638 | 61% | 67% | 0.207 | 41% |
+| All | 4150 | 60% | 68% | 0.205 | 39% |
+
+| Predicted P(up first) | Points | Actually up first |
+|---|---|---|
+| 0%–20% (mean 16%) | 83 | 10% |
+| 20%–40% (mean 32%) | 742 | 23% |
+| 40%–60% (mean 50%) | 1949 | 47% |
+| 60%–80% (mean 68%) | 1008 | 72% |
+| 80%–100% (mean 88%) | 368 | 89% |
+
+### Bigger targets: which is hit first, and trading toward the more likely one
+
+Targets: the largest pool above and below between *min* × and 1 × the expected range of the horizon (average daily range × √days). Trade toward the more likely (nearer) target, stop at the other one, close at the horizon if neither is reached; 0.1% round-trip cost. Evaluated every 12h.
+
+| Horizon | Min distance | Points | Target / stop (median) | Predicted P(first) | Actual | Neither | Avg trade (gross) | Avg trade (after cost) | t |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 d | 0.0 × | 3410 | 2.77% / 4.19% | 61% | 68% | 47% | -0.071% | -0.171% | -2.5 |
+| 1 d | 0.3 × | 3410 | 3.03% / 4.26% | 59% | 64% | 51% | -0.093% | -0.193% | -2.7 |
+| 3 d | 0.0 × | 3410 | 3.96% / 6.94% | 63% | 67% | 35% | -0.206% | -0.306% | -1.6 |
+| 3 d | 0.3 × | 3410 | 4.88% / 7.30% | 59% | 61% | 42% | -0.186% | -0.286% | -1.4 |
+| 3 d | 0.5 × | 3410 | 6.11% / 7.87% | 56% | 60% | 53% | +0.057% | -0.043% | -0.2 |
+| 7 d | 0.3 × | 3410 | 6.82% / 9.77% | 58% | 63% | 32% | +0.189% | +0.089% | +0.2 |
+| 7 d | 0.5 × | 3241 | 8.91% / 10.65% | 55% | 58% | 45% | +0.093% | -0.007% | -0.0 |
+
+## 4. Longer test: Binance DOGEUSDT, 2022 – 2026
+
+Binance DOGEUSDT perpetual from the free archive at data.binance.vision: 1H candles, open interest (5-minute, sampled on the hour), taker buy volume and funding. 41616 hours, evaluated every 6h after the 400-bar warm-up (6865 points), the same model and leverage mix as above. No liquidation data in the archive, so section 1 cannot be repeated here.
+
+### Signals against the next 24h return, IC per year
+
+| Signal | 2022 | 2023 | 2024 | 2025 | 2026 | All |
+|---|---|---|---|---|---|---|
+| Momentum | +0.025 | -0.067 | +0.086 | +0.030 | -0.008 | +0.029 (t +1.2) |
+| Liquidity pull | -0.004 | -0.020 | +0.065 | +0.064 | +0.031 | +0.034 (t +1.4) |
+| Open interest | +0.011 | -0.041 | +0.059 | +0.073 | +0.001 | +0.030 (t +1.2) |
+| Funding (contrarian) | +0.037 | +0.035 | -0.077 | +0.030 | +0.047 | -0.021 (t -0.9) |
+| CVD (taker buying) | +0.032 | -0.065 | +0.049 | +0.053 | +0.042 | +0.026 (t +1.1) |
+
+### Which pool is hit first, per year
+
+| Year | Points with a hit | Pull side first | Closer side first | Brier (distance rule) | Neither within 24h |
+|---|---|---|---|---|---|
+| 2022 | 945 | 57% | 68% | 0.198 | 31% |
+| 2023 | 863 | 55% | 66% | 0.206 | 41% |
+| 2024 | 1048 | 57% | 68% | 0.207 | 28% |
+| 2025 | 1034 | 60% | 69% | 0.202 | 29% |
+| 2026 | 640 | 55% | 67% | 0.209 | 41% |
+| All | 4530 | 57% | 68% | 0.204 | 34% |
+
+| Predicted P(up first) | Points | Actually up first |
+|---|---|---|
+| 0%–20% (mean 16%) | 81 | 7% |
+| 20%–40% (mean 32%) | 772 | 24% |
+| 40%–60% (mean 50%) | 2009 | 49% |
+| 60%–80% (mean 69%) | 1180 | 71% |
+| 80%–100% (mean 87%) | 488 | 90% |
+
+### Bigger targets: which is hit first, and trading toward the more likely one
+
+Targets: the largest pool above and below between *min* × and 1 × the expected range of the horizon (average daily range × √days). Trade toward the more likely (nearer) target, stop at the other one, close at the horizon if neither is reached; 0.1% round-trip cost. Evaluated every 12h.
+
+| Horizon | Min distance | Points | Target / stop (median) | Predicted P(first) | Actual | Neither | Avg trade (gross) | Avg trade (after cost) | t |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 d | 0.0 × | 3420 | 3.30% / 5.11% | 62% | 67% | 45% | -0.058% | -0.158% | -2.0 |
+| 1 d | 0.3 × | 3420 | 3.60% / 5.20% | 59% | 64% | 50% | -0.052% | -0.152% | -1.8 |
+| 3 d | 0.0 × | 3420 | 4.70% / 8.50% | 64% | 70% | 34% | -0.041% | -0.141% | -0.6 |
+| 3 d | 0.3 × | 3416 | 5.77% / 8.86% | 59% | 65% | 42% | -0.025% | -0.125% | -0.5 |
+| 3 d | 0.5 × | 3379 | 7.66% / 9.50% | 55% | 61% | 54% | +0.103% | +0.003% | +0.0 |
+| 7 d | 0.3 × | 3396 | 8.03% / 10.94% | 57% | 62% | 30% | +0.156% | +0.056% | +0.1 |
+| 7 d | 0.5 × | 3127 | 10.21% / 12.40% | 54% | 57% | 42% | +0.046% | -0.054% | -0.1 |
+
+## 4. Longer test: Binance SUIUSDT, 2023 – 2026
+
+Binance SUIUSDT perpetual from the free archive at data.binance.vision: 1H candles, open interest (5-minute, sampled on the hour), taker buy volume and funding. 29912 hours, evaluated every 6h after the 400-bar warm-up (4915 points), the same model and leverage mix as above. No liquidation data in the archive, so section 1 cannot be repeated here.
+
+### Signals against the next 24h return, IC per year
+
+| Signal | 2023 | 2024 | 2025 | 2026 | All |
+|---|---|---|---|---|---|
+| Momentum | -0.044 | +0.005 | -0.022 | +0.073 | +0.003 (t +0.1) |
+| Liquidity pull | +0.022 | +0.038 | +0.064 | +0.030 | +0.044 (t +1.5) |
+| Open interest | -0.017 | +0.027 | -0.021 | +0.086 | +0.018 (t +0.6) |
+| Funding (contrarian) | -0.022 | +0.114 | +0.062 | -0.054 | +0.043 (t +1.5) |
+| CVD (taker buying) | -0.056 | +0.006 | +0.035 | -0.037 | +0.000 (t +0.0) |
+
+### Which pool is hit first, per year
+
+| Year | Points with a hit | Pull side first | Closer side first | Brier (distance rule) | Neither within 24h |
+|---|---|---|---|---|---|
+| 2023 | 636 | 58% | 68% | 0.207 | 29% |
+| 2024 | 1230 | 54% | 68% | 0.203 | 16% |
+| 2025 | 1125 | 57% | 66% | 0.208 | 23% |
+| 2026 | 729 | 62% | 69% | 0.203 | 33% |
+| All | 3720 | 57% | 68% | 0.205 | 24% |
+
+| Predicted P(up first) | Points | Actually up first |
+|---|---|---|
+| 0%–20% (mean 14%) | 95 | 11% |
+| 20%–40% (mean 32%) | 661 | 24% |
+| 40%–60% (mean 50%) | 1619 | 49% |
+| 60%–80% (mean 68%) | 894 | 68% |
+| 80%–100% (mean 88%) | 451 | 88% |
+
+### Bigger targets: which is hit first, and trading toward the more likely one
+
+Targets: the largest pool above and below between *min* × and 1 × the expected range of the horizon (average daily range × √days). Trade toward the more likely (nearer) target, stop at the other one, close at the horizon if neither is reached; 0.1% round-trip cost. Evaluated every 12h.
+
+| Horizon | Min distance | Points | Target / stop (median) | Predicted P(first) | Actual | Neither | Avg trade (gross) | Avg trade (after cost) | t |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 d | 0.0 × | 2445 | 3.86% / 6.27% | 62% | 68% | 42% | -0.092% | -0.192% | -1.7 |
+| 1 d | 0.3 × | 2445 | 4.28% / 6.41% | 59% | 64% | 47% | -0.086% | -0.186% | -1.5 |
+| 3 d | 0.0 × | 2445 | 5.06% / 9.64% | 65% | 70% | 23% | +0.178% | +0.078% | +0.3 |
+| 3 d | 0.3 × | 2445 | 6.62% / 10.05% | 59% | 64% | 33% | +0.106% | +0.006% | +0.0 |
+| 3 d | 0.5 × | 2438 | 9.14% / 11.16% | 55% | 59% | 47% | +0.157% | +0.057% | +0.2 |
+| 7 d | 0.3 × | 2445 | 9.10% / 11.72% | 56% | 60% | 20% | +0.540% | +0.440% | +0.6 |
+| 7 d | 0.5 × | 2110 | 11.71% / 13.52% | 53% | 56% | 33% | +0.409% | +0.309% | +0.4 |

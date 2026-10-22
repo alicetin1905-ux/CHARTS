@@ -1,4 +1,5 @@
-"""Longer backtest of the GlassSphere reading on a Binance USDT perpetual (BTC, ETH or SOL), 1H, Jan 2022 - Sep 2026.
+"""Longer backtest of the GlassSphere reading on a Binance USDT perpetual (BTC, ETH, SOL, BNB, XRP, DOGE or SUI),
+1H, Jan 2022 - Sep 2026.
 
 Same evaluation as glasssphere_backtest.py (stops, liquidations from hourly OI growth, signals, first touch of the
 largest pool above / below), on the free Binance archive at data.binance.vision:
@@ -7,11 +8,12 @@ largest pool above / below), on the free Binance archive at data.binance.vision:
   funding  funding rate (monthly files)
 The archive has no liquidations, so the liquidation model cannot be calibrated here (that is done on Gate).
 
-    python3 scripts/glasssphere_backtest_long.py [cache_dir] [--symbol BTCUSDT|ETHUSDT|SOLUSDT]   (default data/)
+    python3 scripts/glasssphere_backtest_long.py [cache_dir] [--symbol BTCUSDT|ETHUSDT|...]   (default data/)
 Writes a section per symbol into backtests/glasssphere.md (replacing that symbol's earlier one), and prints the numbers the
 page's BT constants take (BT_JSON line).
 """
 import csv
+import fcntl
 import io
 import json
 import os
@@ -34,7 +36,7 @@ OUT = os.path.join(ROOT, 'backtests', 'glasssphere.md')
 ARCHIVE = 'https://data.binance.vision/data/futures/um/'
 FIRST, LAST = (2022, 1), (2026, 9)
 STEP = 6          # evaluate every 6 hours
-MARK = f'## 4. Longer test: Binance {SYM}, 2022 – 2026'
+MARK = f'## 4. Longer test: Binance {SYM},'   # + first year – 2026
 HORIZONS = [(1, 0.0), (1, 0.3), (3, 0.0), (3, 0.3), (3, 0.5), (7, 0.3), (7, 0.5)]   # (days, min distance / range)
 FEE = 0.001       # round trip, taker in and out
 
@@ -182,7 +184,7 @@ def main():
              'cvd': 'CVD (taker buying)'}
     years = sorted({time.gmtime(r['t'] / 1000).tm_year for r in rows})
     by_year = {y: [r for r in rows if time.gmtime(r['t'] / 1000).tm_year == y] for y in years}
-    lines = [MARK, '',
+    lines = [f'{MARK} {years[0]} – 2026', '',
              f'Binance {SYM} perpetual from the free archive at data.binance.vision: 1H candles, open interest '
              f'(5-minute, sampled on the hour), taker buy volume and funding. {len(candles)} hours, evaluated every '
              f'{STEP}h after the {M.WINDOW}-bar warm-up ({len(rows)} points), the same model and leverage mix as above. '
@@ -218,7 +220,7 @@ def main():
     lines += horizon_lines(hz)
     # the page's BT constants for this asset
     tot = [r for r in rows if r['touch']]
-    bt = {'neither': round(sum(1 for r in tot if r['touch'][0] is None) / len(tot), 2), 'calib': [],
+    bt = {'years': len(years), 'neither': round(sum(1 for r in tot if r['touch'][0] is None) / len(tot), 2), 'calib': [],
           'ic': {k: [round(BT.stats_for(rows, k, STEP)[0], 3),
                      sum(BT.stats_for(by_year[y], k, STEP)[0] > 0 for y in years)] for k in keys}, 'hz': {}}
     for lo, hi in ((0, .2), (.2, .4), (.4, .6), (.6, .8), (.8, 1.01)):
@@ -239,6 +241,8 @@ def main():
                           'neither': round(100 * (1 - len(hit) / len(rs))), 'ev': round(100 * m, 3),
                           't': round(m / sd * max(len(rs) * 12 / (24 * days), 2) ** 0.5, 1) if sd else 0}
     print('BT_JSON', json.dumps(bt, ensure_ascii=False))
+    lock = open(OUT + '.lock', 'w')
+    fcntl.flock(lock, fcntl.LOCK_EX)    # several symbols may run at once
     text = open(OUT).read()
     section = '\n'.join(lines) + '\n'
     if MARK in text:      # replace this symbol's section, keep the others
@@ -248,6 +252,8 @@ def main():
     else:
         text = text.rstrip() + '\n\n' + section
     open(OUT, 'w').write(text)
+    fcntl.flock(lock, fcntl.LOCK_UN)
+    os.remove(OUT + '.lock')
     print('\n'.join(lines))
 
 
