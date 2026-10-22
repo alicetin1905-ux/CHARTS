@@ -172,8 +172,8 @@ footer .dot.snap{background:var(--nt)}
     <div class="reading">
       <div class="verdict">
         <div class="seg" id="hz" aria-label="Termijn van de doelen">
-          <button data-v="1">1 dag</button>
-          <button data-v="3" class="on">3 dagen</button>
+          <button data-v="1" class="on">1 dag</button>
+          <button data-v="3">3 dagen</button>
           <button data-v="7">1 week</button>
         </div>
         <div class="k">Eerste doel</div>
@@ -271,13 +271,13 @@ const HZ_MIN = 0.3;                   // targets at least 0.3 x the expected ran
 const hzLabel = d => d === 1 ? '1 dag' : d === 7 ? '1 week' : d + ' dagen';
 
 const $ = id => document.getElementById(id);
-const state = { data: null, live: false, src: '', range: 0.03, bucket: 0, tf: 60, horizon: 3, weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
+const state = { data: null, live: false, src: '', range: 0.03, bucket: 0, tf: 60, horizon: 1, weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
 try {
   const s = JSON.parse(localStorage.getItem('lm-prefs-v2') || '{}');
-  if (s.range) state.range = s.range; if (s.bucket) state.bucket = s.bucket; if (s.tf) state.tf = s.tf; if (s.horizon) state.horizon = s.horizon;
+  if (s.range) state.range = s.range; if (s.bucket) state.bucket = s.bucket; if (s.tf) state.tf = s.tf; if (s.hz) state.horizon = s.hz;
   if (s.weighted === false) state.weighted = false; (s.off || []).forEach(x => state.off.add(x));
 } catch (e) {}
-const savePrefs = () => { try { localStorage.setItem('lm-prefs-v2', JSON.stringify({ range: state.range, bucket: state.bucket, tf: state.tf, horizon: state.horizon, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
+const savePrefs = () => { try { localStorage.setItem('lm-prefs-v2', JSON.stringify({ range: state.range, bucket: state.bucket, tf: state.tf, hz: state.horizon, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
 
 /* ---------- fetching ---------- */
 async function getJSON(url, opts = {}) {
