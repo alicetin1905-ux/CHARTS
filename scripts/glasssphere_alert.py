@@ -40,7 +40,7 @@ def label(p_up):
     if p_up is None:
         return 'Geen doelen'
     prob = max(p_up, 1 - p_up)
-    return 'Onbeslist' if round(prob * 100) < 60 else 'Eerst omhoog' if p_up > 0.5 else 'Eerst omlaag'
+    return 'Neutraal' if round(prob * 100) < 60 else 'Eerst omhoog' if p_up > 0.5 else 'Eerst omlaag'
 
 
 DEC = 0
