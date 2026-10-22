@@ -134,8 +134,19 @@ footer .dot.snap{background:var(--nt)}
 .note{max-width:95ch;line-height:1.6;color:var(--dim);font-size:12px;display:grid;gap:6px}
 .note b{font-family:var(--sans);color:var(--txt);font-weight:600}
 
+.pcol{display:none}
+.exd{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.exd>summary{display:none}
 @media (max-width:760px){
-  .stage{height:520px}
+  header.top{position:static}
+  .stage{height:max(480px,68vh)}
+  .pcol{display:flex}
+  .exd{width:100%}
+  .exd>summary{display:inline-flex;align-items:center;gap:6px;list-style:none;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--dim);
+    background:var(--panel2);border:1px solid var(--line2);border-radius:20px;padding:3px 10px}
+  .exd>summary::-webkit-details-marker{display:none}
+  .exd[open]>summary{color:var(--txt);border-color:var(--blue)}
+  #cv{touch-action:pan-y}
   .px b{font-size:24px}
   .bar .legend{margin-left:0}
   .reading{grid-template-columns:minmax(0,1fr)}
@@ -210,8 +221,15 @@ footer .dot.snap{background:var(--nt)}
   <section class="card">
     <div class="bar">
       <h2>Orders per prijsniveau</h2>
-      <div class="ex" id="ex" aria-label="Beurzen in het orderboek"></div>
-      <div class="ex"><button id="wt" class="on" aria-pressed="true" title="Beurzen met meer diepte dan hun handelsvolume verklaart, tellen naar rato minder mee">Gewogen naar volume</button></div>
+      <details class="exd" id="exd" open><summary id="exs">Beurzen</summary>
+        <div class="ex" id="ex" aria-label="Beurzen in het orderboek"></div>
+        <div class="ex"><button id="wt" class="on" aria-pressed="true" title="Beurzen met meer diepte dan hun handelsvolume verklaart, tellen naar rato minder mee">Gewogen naar volume</button></div>
+      </details>
+      <div class="seg pcol" id="pcol" aria-label="Profiel naast de chart">
+        <button data-v="book" class="on">Limiet</button>
+        <button data-v="stop">Stops</button>
+        <button data-v="liq">Liquidaties</button>
+      </div>
       <div class="legend">
         <span><i class="sw" style="background:var(--up)"></i>Bids (limiet koop)</span>
         <span><i class="sw" style="background:var(--dn)"></i>Asks (limiet verkoop)</span>
@@ -283,13 +301,13 @@ const HZ_MIN = 0.3;                   // targets at least 0.3 x the expected ran
 const hzLabel = d => d === 1 ? '1 dag' : d === 7 ? '1 week' : d + ' dagen';
 
 const $ = id => document.getElementById(id);
-const state = { data: null, live: false, src: '', range: 0.03, bucket: 0, tf: 60, horizon: 1, weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
+const state = { data: null, live: false, src: '', range: 0.03, bucket: 0, tf: 60, horizon: 1, pcol: 'book', weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
 try {
   const s = JSON.parse(localStorage.getItem('glasssphere-prefs') || '{}');
-  if (s.range) state.range = s.range; if (s.bucket) state.bucket = s.bucket; if (s.tf) state.tf = s.tf; if (s.hz) state.horizon = s.hz;
+  if (s.range) state.range = s.range; if (s.bucket) state.bucket = s.bucket; if (s.tf) state.tf = s.tf; if (s.hz) state.horizon = s.hz; if (s.pcol) state.pcol = s.pcol;
   if (s.weighted === false) state.weighted = false; (s.off || []).forEach(x => state.off.add(x));
 } catch (e) {}
-const savePrefs = () => { try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ range: state.range, bucket: state.bucket, tf: state.tf, hz: state.horizon, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
+const savePrefs = () => { try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ range: state.range, bucket: state.bucket, tf: state.tf, hz: state.horizon, pcol: state.pcol, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
 
 /* ---------- fetching ---------- */
 async function getJSON(url, opts = {}) {
@@ -503,25 +521,29 @@ function draw() {
   if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
   const C = { up: css('--up'), dn: css('--dn'), stop: css('--stop'), liq: css('--liq'), txt: css('--txt'), dim: css('--dim'), faint: css('--faint'), line: css('--line'), line2: css('--line2') };
-  const axisW = 62, top = 26, stripH = 44, bot = H - 8 - stripH - 6, narrow = W < 640;
-  const colW = narrow ? Math.max(48, W * 0.15) : Math.min(150, W * 0.12);
-  const cols = [{ key: 'book', name: 'Limiet' }, { key: 'stop', name: 'Stops' }, { key: 'liq', name: 'Liq.' }];
-  const chartR = W - axisW - colW * 3 - 6;
+  // on a phone one profile column (chosen with #pcol), wider, so the candles keep most of the width
+  const narrow = W < 640, axisW = narrow ? 50 : 62, top = 26, stripH = 44, bot = H - 8 - stripH - 6;
+  const allCols = [{ key: 'book', name: 'Limiet' }, { key: 'stop', name: 'Stops' }, { key: 'liq', name: 'Liquidaties' }];
+  const cols = narrow ? allCols.filter(c => c.key === state.pcol) : allCols;
+  const colW = narrow ? Math.round(W * 0.27) : Math.min(150, W * 0.12);
+  const chartR = W - axisW - colW * cols.length - 6;
+  const fs = narrow ? 11 : 10;
   const y = p => top + (model.hi - p) / (model.hi - model.lo) * (bot - top);
   const rowH = (bot - top) / model.N;
-  const cs = tfCandles(), barW = narrow ? 5 : 7, nBars = Math.min(cs.length, Math.floor((chartR - 10) / barW));
+  const cs = tfCandles(), barW = narrow ? 6 : 7, nBars = Math.min(cs.length, Math.floor((chartR - 10) / barW));
   const shown = cs.slice(cs.length - nBars), tfMs = state.tf * 60e3;
   const colOf = t => { for (let i = nBars - 1; i >= 0; i--) if (shown[i][0] <= t) return t < shown[i][0] + tfMs ? i : -1; return -1; };
   geo = { y, top, bot, chartR, colW, axisW, W, H, barW, nBars, shown };
 
   // grid + price axis
-  ctx.font = '10px ' + css('--mono'); ctx.textBaseline = 'middle';
-  const span = model.hi - model.lo, rough = span / 10;
+  ctx.font = fs + 'px ' + css('--mono'); ctx.textBaseline = 'middle';
+  const span = model.hi - model.lo, rough = span / (narrow ? 7 : 10), ypNow = y(model.price);
   const step = [100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000].find(s => s >= rough) || 10000;
   for (let p = Math.ceil(model.lo / step) * step; p <= model.hi; p += step) {
     const yy = Math.round(y(p)) + .5; ctx.strokeStyle = C.line; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W - axisW, yy); ctx.stroke();
-    ctx.fillStyle = C.dim; ctx.textAlign = 'left'; ctx.fillText(fmtP(p), W - axisW + 6, yy);
+    if (Math.abs(yy - ypNow) < 13) continue;           // keep the label clear of the current-price tag
+    ctx.fillStyle = C.dim; ctx.textAlign = 'left'; ctx.fillText(fmtP(p), W - axisW + 5, yy);
   }
 
   // book history as a heatmap behind the candles: one column per candle that has an hourly book snapshot
@@ -581,13 +603,13 @@ function draw() {
     ctx.fillStyle = C.dn; ctx.fillRect(x, sMid + 1, w, lu / lm * (stripH / 2 - 2));
   }
   ctx.fillStyle = C.faint; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  ctx.fillText('echte liquidaties (Gate) · shorts ↑ longs ↓ · max ' + fmtUsd(lm) + '/u', 6, sTop);
+  ctx.fillText((narrow ? 'echte liq. (Gate) ↑shorts ↓longs · max ' : 'echte liquidaties (Gate) · shorts ↑ longs ↓ · max ') + fmtUsd(lm) + '/u', 6, sTop);
 
   // profile columns
   cols.forEach((col, ci) => {
     const x0 = chartR + 6 + ci * colW, w = colW - 6;
     ctx.fillStyle = C.line; ctx.fillRect(x0 - 3, top, 1, bot - top);
-    ctx.fillStyle = C.dim; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = '600 10px ' + css('--sans');
+    ctx.fillStyle = C.dim; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = `600 ${fs}px ` + css('--sans');
     ctx.fillText(col.name.toUpperCase(), x0 + 2, 8);
     for (let j = 0; j < model.N; j++) {
       const yy = top + (model.N - 1 - j) * rowH, h = Math.max(1, rowH - (rowH > 4 ? 1 : 0));
@@ -616,9 +638,9 @@ function draw() {
   const yp = Math.round(y(model.price)) + .5;
   ctx.strokeStyle = C.txt; ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, yp); ctx.lineTo(W - axisW, yp); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle = C.txt; ctx.fillRect(W - axisW + 1, yp - 9, axisW - 1, 18);
-  ctx.fillStyle = css('--bg'); ctx.font = '700 10px ' + css('--mono'); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText(fmtP(model.price), W - axisW + 5, yp);
+  ctx.fillStyle = C.txt; ctx.fillRect(W - axisW + 1, yp - 10, axisW - 1, 20);
+  ctx.fillStyle = css('--bg'); ctx.font = `700 ${fs}px ` + css('--mono'); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(fmtP(model.price), W - axisW + 4, yp);
 
   // hover line
   if (state.hover != null) {
@@ -628,7 +650,7 @@ function draw() {
 }
 
 /* ---------- tooltip ---------- */
-cv.addEventListener('pointermove', e => {
+function showTip(e) {
   if (!model || !geo) return;
   const r = cv.getBoundingClientRect(), yy = e.clientY - r.top, xx = e.clientX - r.left;
   if (yy < geo.top || yy > geo.bot) { hideTip(); return; }
@@ -637,21 +659,27 @@ cv.addEventListener('pointermove', e => {
   state.hover = yy; draw();
   const p0 = (model.i0 + j) * model.B, rows = [];
   rows.push(['Bids', fmtUsd(model.bid[j])], ['Asks', fmtUsd(model.ask[j])]);
-  for (const ex of Object.keys(EXCH)) { const v = model.per[ex].b[j] + model.per[ex].a[j]; if (v) rows.push(['  ' + EXCH[ex].name, fmtUsd(v)]); }
+  const byEx = Object.keys(EXCH).map(ex => [ex, model.per[ex].b[j] + model.per[ex].a[j]]).filter(x => x[1]).sort((a, b) => b[1] - a[1]);
+  const narrow = geo.W < 640;
+  for (const [ex, v] of narrow ? byEx.slice(0, 3) : byEx) rows.push(['  ' + EXCH[ex].name, fmtUsd(v)]);
+  if (narrow && byEx.length > 3) rows.push(['  ' + (byEx.length - 3) + ' andere', fmtUsd(byEx.slice(3).reduce((t, x) => t + x[1], 0))]);
   const ps = model.persist(j);
   if (ps) rows.push(['Stabiel', `${ps[0]}/${ps[1]} uur`]);
   rows.push(['Stops (score)', Math.round(model.stop[j] / model.max.stop * 100)], ['Liquidaties', fmtUsd(model.liq[j])]);
   const tip = $('tip');
   tip.innerHTML = `<div class="h">${fmtP(p0)} – ${fmtP(p0 + model.B)} <span style="color:var(--dim)">${pct(p0 + model.B / 2)}</span></div>` +
     rows.map(([k, v]) => `<div class="r"><span>${k}</span><b>${v}</b></div>`).join('') +
-    (state.weighted ? '<div class="r"><span>gewogen naar volume</span></div>' : '');
+    (state.weighted && !narrow ? '<div class="r"><span>gewogen naar volume</span></div>' : '');
   tip.hidden = false;
   const tw = tip.offsetWidth, th = tip.offsetHeight;
   tip.style.left = Math.max(4, Math.min(geo.W - tw - 4, xx < geo.W / 2 ? xx + 14 : xx - tw - 14)) + 'px';
   tip.style.top = Math.max(4, Math.min(geo.H - th - 4, yy - th / 2)) + 'px';
-});
+}
 function hideTip() { $('tip').hidden = true; if (state.hover != null) { state.hover = null; draw(); } }
-cv.addEventListener('pointerleave', hideTip);
+cv.addEventListener('pointermove', showTip);
+cv.addEventListener('pointerdown', showTip);
+cv.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') hideTip(); });
+document.addEventListener('pointerdown', e => { if (e.target !== cv) hideTip(); });
 
 /* ---------- readouts + table ---------- */
 function topBuckets(arr, above, k) {
@@ -833,6 +861,8 @@ function renderReading() {
 
 /* ---------- controls ---------- */
 function renderExchanges() {
+  const on = Object.keys(EXCH).filter(k => state.data?.books[k] && !state.off.has(k)).length;
+  $('exs').textContent = `Beurzen · ${on} aan${state.weighted ? ' · gewogen' : ''} ▾`;
   $('ex').innerHTML = Object.entries(EXCH).map(([k, e]) => {
     const has = state.data && state.data.books[k];
     const why = e.snap && state.live ? 'Alleen in de uurlijkse data (de beurs blokkeert browsers)' : 'Niet bereikbaar';
@@ -840,6 +870,9 @@ function renderExchanges() {
     return `<button data-k="${k}" ${has ? wt : `disabled title="${why}"`} class="${has ? (state.off.has(k) ? 'off' : 'on') : 'off'}" aria-pressed="${has && !state.off.has(k)}">${e.name}${has && state.weighted && w < 0.995 ? ` <span style="color:var(--faint)">${Math.round(w * 100)}%</span>` : ''}</button>`;
   }).join('');
 }
+const phone = matchMedia('(max-width:760px)');
+$('exd').open = !phone.matches;
+phone.addEventListener('change', () => { $('exd').open = !phone.matches; });
 $('ex').addEventListener('click', e => {
   const b = e.target.closest('button[data-k]'); if (!b || b.disabled) return;
   const k = b.dataset.k; state.off.has(k) ? state.off.delete(k) : state.off.add(k); savePrefs(); refresh();
@@ -858,6 +891,11 @@ function seg(id, key) {
   });
 }
 seg('rng', 'range'); seg('bk', 'bucket'); seg('tf', 'tf'); seg('hz', 'horizon');
+$('pcol').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === state.pcol));
+$('pcol').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  state.pcol = b.dataset.v; $('pcol').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); savePrefs(); draw();
+});
 
 function refresh() {
   $('bk').querySelector('[data-v="0"]').textContent = 'Auto · $' + (AUTO_BUCKET[state.range] || 100);
