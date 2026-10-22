@@ -331,7 +331,6 @@ body.swap header.top .px{opacity:.25}
   #intro .ct b img{width:15px;height:15px}
   #intro .ct span,#intro .ct i{font-size:9px}
 }
-.pcol{display:none}
 .exd{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
 .exd>summary{display:none}
 @media (max-width:760px){
@@ -343,7 +342,6 @@ body.swap header.top .px{opacity:.25}
   .tabs button{padding:8px 0;font-size:12px;letter-spacing:0;gap:3px}
   .tabs button img{width:13px;height:13px}
   .stage{height:max(480px,68vh)}
-  .pcol{display:flex}
   .exd{width:100%}
   .exd>summary{display:inline-flex;align-items:center;gap:6px;list-style:none;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--dim);
     background:var(--panel2);border:1px solid var(--line2);border-radius:20px;padding:3px 10px}
@@ -457,16 +455,11 @@ body.swap header.top .px{opacity:.25}
         <div class="ex" id="ex" aria-label="Beurzen in het orderboek"></div>
         <div class="ex"><button id="wt" class="on" aria-pressed="true" title="Beurzen met meer diepte dan hun handelsvolume verklaart, tellen naar rato minder mee">Gewogen naar volume</button></div>
       </details>
-      <div class="seg pcol" id="pcol" aria-label="Profiel naast de chart">
-        <button data-v="book" class="on">Limiet</button>
-        <button data-v="stop">Stops</button>
-        <button data-v="liq">Liquidaties</button>
-      </div>
       <div class="legend">
-        <span><i class="sw" style="background:var(--up)"></i>Kooporders (limiet)</span>
-        <span><i class="sw" style="background:var(--dn)"></i>Verkooporders (limiet)</span>
-        <span><i class="sw" style="background:var(--stop)"></i>Stops (schatting)</span>
-        <span><i class="sw" style="background:var(--liq)"></i>Liquidaties (schatting)</span>
+        <span><i class="sw" style="background:linear-gradient(90deg,var(--up),var(--dn))"></i>Doelen GlassSphere</span>
+        <span><i class="sw" style="background:var(--stop)"></i>Stops (stippellijn, schatting)</span>
+        <span><i class="sw" style="background:var(--liq)"></i>Liquidaties (stippellijn, schatting)</span>
+        <span><i class="sw" style="background:rgba(53,255,176,.35)"></i>Orderboek per uur (achtergrond)</span>
         <span><i class="sw" style="background:var(--dim)"></i>Echte liquidaties (onderin)</span>
       </div>
     </div>
@@ -485,9 +478,9 @@ body.swap header.top .px{opacity:.25}
     <span class="status"><i class="dot" id="dot"></i><span id="src">laden…</span></span>
     <details class="note">
       <summary>Uitleg: waar de cijfers vandaan komen</summary>
-      <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van de perp op tot 14 beurzen (niet elke munt staat op elke beurs; BitMEX heeft alleen BTC), in USD per blok. Waar een beurs PEPE per 1000 noteert (Binance, Bybit, Hyperliquid, Deribit) is de prijs teruggerekend naar 1 PEPE. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is de balk onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2%, dYdX ±1,5%, Hyperliquid ±2,4% (grove blokken), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json en glasssphere-&lt;munt&gt;.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de kaarsen toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke nepmuren) opvallen.</p>
-      <p><b>Stops</b> (stop-loss, koopstop, verkoopstop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke top die nog niet is geraakt (koopstops van shorts en uitbraakkopers), net onder elke ongeraakte bodem (verkoopstops van longs), gewogen naar het volume rond die top of bodem en hoe recent die is, plus een kleine bijdrage op ronde $1000-niveaus. Score 0–100, geen bedrag.</p>
-      <p><b>Liquidaties</b> zijn geschat uit de groei van de openstaande posities (open interest) per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de kaars sloot en voor de helft naar het aandeel kopende marktorders, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar de openstaande posities van alle beurzen samen. Onderin de grafiek staan de echte liquidaties van Gate per kaars.</p>
+      <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van de perp op tot 14 beurzen (niet elke munt staat op elke beurs; BitMEX heeft alleen BTC), in USD per blok. Waar een beurs PEPE per 1000 noteert (Binance, Bybit, Hyperliquid, Deribit) is de prijs teruggerekend naar 1 PEPE. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is het boek onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2%, dYdX ±1,5%, Hyperliquid ±2,4% (grove blokken), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json en glasssphere-&lt;munt&gt;.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de kaarsen toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke nepmuren) opvallen.</p>
+      <p><b>Stops</b> (stop-loss, koopstop, verkoopstop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke top die nog niet is geraakt (koopstops van shorts en uitbraakkopers), net onder elke ongeraakte bodem (verkoopstops van longs), gewogen naar het volume rond die top of bodem en hoe recent die is, plus een kleine bijdrage op ronde $1000-niveaus. In de grafiek staan de sterkste stop-niveaus boven en onder de prijs als gele stippellijn; een score 0–100, geen bedrag.</p>
+      <p><b>Liquidaties</b> zijn geschat uit de groei van de openstaande posities (open interest) per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de kaars sloot en voor de helft naar het aandeel kopende marktorders, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar de openstaande posities van alle beurzen samen. De grootste liquidatieniveaus staan in de grafiek als paarse stippellijn. Onderin de grafiek staan de echte liquidaties van Gate per kaars.</p>
       <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week; standaard 3 dagen) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddeld dagbereik × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, openstaande posities, financiering (funding), CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
     </details>
   </footer>
@@ -586,12 +579,12 @@ const horizons = {};      // chosen horizon per asset, where it differs from the
 const hzOf = k => horizons[k] || hzDefault(k);
 
 const $ = id => document.getElementById(id);
-const state = { zoom: 1, hoverX: null, asset: 'btc', data: null, live: false, src: '', range: 0, bucket: 0, tf: 60, horizon: 3, pcol: 'book', weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
+const state = { zoom: 1, hoverX: null, asset: 'btc', data: null, live: false, src: '', range: 0, bucket: 0, tf: 60, horizon: 3, weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
 const buckets = {};      // bucket per asset (0 = auto)
 try {
   const s = JSON.parse(localStorage.getItem('glasssphere-prefs') || '{}');
   if (s.rg != null) state.range = s.rg; if (s.bucket) buckets.btc = s.bucket; Object.assign(buckets, s.bks || {});
-  if (s.tf) state.tf = s.tf; Object.assign(horizons, s.hzs || {}); if (s.pcol) state.pcol = s.pcol; if (ASSETS[s.asset]) state.asset = s.asset;
+  if (s.tf) state.tf = s.tf; Object.assign(horizons, s.hzs || {}); if (ASSETS[s.asset]) state.asset = s.asset;
   if (s.weighted === false) state.weighted = false; (s.off || []).forEach(x => state.off.add(x));
 } catch (e) {}
 if (ASSETS[location.hash.slice(1)]) state.asset = location.hash.slice(1);
@@ -599,7 +592,7 @@ let A = ASSETS[state.asset];
 state.bucket = A.buckets.includes(buckets[state.asset]) ? buckets[state.asset] : 0;
 state.horizon = hzOf(state.asset);
 const savePrefs = () => { buckets[state.asset] = state.bucket;
-  if (state.horizon === hzDefault(state.asset)) delete horizons[state.asset]; else horizons[state.asset] = state.horizon; try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ asset: state.asset, rg: state.range, bks: buckets, tf: state.tf, hzs: horizons, pcol: state.pcol, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
+  if (state.horizon === hzDefault(state.asset)) delete horizons[state.asset]; else horizons[state.asset] = state.horizon; try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ asset: state.asset, rg: state.range, bks: buckets, tf: state.tf, hzs: horizons, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
 
 /* ---------- fetching ---------- */
 async function getJSON(url, opts = {}) {
@@ -843,14 +836,10 @@ function draw() {
   if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
   const C = { up: css('--up'), dn: css('--dn'), stop: css('--stop'), liq: css('--liq'), txt: css('--txt'), dim: css('--dim'), faint: css('--faint'), line: css('--line'), line2: css('--line2') };
-  // on a phone one profile column (chosen with #pcol), wider, so the candles keep most of the width
   const narrow = W < 640, fs = narrow ? 11 : 10, top = 26, stripH = 44, bot = H - 8 - stripH - 6;
   ctx.font = fs + 'px ' + css('--mono');
   const axisW = Math.max(narrow ? 50 : 62, Math.ceil(ctx.measureText(fmtP(model.hi)).width) + 12);   // room for long prices (PEPE)
-  const allCols = [{ key: 'book', name: 'Limiet' }, { key: 'stop', name: 'Stops' }, { key: 'liq', name: 'Liquidaties' }];
-  const cols = narrow ? allCols.filter(c => c.key === state.pcol) : allCols;
-  const colW = narrow ? Math.round(W * 0.27) : Math.min(150, W * 0.12);
-  const chartR = W - axisW - colW * cols.length - 6;
+  const chartR = W - axisW - 6;
   const glass = true;                                // GlassSphere look
   const rrect = (x, yy, w, h, r) => ctx.roundRect ? ctx.roundRect(x, yy, w, h, r) : ctx.rect(x, yy, w, h);
   const y = p => top + (model.hi - p) / (model.hi - model.lo) * (bot - top);
@@ -858,7 +847,7 @@ function draw() {
   const cs = tfCandles(), barW = (narrow ? 6 : 7) * state.zoom, nBars = Math.min(cs.length, Math.floor((chartR - 10) / barW));
   const shown = cs.slice(cs.length - nBars), tfMs = state.tf * 60e3;
   const colOf = t => { for (let i = nBars - 1; i >= 0; i--) if (shown[i][0] <= t) return t < shown[i][0] + tfMs ? i : -1; return -1; };
-  geo = { y, top, bot, chartR, colW, axisW, W, H, barW, nBars, shown };
+  geo = { y, top, bot, chartR, axisW, W, H, barW, nBars, shown };
 
   // grid + price axis
   ctx.font = fs + 'px ' + css('--mono'); ctx.textBaseline = 'middle';
@@ -888,16 +877,6 @@ function draw() {
         ctx.fillRect(x, top + (model.N - 1 - j) * rowH, Math.min(w, chartR - x), Math.max(1, rowH));
       }
     }
-  }
-  // current estimates (and the current book when there is no history) as bands across the candle area
-  for (let j = 0; j < model.N; j++) {
-    const yy = top + (model.N - 1 - j) * rowH;
-    const layers = [[model.stop[j], model.max.stop, C.stop], [model.liq[j], model.max.liq, C.liq]];
-    if (!cells.length) layers.push([model.bid[j] + model.ask[j], model.max.book, model.bid[j] >= model.ask[j] ? C.up : C.dn]);
-    for (const [v, m, col] of layers) { const a = bandA(v, m) * (T ? 0.7 : 1); if (a > 0.015) {
-      if (glass) { const g = ctx.createLinearGradient(0, 0, chartR, 0); g.addColorStop(0, alpha(col, 0)); g.addColorStop(1, alpha(col, Math.min(.5, a * 1.1))); ctx.fillStyle = g; }
-      else ctx.fillStyle = alpha(col, a / 3 * 1.8);
-      ctx.fillRect(0, yy, chartR, Math.max(1, rowH)); } }
   }
 
   // the way to the first target: a soft band from the current price to it, behind the candles
@@ -944,45 +923,34 @@ function draw() {
   ctx.fillStyle = C.faint; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillText((narrow ? 'echte liq. (Gate) ↑shorts ↓longs · max ' : 'echte liquidaties (Gate) · shorts ↑ longs ↓ · max ') + fmtUsd(lm) + '/u', 6, sTop);
 
-  // profile columns
-  cols.forEach((col, ci) => {
-    const x0 = chartR + 6 + ci * colW, w = colW - 6;
-    ctx.fillStyle = C.line; ctx.fillRect(x0 - 3, top, 1, bot - top);
-    ctx.fillStyle = C.dim; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = `600 ${fs}px ` + css('--sans');
-    ctx.fillText(col.name.toUpperCase(), x0 + 2, 8);
-    for (let j = 0; j < model.N; j++) {
-      const yy = top + (model.N - 1 - j) * rowH, h = Math.max(1, rowH - (rowH > 4 ? 1 : 0));
-      if (glass) {
-        const mid = (model.lo + (j + .5) * model.B) < model.price;
-        const v = col.key === 'book' ? (mid ? model.bid[j] : model.ask[j]) : model[col.key][j]; if (!v) continue;
-        const c0 = col.key === 'book' ? (mid ? C.up : C.dn) : col.key === 'stop' ? C.stop : C.liq;
-        const rel = v / model.max[col.key], bw = rel * w; if (bw < 3) continue;   // skip slivers, they read as dots
-        const g = ctx.createLinearGradient(x0, 0, x0 + bw, 0); g.addColorStop(0, alpha(c0, .25)); g.addColorStop(1, alpha(c0, .95));
-        ctx.fillStyle = g; if (rel > .6) { ctx.shadowColor = alpha(c0, .7); ctx.shadowBlur = 8; }
-        ctx.beginPath(); rrect(x0, yy + .5, bw, Math.max(1, h - 1), Math.min(3, h / 2)); ctx.fill(); ctx.shadowBlur = 0;
-        continue;
-      }
-      if (col.key === 'book') {
-        const m = model.max.book, mid = (model.lo + (j + .5) * model.B) < model.price;
-        // stack per exchange so the source of a wall is visible
-        let x = x0;
-        for (const ex of Object.keys(EXCH)) {
-          const v = mid ? model.per[ex].b[j] : model.per[ex].a[j]; if (!v) continue;
-          const bw = v / m * w; ctx.fillStyle = mid ? C.up : C.dn; ctx.globalAlpha = 0.55 + 0.45 * (Object.keys(EXCH).indexOf(ex) % 2);
-          ctx.fillRect(x, yy, bw, h); x += bw;
-        }
-        ctx.globalAlpha = 1;
-        // asks sitting below the price or bids above it are rare (crossed books between venues); draw them faint
-        const other = mid ? model.ask[j] : model.bid[j];
-        if (other) { ctx.fillStyle = alpha(mid ? C.dn : C.up, .35); ctx.fillRect(x, yy, other / m * w, h); }
-      } else {
-        const v = model[col.key][j]; if (!v) continue;
-        ctx.fillStyle = col.key === 'stop' ? C.stop : C.liq; ctx.globalAlpha = 0.85;
-        ctx.fillRect(x0, yy, v / model.max[col.key] * w, h); ctx.globalAlpha = 1;
+
+  // the strongest stop and liquidation levels above and below the price as dotted lines (one per kind and side, two
+  // on a wide screen when the second is nearly as strong), labelled at the right of the candles. Levels on a target
+  // line are left out: the target already marks them (the targets are chosen from these same pools).
+  {
+    const lines = [], busy = [y(model.price), ...tagYs], used = [];
+    for (const [arr, kind, col] of [[model.stop, 'stop', C.stop], [model.liq, 'liq', C.liq]]) for (const above of [true, false]) {
+      const free = topBuckets(arr, above, 8).filter(([j]) => !busy.some(b => Math.abs(b - y(model.lo + (j + .5) * model.B)) < 6));
+      const pick = free.slice(0, 2).filter((t, k) => k === 0 || (!narrow && t[1] >= free[0][1] * 0.6));
+      for (const [j, v] of pick) {
+        const p = model.lo + (j + .5) * model.B;
+        const name = kind === 'stop' ? (above ? 'Koopstops' : 'Verkoopstops') : (above ? 'Short-liq.' : 'Long-liq.');
+        lines.push({ p, v: v / model.max[kind], col, txt: `${name} ${fmtP(p)}${kind === 'liq' ? ' · ' + fmtUsd(v) : ''}` });
       }
     }
-  });
-
+    ctx.font = `${fs}px ` + css('--mono'); ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (const L of lines.sort((a, b) => b.v - a.v)) {
+      const yy = Math.round(y(L.p)) + .5;
+      ctx.strokeStyle = alpha(L.col, .85); ctx.lineWidth = 1.3; ctx.setLineDash([2, 4]);
+      ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W - axisW, yy); ctx.stroke(); ctx.setLineDash([]);
+      if (busy.concat(used).some(b => Math.abs(b - yy) < 15)) continue;  // no room for its label
+      used.push(yy);
+      const tw = ctx.measureText(L.txt).width + 12, xr = chartR - 4;
+      ctx.fillStyle = alpha(css('--bg'), .82); ctx.beginPath(); rrect(xr - tw, yy - 8, tw, 16, 8); ctx.fill();
+      ctx.fillStyle = L.col; ctx.fillText(L.txt, xr - 6, yy);
+    }
+    ctx.textAlign = 'left';
+  }
   // GlassSphere targets (the reading's horizon): solid glowing lines, the first one bolder, each with its price on the
   // axis and a label at the left; a target outside the range gets an arrow at the edge instead
   if (glass && T) for (const [p, up] of [[T.up, true], [T.dn, false]]) {
@@ -1312,11 +1280,6 @@ function renderBuckets() {
 }
 renderBuckets();
 seg('rng', 'range'); seg('bk', 'bucket'); seg('tf', 'tf'); seg('hz', 'horizon');
-$('pcol').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === state.pcol));
-$('pcol').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  state.pcol = b.dataset.v; $('pcol').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); savePrefs(); draw();
-});
 
 function refresh() {
   $('bk').querySelector('[data-v="0"]').textContent = 'Auto · ' + fmtStep(autoBucket());
