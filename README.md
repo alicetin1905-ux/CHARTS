@@ -33,41 +33,64 @@ SoSoValue's public API.
 
 ## Liquidity Map (`liquidity-map.html`)
 
-Where open orders sit around the BTC perpetual price: 1H candles with three side profiles on one price axis.
+Where open orders sit around the BTC perpetual price: candles (15m / 1H / 4H) with three side profiles on one price
+axis, the order book of past hours as a heatmap behind the candles, and real liquidations underneath.
 
 - **Limit orders** (real): the visible order books of BTC perps on 14 exchanges, in USD per price bucket, stacked
   per exchange. Each book only reaches as far as the exchange returns: HTX ±0.35%, Crypto.com ±0.4%, OKX ±0.8%,
   MEXC ±1%, Bitget ±1.2% ($10 blocks), dYdX ±1.5%, Hyperliquid ±2.4% ($100 blocks), Gate ±3.5%, Bitfinex ±11%,
   Binance 1000 levels, Bybit 500 levels, Deribit / BitMEX / Kraken the full book. MEXC, Kraken and Bitfinex send no
   CORS header, so the browser cannot read them: they appear in the snapshot only. Binance, Bybit and BitMEX block the
-  server the snapshot was made on, so they appear only live in a browser that can reach them (Bybit and BitMEX
+  server the snapshot is made on, so they appear only live in a browser that can reach them (Bybit and BitMEX
   parsing is untested for that reason).
+- **Weighted by volume** (on by default): an exchange whose share of the depth within ±1% is larger than its share of
+  24h volume counts for volume share / depth share (dYdX ~0%, Bitfinex ~12%, MEXC ~37%, Kraken ~40%).
+- **Book history and persistence**: one combined book per hour ($100 bins, ±6%) drawn behind the candles. The
+  Stable column says in how many of the last 6 hours a wall held at least half its current size, so walls that
+  just appeared (possible spoofing) stand out.
 - **Stops** (estimate): no exchange publishes stop orders. Placed just above unswept swing highs (buy stops) and
   below unswept swing lows (sell stops), weighted by volume around the swing and recency (half-life 1 week), plus a
   small weight on round $1000 levels. Shown as a 0–100 score.
-- **Liquidations** (estimate): hourly OKX open-interest increases opened at that hour's average price, split
-  long/short by where the candle closed, at 10× / 25× / 50× / 100× (35 / 30 / 20 / 15%). Levels price already hit are
-  removed; falling OI scales everything down. Amounts are OKX only.
+- **Liquidations** (estimate): hourly Gate open-interest increases (the one free hourly OI history with CORS) opened
+  at that hour's average price, split long/short half by where the candle closed and half by the taker buy share, at
+  5× / 10× / 25× / 50× (30 / 35 / 25 / 10%). That mix matched Gate's real liquidations best (hourly correlation 0.78
+  over 161 days). Levels price already hit are removed; falling OI scales everything down; sizes are scaled from Gate
+  to the open interest of all exchanges together.
+- **Real liquidations**: Gate's hourly long / short liquidations under the candles.
 - Range ±1.5–12%, bucket $25–$500 or Auto (default: $50 / $100 / $250 / $500 for ±1.5 / 3 / 6 / 12%),
   exchanges can be switched off. Hover a level for the per-exchange breakdown.
   A table lists the 4 largest levels of each kind above and below the price.
 
-A **Reading** tab at the top (closed when the page opens; the header shows the verdict and score) describes the chart in words and gives a direction score from −100 to +100, recomputed
-on every data update (fixed $100 buckets, ±6%, all exchanges, so it does not change with the view):
+A **Reading** tab at the top (closed when the page opens; the header shows the verdict) names the first target:
+the largest stop + liquidation pool above and below the price within one average day's range (mean high − low of
+the last 14 days), and the chance the upper one is reached first = distance to the lower / sum of both distances.
+It also describes trend, order book, open interest over all exchanges, OI-weighted funding, taker buying (Gate) and
+real liquidations, as context that does not count, with each factor's backtest result.
 
-| Factor | Signal (−1 … +1) | Weight |
-|---|---|---|
-| Momentum | ½·tanh(24h return / 2%) + ½·tanh((EMA20 / EMA50 − 1) / 0.4%) on 1H | 30% |
-| Order book | 0.6 × bid/ask imbalance within ±0.5% + 0.4 × within ±1% | 25% |
-| Liquidity pull | (above − below) / (above + below) of stop score + liquidation size per level, divided by distance in % | 30% |
-| Open interest | 24h OI change: rising OI counts with the price move (±1 at 3%), falling OI half against it | 15% |
+### Backtest of the reading (`scripts/liquidity_backtest.py`, `scripts/liquidity_model.py`)
 
-≥ +25 up, +10 … +25 slightly up, −10 … +10 neutral (and mirrored). It also lists the down / up scenario (nearest
-wall to break, then the largest stop or liquidation cluster within one average day's range) and that range
-(mean high − low of the last 14 days). It is arithmetic on current orders, not a forecast; not backtested.
+Gate BTC_USDT perpetual 1H, 161 days to 2026-10-21, evaluated every 4h, train ≈ first 100 days / test last 59.
+Full tables: [`backtests/liquidity_map.md`](backtests/liquidity_map.md).
 
-Opened as a file it refreshes the books every 15 seconds. The hosted claude.ai page cannot reach the exchanges and
-shows the snapshot embedded by `scripts/liquidity_snapshot.py` (run it again to refresh the snapshot).
+- **Liquidation model**: estimated liquidations land in the same hours as Gate's real ones (correlation 0.78 with the
+  low-leverage mix, 0.72 with the old 10–100× mix).
+- **Direction factors** (momentum, liquidity pull, open interest, funding, CVD): small positive correlation with the
+  next 24h return in train, none or reversed in test. Weights fitted on train were right 37% of the time in test.
+  So none of them counts in the verdict any more; the old −100…+100 score is gone.
+- **First target**: the random-walk distance rule is well calibrated for these pools (predicted 32% → 28% up first,
+  50% → 45%, 69% → 71%, 86% → 92%; Brier 0.208). The pull side was right less often (61%) than simply the nearer
+  pool (68%). In 44% of cases neither pool is reached within 24h. The order book factor cannot be tested (no free
+  book history).
+
+### Data and hourly refresh (`scripts/liquidity_snapshot.py`, `scripts/liquidity_alert.py`)
+
+Opened as a file the page fetches everything live (books every 15 s) and keeps one book per hour in memory for the
+heatmap. The hosted claude.ai page cannot reach the exchanges: a scheduled task runs every hour (at :21) that runs
+`liquidity_snapshot.py --db DIR` and writes `snap.json` / `bookhist.json` into the page's database (`snaps/h<hour>`,
+`bookhist/h<hour>`; it keeps the last 3 snapshots and 72 hours of book history). It then runs `liquidity_alert.py`,
+which sends a push notification when the price is within 0.3% of the first target, a target was hit in the last
+hour, the first target switched side, or Gate's liquidations in the last hour were over $1M and 3× the hourly
+average. Without database or network the page uses the snapshot embedded by `liquidity_snapshot.py` (no arguments).
 
 ## Delta Volume indicator (`indicators/delta_volume.pine`)
 
