@@ -4,8 +4,8 @@
     "sui": false, "ena": false, "gala": false, "pepe": false, "wld": false, "near": false
   },
   "stil": {
-    "van": "23:00",
-    "tot": "07:00",
+    "van": "01:00",
+    "tot": "08:00",
     "tijdzone": "Europe/Amsterdam",
     "behalve_liquidatiegolf": true
   }
