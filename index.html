@@ -135,7 +135,7 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 .story h3{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 .story ul{padding-left:18px;display:grid;gap:4px;max-width:90ch}
 .story b{font-weight:600}
-.story .fine{color:var(--dim);font-size:12px}
+.story .fine{color:var(--faint);font-size:10.5px}
 .calc th:first-child,.calc td:first-child,.calc th:nth-child(2),.calc td:nth-child(2){text-align:left}
 .calc th:nth-child(3),.calc td:nth-child(3){text-align:right}
 .calc tr.tot td{font-weight:700;color:var(--txt)}
@@ -161,10 +161,6 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 .facts dt{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
 .facts dd{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums}
 .story ul.sc{gap:6px}
-.story details.more{border-top:1px solid var(--line);padding-top:10px}
-.story details.more>summary{color:var(--txt);font-size:13px;font-weight:600}
-.story details.more[open]{display:grid;gap:12px}
-.story details.more ul.why{font-size:12px;color:var(--dim)}
 #rd > summary{list-style:none;cursor:pointer;user-select:none}
 #rd > summary::-webkit-details-marker{display:none}
 #rd:not([open]) > summary{border-bottom:0}
@@ -215,13 +211,17 @@ header.top{background:rgba(7,10,9,.7);backdrop-filter:blur(18px) saturate(1.2);-
 .tg-row b,.kv b{text-shadow:0 0 12px currentColor}
 .tg-row.now{background:transparent;border-color:rgba(238,244,240,.18)}
 .tg-row.first{border-color:var(--nt);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 18px rgba(255,200,87,.14)}
-.story details.more{border-top-color:var(--edge)}
 footer .status{background:var(--glass);border-color:var(--edge);box-shadow:inset 0 1px 0 var(--edge-hi)}
 footer .dot.live{box-shadow:0 0 8px var(--up)}
 footer .dot.snap{box-shadow:0 0 8px var(--nt)}
 footer{flex-direction:column;align-items:stretch}
 footer .status{align-self:flex-start}
-footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);border-radius:14px;padding:14px 16px;box-shadow:inset 0 1px 0 var(--edge-hi)}
+footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);border-radius:14px;padding:10px 14px;box-shadow:inset 0 1px 0 var(--edge-hi);font-size:10.5px;line-height:1.5}
+footer .note summary{cursor:pointer;font-size:11px;color:var(--dim);list-style:none}
+footer .note summary::-webkit-details-marker{display:none}
+footer .note summary::before{content:"› ";color:var(--faint)}
+footer .note[open] summary{margin-bottom:6px}
+footer .note p+p{margin-top:6px}
 .tabs{display:flex;gap:4px;padding:3px;border:1px solid var(--edge);border-radius:12px;background:rgba(255,255,255,.03)}
 .tabs button{font:inherit;font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--dim);background:none;border:0;
   border-radius:9px;padding:6px 14px;cursor:pointer}
@@ -308,8 +308,7 @@ body.swap header.top .px{opacity:.25}
   .px .clogo{width:24px;height:24px}
 }
 /* a short note on the chart while zoomed */
-.vh canvas{display:block;width:100%;height:96px}
-.vh-t{font-size:12px;color:var(--dim);margin-top:6px}
+
 /* back to the sphere: a clear glass pill at the start of the header */
 .back{display:inline-flex;align-items:center;gap:7px;font:inherit;font-size:13px;font-weight:600;color:var(--txt);cursor:pointer;
   padding:7px 14px 7px 10px;border-radius:999px;border:1px solid rgba(53,255,176,.45);
@@ -483,12 +482,13 @@ body.swap header.top .px{opacity:.25}
 
   <footer>
     <span class="status"><i class="dot" id="dot"></i><span id="src">laden…</span></span>
-    <div class="note">
+    <details class="note">
+      <summary>Uitleg: waar de cijfers vandaan komen</summary>
       <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van de perp op tot 14 beurzen (niet elke munt staat op elke beurs; BitMEX heeft alleen BTC), in USD per blok. Waar een beurs PEPE per 1000 noteert (Binance, Bybit, Hyperliquid, Deribit) is de prijs teruggerekend naar 1 PEPE. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is de balk onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2%, dYdX ±1,5%, Hyperliquid ±2,4% (grove blokken), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json en glasssphere-&lt;munt&gt;.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de kaarsen toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke nepmuren) opvallen.</p>
       <p><b>Stops</b> (stop-loss, koopstop, verkoopstop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke top die nog niet is geraakt (koopstops van shorts en uitbraakkopers), net onder elke ongeraakte bodem (verkoopstops van longs), gewogen naar het volume rond die top of bodem en hoe recent die is, plus een kleine bijdrage op ronde $1000-niveaus. Score 0–100, geen bedrag.</p>
       <p><b>Liquidaties</b> zijn geschat uit de groei van de openstaande posities (open interest) per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de kaars sloot en voor de helft naar het aandeel kopende marktorders, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar de openstaande posities van alle beurzen samen. Onderin de grafiek staan de echte liquidaties van Gate per kaars.</p>
       <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week; standaard 3 dagen) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddeld dagbereik × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, openstaande posities, financiering (funding), CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
-    </div>
+    </details>
   </footer>
 </main>
 
@@ -563,107 +563,43 @@ const LEV = [[5, .30], [10, .35], [25, .25], [50, .10]];   // leverage mix that 
 const MAINT = 0.004;                  // maintenance margin used for the liquidation price
 const HALF_LIFE_H = 168;              // stop weight halves every week
 const bucketSize = () => state.bucket || A.auto[state.range] || A.buckets[2];
-// From backtests/glasssphere.md: liquidation fit on Gate BTC (161 days to 2026-10-21); calibration and IC per asset on
-// the Binance perpetual 1H, Jan 2022 (or its listing) – Sep 2026. ic: [IC over all years, years with a positive IC]
-// years: years tested (5 unless the perpetual or its data started later), from: the first one
-// hz, per horizon (targets between 0.3 x and 1 x the expected range): median target / stop in %, predicted and actual
+// From backtests/glasssphere.md (Binance perpetual 1H, Jan 2022 or its listing – Sep 2026); hz, per horizon (targets between 0.3 x and 1 x the expected range): median target / stop in %, predicted and actual
 // share where the more likely target came first, share with neither, average trade after 0.1% cost in %, t-stat
-const LIQ_CORR = 0.78;
 const BTS = {
-  btc: {
-    neither: 0.44, pullOk: 59, nearOk: 67,
-    why: 'Momentum, openstaande posities en de liquiditeitstrek zitten rond 0 en wisselen per jaar van teken. Financiering (tegendraads) en vooral CVD waren bijna elk jaar licht positief, maar met een IC van 0,03–0,04 te zwak om op te handelen.',
-    calib: [['0–20%', 15, 7], ['20–40%', 32, 28], ['40–60%', 50, 49], ['60–80%', 69, 74], ['80–100%', 86, 88]],
-    ic: { mom: [0.010, 3], cvd: [0.042, 5], oi: [0.010, 2], fund: [0.026, 4], pull: [-0.005, 1] },
-    hz: { 1: { tgt: 2.03, stp: 2.97, pred: 59, act: 63, neither: 50, ev: -0.151, t: -3.2 },
+  btc: { hz: { 1: { tgt: 2.03, stp: 2.97, pred: 59, act: 63, neither: 50, ev: -0.151, t: -3.2 },
           3: { tgt: 3.13, stp: 4.52, pred: 59, act: 64, neither: 41, ev: -0.144, t: -1.0 },
           7: { tgt: 4.40, stp: 7.00, pred: 59, act: 65, neither: 35, ev: 0.076, t: 0.2 } } },
-  eth: {
-    neither: 0.39, pullOk: 59, nearOk: 68,
-    why: 'Momentum en de liquiditeitstrek zitten rond 0 en wisselen per jaar van teken; de openstaande posities waren zelfs licht negatief. Financiering (tegendraads) was elk jaar licht positief en CVD in 4 van de 5 jaar, maar met een IC van 0,02–0,03 te zwak om op te handelen.',
-    calib: [['0–20%', 15, 4], ['20–40%', 32, 25], ['40–60%', 50, 50], ['60–80%', 69, 74], ['80–100%', 87, 90]],
-    ic: { mom: [0.006, 2], cvd: [0.018, 4], oi: [-0.032, 1], fund: [0.031, 5], pull: [0.007, 2] },
-    hz: { 1: { tgt: 2.64, stp: 3.87, pred: 59, act: 64, neither: 49, ev: -0.142, t: -2.2 },
+  eth: { hz: { 1: { tgt: 2.64, stp: 3.87, pred: 59, act: 64, neither: 49, ev: -0.142, t: -2.2 },
           3: { tgt: 4.27, stp: 6.51, pred: 59, act: 64, neither: 42, ev: -0.224, t: -1.2 },
           7: { tgt: 6.20, stp: 9.20, pred: 59, act: 61, neither: 34, ev: -0.215, t: -0.5 } } },
-  sol: {
-    neither: 0.29, pullOk: 59, nearOk: 67,
-    why: 'Momentum, openstaande posities en de liquiditeitstrek waren licht positief, maar met een IC rond 0,02 nauwelijks meer dan ruis; financiering werkte hier niet. CVD was het sterkst (IC 0,05, 4 van de 5 jaar positief), nog steeds te zwak om op te handelen.',
-    calib: [['0–20%', 16, 10], ['20–40%', 32, 29], ['40–60%', 50, 51], ['60–80%', 69, 72], ['80–100%', 88, 91]],
-    ic: { mom: [0.021, 3], cvd: [0.053, 4], oi: [0.021, 5], fund: [-0.012, 1], pull: [0.014, 4] },
-    hz: { 1: { tgt: 3.68, stp: 5.33, pred: 59, act: 65, neither: 46, ev: -0.105, t: -1.2 },
+  sol: { hz: { 1: { tgt: 3.68, stp: 5.33, pred: 59, act: 65, neither: 46, ev: -0.105, t: -1.2 },
           3: { tgt: 5.87, stp: 8.81, pred: 59, act: 65, neither: 39, ev: -0.053, t: -0.2 },
           7: { tgt: 8.10, stp: 10.82, pred: 57, act: 59, neither: 25, ev: -0.208, t: -0.4 } } },
-  bnb: {
-    neither: 0.43, pullOk: 59, nearOk: 70,
-    why: 'Geen enkele factor werkte: momentum, openstaande posities, financiering en CVD waren over alle jaren samen licht negatief en wisselden per jaar van teken; de liquiditeitstrek kwam niet verder dan een IC van 0,02.',
-    calib: [['0–20%', 15, 12], ['20–40%', 32, 24], ['40–60%', 50, 49], ['60–80%', 69, 74], ['80–100%', 86, 92]],
-    ic: { mom: [-0.009, 3], cvd: [-0.018, 2], oi: [-0.007, 1], fund: [-0.030, 2], pull: [0.016, 3] },
-    hz: { 1: { tgt: 2.23, stp: 3.24, pred: 59, act: 66, neither: 50, ev: -0.059, t: -1.1 },
+  bnb: { hz: { 1: { tgt: 2.23, stp: 3.24, pred: 59, act: 66, neither: 50, ev: -0.059, t: -1.1 },
           3: { tgt: 3.45, stp: 5.21, pred: 60, act: 65, neither: 41, ev: -0.126, t: -0.8 },
           7: { tgt: 5.14, stp: 8.07, pred: 59, act: 66, neither: 35, ev: 0.056, t: 0.2 } } },
-  xrp: {
-    neither: 0.39, pullOk: 60, nearOk: 68,
-    why: 'Momentum, openstaande posities en CVD zitten rond 0. De liquiditeitstrek (IC 0,03, 4 van de 5 jaar positief) en financiering (0,02) waren licht positief, maar te zwak om op te handelen.',
-    calib: [['0–20%', 16, 10], ['20–40%', 32, 23], ['40–60%', 50, 47], ['60–80%', 68, 72], ['80–100%', 88, 89]],
-    ic: { mom: [0.002, 3], cvd: [0.003, 2], oi: [0.005, 3], fund: [0.016, 3], pull: [0.028, 4] },
-    hz: { 1: { tgt: 3.03, stp: 4.26, pred: 59, act: 64, neither: 51, ev: -0.193, t: -2.7 },
+  xrp: { hz: { 1: { tgt: 3.03, stp: 4.26, pred: 59, act: 64, neither: 51, ev: -0.193, t: -2.7 },
           3: { tgt: 4.88, stp: 7.30, pred: 59, act: 61, neither: 42, ev: -0.286, t: -1.4 },
           7: { tgt: 6.82, stp: 9.77, pred: 58, act: 63, neither: 32, ev: 0.089, t: 0.2 } } },
-  doge: {
-    neither: 0.34, pullOk: 57, nearOk: 68,
-    why: 'Momentum, openstaande posities, CVD en de liquiditeitstrek waren over alle jaren licht positief (IC rond 0,03), maar in 2023 allemaal negatief; financiering werkte hier niet. Te zwak om op te handelen.',
-    calib: [['0–20%', 16, 7], ['20–40%', 32, 24], ['40–60%', 50, 49], ['60–80%', 69, 71], ['80–100%', 87, 90]],
-    ic: { mom: [0.029, 3], cvd: [0.026, 4], oi: [0.030, 4], fund: [-0.021, 4], pull: [0.034, 3] },
-    hz: { 1: { tgt: 3.60, stp: 5.20, pred: 59, act: 64, neither: 50, ev: -0.152, t: -1.8 },
+  doge: { hz: { 1: { tgt: 3.60, stp: 5.20, pred: 59, act: 64, neither: 50, ev: -0.152, t: -1.8 },
           3: { tgt: 5.77, stp: 8.86, pred: 59, act: 65, neither: 42, ev: -0.125, t: -0.5 },
           7: { tgt: 8.03, stp: 10.94, pred: 57, act: 62, neither: 30, ev: 0.056, t: 0.1 } } },
-  sui: {
-    years: 4, from: 2023, neither: 0.24, pullOk: 57, nearOk: 68,
-    why: 'SUI staat pas sinds 2023 op Binance, dus dit is maar 4 jaar. De liquiditeitstrek (IC 0,04, elk jaar positief) en financiering (0,04, maar in 2 van de 4 jaar negatief) waren het sterkst; momentum en CVD zitten op 0. Te zwak en te kort getest om op te handelen.',
-    calib: [['0–20%', 14, 11], ['20–40%', 32, 24], ['40–60%', 50, 49], ['60–80%', 68, 68], ['80–100%', 88, 88]],
-    ic: { mom: [0.003, 2], cvd: [0.000, 2], oi: [0.018, 2], fund: [0.043, 2], pull: [0.044, 4] },
-    hz: { 1: { tgt: 4.28, stp: 6.41, pred: 59, act: 64, neither: 47, ev: -0.186, t: -1.5 },
+  sui: { hz: { 1: { tgt: 4.28, stp: 6.41, pred: 59, act: 64, neither: 47, ev: -0.186, t: -1.5 },
           3: { tgt: 6.62, stp: 10.05, pred: 59, act: 64, neither: 33, ev: 0.006, t: 0.0 },
           7: { tgt: 9.10, stp: 11.72, pred: 56, act: 60, neither: 20, ev: 0.440, t: 0.6 } } },
-  ena: {
-    years: 3, from: 2024, neither: 0.14, pullOk: 55, nearOk: 68,
-    why: 'ENA staat pas sinds 2024 op Binance, dus dit is maar 3 jaar. De liquiditeitstrek was elk jaar licht positief (IC 0,03) en momentum ook (0,03); financiering was elk jaar negatief, openstaande posities en CVD wisselden van teken. Te zwak en te kort getest om op te handelen.',
-    calib: [['0–20%', 14, 8], ['20–40%', 32, 25], ['40–60%', 50, 51], ['60–80%', 69, 68], ['80–100%', 88, 88]],
-    ic: { mom: [0.030, 2], cvd: [0.014, 2], oi: [-0.003, 1], fund: [-0.037, 0], pull: [0.033, 3] },
-    hz: { 1: { tgt: 5.54, stp: 8.27, pred: 59, act: 64, neither: 48, ev: -0.192, t: -1.1 },
+  ena: { hz: { 1: { tgt: 5.54, stp: 8.27, pred: 59, act: 64, neither: 48, ev: -0.192, t: -1.1 },
           3: { tgt: 8.25, stp: 11.23, pred: 58, act: 62, neither: 27, ev: 0.142, t: 0.3 },
           7: { tgt: 10.19, stp: 12.63, pred: 55, act: 59, neither: 9, ev: 0.639, t: 0.7 } } },
-  gala: {
-    neither: 0.24, pullOk: 56, nearOk: 68,
-    why: 'CVD was elk jaar positief (IC 0,06) en de liquiditeitstrek ook (0,03); momentum, openstaande posities en financiering wisselden van teken. Nog steeds te zwak om op te handelen.',
-    calib: [['0–20%', 15, 20], ['20–40%', 32, 26], ['40–60%', 50, 48], ['60–80%', 69, 71], ['80–100%', 89, 88]],
-    ic: { mom: [0.013, 2], cvd: [0.057, 5], oi: [0.013, 4], fund: [0.003, 3], pull: [0.030, 5] },
-    hz: { 1: { tgt: 4.61, stp: 6.63, pred: 59, act: 66, neither: 49, ev: 0.017, t: 0.2 },
+  gala: { hz: { 1: { tgt: 4.61, stp: 6.63, pred: 59, act: 66, neither: 49, ev: 0.017, t: 0.2 },
           3: { tgt: 7.17, stp: 10.29, pred: 59, act: 63, neither: 38, ev: 0.021, t: 0.1 },
           7: { tgt: 9.22, stp: 11.97, pred: 56, act: 59, neither: 22, ev: 0.112, t: 0.2 } } },
-  pepe: {
-    years: 4, from: 2023, neither: 0.20, pullOk: 56, nearOk: 67,
-    why: 'PEPE staat sinds 2023 op Binance (als 1000PEPE), dus dit is 4 jaar. Momentum, de liquiditeitstrek, openstaande posities en CVD waren licht positief (IC 0,02–0,04); financiering sprong heen en weer (2024 sterk negatief). Te zwak om op te handelen.',
-    calib: [['0–20%', 15, 15], ['20–40%', 32, 23], ['40–60%', 50, 49], ['60–80%', 68, 70], ['80–100%', 89, 86]],
-    ic: { mom: [0.039, 3], cvd: [0.029, 3], oi: [0.024, 3], fund: [-0.064, 3], pull: [0.032, 4] },
-    hz: { 1: { tgt: 5.01, stp: 7.42, pred: 59, act: 65, neither: 49, ev: -0.179, t: -1.3 },
+  pepe: { hz: { 1: { tgt: 5.01, stp: 7.42, pred: 59, act: 65, neither: 49, ev: -0.179, t: -1.3 },
           3: { tgt: 7.63, stp: 10.74, pred: 58, act: 64, neither: 35, ev: 0.090, t: 0.2 },
           7: { tgt: 9.61, stp: 12.21, pred: 56, act: 57, neither: 15, ev: 0.126, t: 0.2 } } },
-  near: {
-    neither: 0.23, pullOk: 56, nearOk: 69,
-    why: 'CVD (IC 0,05) en momentum (0,03) waren elk jaar licht positief, de liquiditeitstrek in 4 van de 5 jaar; openstaande posities wisselden van teken en financiering werkte hier niet. Nog steeds te zwak om op te handelen.',
-    calib: [['0–20%', 14, 12], ['20–40%', 32, 28], ['40–60%', 50, 49], ['60–80%', 68, 70], ['80–100%', 88, 92]],
-    ic: { mom: [0.025, 5], cvd: [0.047, 5], oi: [0.008, 3], fund: [-0.037, 1], pull: [0.018, 4] },
-    hz: { 1: { tgt: 4.30, stp: 6.39, pred: 59, act: 64, neither: 48, ev: -0.162, t: -1.6 },
+  near: { hz: { 1: { tgt: 4.30, stp: 6.39, pred: 59, act: 64, neither: 48, ev: -0.162, t: -1.6 },
           3: { tgt: 6.77, stp: 9.99, pred: 59, act: 64, neither: 37, ev: -0.041, t: -0.1 },
           7: { tgt: 8.91, stp: 11.72, pred: 56, act: 58, neither: 21, ev: -0.034, t: -0.1 } } },
-  wld: {
-    years: 4, from: 2023, neither: 0.16, pullOk: 55, nearOk: 69,
-    why: 'WLD staat sinds 2023 op Binance, dus dit is 4 jaar. CVD (IC 0,06) en momentum (0,05) waren licht positief, maar in 2023 sterk negatief; de liquiditeitstrek was elk jaar positief (0,03). Te zwak en te kort getest om op te handelen.',
-    calib: [['0–20%', 15, 7], ['20–40%', 32, 27], ['40–60%', 50, 49], ['60–80%', 68, 71], ['80–100%', 88, 89]],
-    ic: { mom: [0.046, 3], cvd: [0.055, 3], oi: [0.014, 2], fund: [-0.027, 1], pull: [0.034, 4] },
-    hz: { 1: { tgt: 5.38, stp: 7.84, pred: 59, act: 68, neither: 48, ev: 0.054, t: 0.4 },
+  wld: { hz: { 1: { tgt: 5.38, stp: 7.84, pred: 59, act: 68, neither: 48, ev: 0.054, t: 0.4 },
           3: { tgt: 8.10, stp: 11.22, pred: 58, act: 62, neither: 35, ev: -0.164, t: -0.4 },
           7: { tgt: 10.05, stp: 12.74, pred: 55, act: 58, neither: 16, ev: 0.197, t: 0.2 } } },
 };
@@ -819,10 +755,9 @@ function estimateStops(candles, price, lo, hi) {
 }
 // Liquidations: OI added each hour at that hour's average price, split long/short half by where the candle
 // closed and half by the taker buy share, at the leverage mix that best matched real liquidations.
-// onBar(i, positions), if given, sees the open positions after each bar (the verdict history uses it).
-function estimateLiqs(candles, oi, taker, onBar) {
+function estimateLiqs(candles, oi, taker) {
   const oiAt = new Map(oi), tkAt = new Map(taker || []); let pos = [];
-  candles.forEach(([t, o, h, l, c], i) => {
+  candles.forEach(([t, o, h, l, c]) => {
     pos = pos.filter(q => q.side === 'long' ? l > q.p : h < q.p);
     const a = oiAt.get(t), b = oiAt.get(t + 3.6e6), d = a != null && b != null ? b - a : null;
     if (d != null && d < 0) { const r = b / a; pos.forEach(q => q.usd *= r); }
@@ -835,7 +770,6 @@ function estimateLiqs(candles, oi, taker, onBar) {
         pos.push({ p: entry * (1 + 1 / L - MAINT), side: 'short', usd: d * (1 - share) * w });
       }
     }
-    if (onBar) onBar(i, pos);
   });
   return pos;
 }
@@ -1202,7 +1136,7 @@ function renderLevels() {
   const stab = ps => ps === undefined ? '' : ps === null ? '<span style="color:var(--faint)">—</span>'
     : `<span class="${ps[0] >= ps[1] - 1 ? 'up' : ps[0] <= 1 ? 'nt' : ''}">${ps[0]}/${ps[1]} u</span>`;
   $('lv').innerHTML = rows.map(r => r.now
-    ? `<tr class="now"><td>${fmtP(r.p)}</td><td>0.00%</td><td>Huidige prijs</td><td></td><td></td><td></td></tr>`
+    ? `<tr class="now"><td>${fmtP(r.p)}</td><td>0,00%</td><td>Huidige prijs</td><td></td><td></td><td></td></tr>`
     : `<tr><td>${fmtP(r.p)}</td><td>${pct(r.p)}</td><td><span class="pill" style="color:${r.col};border-color:${alpha(r.col, .45)}">${r.name}</span></td><td>${r.fmt(r.v)}</td>` +
       `<td><span class="meter"><i style="width:${Math.max(3, r.rel * 100).toFixed(0)}%;background:${r.col}"></i></span></td><td>${stab(r.ps)}</td></tr>`).join('');
 }
@@ -1273,69 +1207,6 @@ function analyze() {
   return { P, range24, rH, minD, tUp, tDn, pUp, pull, up, dn, ret24, ef, es, mom, b05, a05, b10, a10, book, oiChg, oiS, oiTot,
     fund, fundS, netBuy, cvd, liq24, support: walls('b'), resist: walls('a') };
 }
-// The verdict of each of the last 48 hours, worked out from the data as it was at that hour (the same calculation as
-// now), and which target the price reached first afterwards. Cached per coin, hour and horizon.
-const vhCache = new Map();
-function verdictHistory() {
-  const D = state.data, cs = D.candles, n = cs.length, Hd = state.horizon;
-  const key = `${state.asset}:${cs[n - 1][0]}:${n}:${Hd}`; if (vhCache.has(key)) return vhCache.get(key);
-  const from = Math.max(48, n - 48), snaps = [];
-  estimateLiqs(cs, D.oi || [], D.taker, (i, pos) => { if (i >= from) snaps[i] = pos.map(q => ({ p: q.p, side: q.side, usd: q.usd })); });
-  const out = [];
-  for (let i = from; i < n; i++) {
-    const c = cs.slice(0, i + 1), P = cs[i][4];
-    const t = targetsOf(c, poolsOf(estimateStops(c, P, P * 0.85, P * 1.15), snaps[i], P), P, Hd);
-    const e = { t: cs[i][0], p: t.pUp, v: null, prob: null, res: null };
-    if (t.pUp != null) {
-      e.prob = Math.max(t.pUp, 1 - t.pUp);
-      e.v = Math.round(e.prob * 100) < 60 ? 'neutral' : t.pUp >= 0.5 ? 'up' : 'down';
-      const last = Math.min(n - 1, i + 24 * Hd);
-      for (let j = i + 1; j <= last && !e.res; j++) {           // which target came first, within the horizon
-        const hu = cs[j][2] >= t.tUp.p, hd = cs[j][3] <= t.tDn.p;
-        if (hu || hd) e.res = hu && hd ? 'both' : hu ? 'up' : 'down';
-      }
-      if (!e.res && i + 24 * Hd <= n - 1) e.res = 'none';      // horizon over, neither reached
-    }
-    out.push(e);
-  }
-  vhCache.set(key, out);
-  if (vhCache.size > 40) vhCache.delete(vhCache.keys().next().value);
-  return out;
-}
-function renderHistory() {
-  const cv2 = $('rd-vh-cv'); if (!cv2 || !state.data) return;
-  const h = verdictHistory(), n = h.length; if (!n) return;
-  const dpr = window.devicePixelRatio || 1, W = cv2.clientWidth, H = 96, g = cv2.getContext('2d');
-  cv2.width = Math.round(W * dpr); cv2.height = Math.round(H * dpr); g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const COL = { up: '#35ffb0', down: '#ff4d6a', neutral: '#ffc857' }, top = 6, bot = 66, x = i => 6 + i / Math.max(1, n - 1) * (W - 12);
-  const y = p => top + (1 - p) * (bot - top);
-  g.fillStyle = 'rgba(255,200,87,.07)'; g.fillRect(0, y(0.6), W, y(0.4) - y(0.6));       // the neutral zone, 40 to 60%
-  g.strokeStyle = 'rgba(238,244,240,.15)'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(0, y(0.5)); g.lineTo(W, y(0.5)); g.stroke(); g.setLineDash([]);
-  g.font = '9px ' + css('--mono'); g.fillStyle = css('--faint'); g.textBaseline = 'top';
-  g.fillText('omhoog eerst', 6, 0); g.textBaseline = 'bottom'; g.fillText('omlaag eerst', 6, bot + 2);
-  g.strokeStyle = 'rgba(238,244,240,.45)'; g.lineWidth = 1.2; g.beginPath(); let on = false;
-  h.forEach((e, i) => { if (e.p == null) { on = false; return; } on ? g.lineTo(x(i), y(e.p)) : g.moveTo(x(i), y(e.p)); on = true; }); g.stroke();
-  h.forEach((e, i) => { if (e.p == null) return; const last = i === n - 1;
-    g.fillStyle = COL[e.v]; g.shadowColor = COL[e.v]; g.shadowBlur = last ? 10 : 0;
-    g.beginPath(); g.arc(x(i), y(e.p), last ? 4 : 2.2, 0, 7); g.fill(); g.shadowBlur = 0; });
-  // under it, per hour with a verdict: did its first target come first (green), the other (red), or not yet (grey)
-  const oy = 76, ok = { n: 0 }, bad = { n: 0 }, open = { n: 0 };
-  h.forEach((e, i) => { if (e.v !== 'up' && e.v !== 'down') return;
-    let c = 'rgba(238,244,240,.18)';
-    if (e.res === e.v) { c = '#35ffb0'; ok.n++; } else if (e.res === 'up' || e.res === 'down' || e.res === 'both') { c = '#ff4d6a'; bad.n++; } else open.n++;
-    g.fillStyle = c; g.fillRect(x(i) - 2, oy, 4, 8); });
-  g.fillStyle = css('--faint'); g.textBaseline = 'bottom'; g.fillText('48 u geleden', 6, H); g.textAlign = 'right'; g.fillText('nu', W - 6, H); g.textAlign = 'left';
-  // in words: how long the verdict has held, and how the earlier ones turned out
-  const VW = { up: 'Eerst omhoog', down: 'Eerst omlaag', neutral: 'Neutraal' };
-  const cur = h[n - 1].v; let k = n - 1; while (k > 0 && h[k - 1].v === cur) k--;
-  const held = n - k, prev = k > 0 ? h[k - 1].v : null;
-  let txt = cur ? (held >= n ? `Al ${n} uur ${VW[cur]}.` : `${held} uur ${VW[cur]}${prev ? `, daarvoor ${VW[prev]}` : ''}.`) : 'Geen doelen.';
-  const cnt = v => h.filter(e => e.v === v).length;
-  txt += ` In 48 uur: ${cnt('up')}× omhoog, ${cnt('down')}× omlaag, ${cnt('neutral')}× neutraal.`;
-  if (ok.n + bad.n) txt += ` Afgelopen doelen: ${ok.n} goed, ${bad.n} fout` + (open.n ? `, ${open.n} lopen nog.` : '.');
-  else if (open.n) txt += ` De doelen van die uren zijn nog niet bereikt.`;
-  $('rd-vh-t').textContent = txt;
-}
 function renderReading() {
   const r = analyze(), P = r.P;
   const kind = q => q.stop >= q.liq ? (q.p > P ? 'koopstops' : 'verkoopstops') : (q.p > P ? 'short-liquidaties' : 'long-liquidaties');
@@ -1364,7 +1235,6 @@ function renderReading() {
   $('rd-at').textContent = 'data van ' + $('upd').textContent;
 
   const dist = x => fx(x / P * 100, 1) + '%';
-  const sg = x => (x > 0 ? '+' : '') + fx(x, 2);
   const bidShare = Math.round(r.b05 / (r.b05 + r.a05) * 100);
   let html = '';
   // 1. the two targets and the price, as a ladder; the more likely one is marked
@@ -1401,42 +1271,14 @@ function renderReading() {
     r.fund != null && ['Financiering / 8u', `${fx(r.fund * 100, 4)}% · ${r.fund > 0.00015 ? 'hoog' : r.fund < 0.00005 ? 'laag' : 'normaal'}`],
     ['Liquidaties 24u (Gate)', `longs ${fmtUsd(r.liq24[0])} · shorts ${fmtUsd(r.liq24[1])}`],
   ].filter(Boolean);
-  html += `<h3>Oordeel laatste 48 uur</h3><div class="vh" id="rd-vh"><canvas id="rd-vh-cv" height="96"></canvas><p class="vh-t" id="rd-vh-t">berekenen…</p></div>`;
   html += `<h3>Markt nu</h3><dl class="facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
   // 3. scenarios
   const scDn = r.tDn ? `<b>Omlaag:</b> ${r.support ? `breekt ${fmtP(r.support.p)} (koopmuur), dan` : 'dan'} ${fmtP(r.tDn.p)} (${pc(r.tDn.p / P - 1)}).` : null;
   const scUp = r.tUp ? `<b>Omhoog:</b> ${r.resist ? `eerst ${fmtP(r.resist.p)} (verkoopmuur) opkopen, dan` : 'dan'} ${fmtP(r.tUp.p)} (${pc(r.tUp.p / P - 1)}).` : null;
   const sc = ((r.pUp ?? 0.5) < 0.5 ? [scDn, scUp] : [scUp, scDn]).filter(Boolean);
   html += `<h3>Scenario's</h3><ul class="sc">${sc.map(t => `<li>${t}</li>`).join('')}</ul>`;
-  // 4. backtest and context, folded away
-  const ic = k => `${BT.ic[k][0] > 0 ? '+' : ''}${fx(BT.ic[k][0], 3)} · ${BT.ic[k][1]}/${BT.years || 5} jr`;
-  const rows = [
-    ['Momentum', `${pc(r.ret24)} · EMA ${pc(r.ef / r.es - 1)}`, r.mom, ic('mom')],
-    ['CVD (marktorders)', `${r.netBuy >= 0 ? '+' : ''}${fx(r.netBuy * 100, 1)}%`, r.cvd, ic('cvd')],
-    ['Openstaande posities', r.oiChg == null ? '—' : pc(r.oiChg, 1), r.oiS, ic('oi')],
-    ['Financiering', r.fund == null ? '—' : `${fx(r.fund * 100, 4)}%`, r.fundS, ic('fund')],
-    ['Liquiditeitstrek', `${Math.round(r.up / (r.up + r.dn) * 100)}% boven`, r.pull, ic('pull')],
-    ['Orderboek', `${bidShare}% koop`, r.book, 'niet te testen'],
-  ];
-  html += `<details class="more"><summary>Historische test en context</summary>` +
-    `<h3>Termijnen vergeleken (Binance 2022–2026)</h3><div class="levels calc"><table><thead><tr><th>Termijn</th><th>Doel / stop</th><th>Kans voorsp. / echt</th><th>Geen</th><th>Trade na kosten</th></tr></thead><tbody>` +
-    Object.entries(BT.hz).map(([d, h]) => `<tr${+d === H ? ' class="tot"' : ''}><td>${hzLabel(+d)}</td><td>${fx(h.tgt, 1)} / ${fx(h.stp, 1)}%</td><td>${h.pred} / ${h.act}%</td><td>${h.neither}%</td><td class="${h.ev > 0 ? 'up' : 'dn'}">${h.ev > 0 ? '+' : ''}${fx(h.ev, 2)}% (t ${fx(h.t, 1)})</td></tr>`).join('') +
-    `</tbody></table></div>` +
-    `<h3>Klopt de kans? (1 dag)</h3><div class="levels calc"><table><thead><tr><th>Voorspeld omhoog eerst</th><th>Gemiddeld</th><th>Echt</th></tr></thead><tbody>` +
-    BT.calib.map(([b, m, a]) => `<tr><td>${b}</td><td>${m}%</td><td>${a}%</td></tr>`).join('') +
-    `</tbody></table></div>` +
-    `<h3>Context (telt niet mee)</h3><div class="levels calc"><table><thead><tr><th>Factor</th><th>Nu</th><th>Signaal</th><th>IC in de test</th></tr></thead><tbody>` +
-    rows.map(([f, m, v, t]) => `<tr><td>${f}</td><td>${m}</td><td class="${v > 0.05 ? 'up' : v < -0.05 ? 'dn' : ''}">${sg(v)}</td><td>${t}</td></tr>`).join('') +
-    `</tbody></table></div>` +
-    `<ul class="why">
-      <li>Getest op het Binance ${A.name}-termijncontract (1u) van januari ${BT.from || 2022} tot september 2026: elke factor tegen het rendement van de volgende 24 uur. IC is de correlatie; 0 betekent geen verband.</li>
-      <li>${BT.why}</li>
-      <li>De liquiditeitstrek wees minder vaak het eerst geraakte cluster aan (${BT.pullOk}%) dan simpelweg het dichtstbijzijnde (${BT.nearOk}%).</li>
-      <li>Het liquidatiemodel zelf klopt wel: de geschatte liquidaties vallen op dezelfde uren als de echte (correlatie ${fx(LIQ_CORR, 2)} op Gate BTC${A.name === 'BTC' ? '' : '; voor ' + A.name + ' is dat niet apart getest'}).</li>
-    </ul></details>`;
   html += `<p class="fine">Een rekensom op de orders en posities van dit moment, geen advies. Muren in het orderboek kunnen binnen seconden verdwijnen, en stops en liquidaties zijn schattingen.</p>`;
   $('rd-story').innerHTML = html;
-  setTimeout(renderHistory, 0);
   state.targets = { up: r.tUp?.p, dn: r.tDn?.p, first: first?.p, prob, hl };
 }
 
@@ -1494,7 +1336,6 @@ function refresh() {
   draw();
 }
 new ResizeObserver(() => draw()).observe(cv);
-addEventListener('resize', () => { if (state.data) renderHistory(); });
 // phone: the sticky bar slides in once the price in the header has scrolled away; a tap goes back to the top
 $('mini').hidden = false;
 $('mini').addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
