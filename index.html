@@ -418,7 +418,7 @@ body.swap header.top .px{opacity:.25}
       <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van de perp op tot 14 beurzen (niet elke munt staat op elke beurs; BitMEX heeft alleen BTC), in USD per blok. Waar een beurs PEPE per 1000 noteert (Binance, Bybit, Hyperliquid, Deribit) is de prijs teruggerekend naar 1 PEPE. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is de balk onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2%, dYdX ±1,5%, Hyperliquid ±2,4% (grove blokken), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json en glasssphere-&lt;munt&gt;.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de kaarsen toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke nepmuren) opvallen.</p>
       <p><b>Stops</b> (stop-loss, koopstop, verkoopstop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke top die nog niet is geraakt (koopstops van shorts en uitbraakkopers), net onder elke ongeraakte bodem (verkoopstops van longs), gewogen naar het volume rond die top of bodem en hoe recent die is, plus een kleine bijdrage op ronde $1000-niveaus. Score 0–100, geen bedrag.</p>
       <p><b>Liquidaties</b> zijn geschat uit de groei van de openstaande posities (open interest) per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de kaars sloot en voor de helft naar het aandeel kopende marktorders, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar de openstaande posities van alle beurzen samen. Onderin de grafiek staan de echte liquidaties van Gate per kaars.</p>
-      <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddeld dagbereik × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, openstaande posities, financiering (funding), CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
+      <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week; standaard 3 dagen voor BTC, ETH, SOL en BNB en 1 dag voor de andere munten) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddeld dagbereik × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, openstaande posities, financiering (funding), CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
     </div>
   </footer>
 </main>
@@ -600,6 +600,11 @@ const BTS = {
 };
 const HZ_MIN = 0.3;                   // targets at least 0.3 x the expected range away, so they are worth a trade
 const hzLabel = d => d === 1 ? '1 dag' : d === 7 ? '1 week' : d + ' dagen';
+// standard horizon per coin: 3 days for BTC, ETH, SOL and BNB; 1 day for the others, whose 3-day targets lie too far
+// away (4 to 8% against 2.6 to 5.5% in a day). A horizon chosen on a coin's page is kept for that coin only.
+const hzDefault = k => ({ btc: 3, eth: 3, sol: 3, bnb: 3 })[k] || 1;
+const horizons = {};      // chosen horizon per asset, where it differs from the standard
+const hzOf = k => horizons[k] || hzDefault(k);
 
 const $ = id => document.getElementById(id);
 const state = { asset: 'btc', data: null, live: false, src: '', range: 0.03, bucket: 0, tf: 60, horizon: 3, pcol: 'book', weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
@@ -607,13 +612,15 @@ const buckets = {};      // bucket per asset (0 = auto)
 try {
   const s = JSON.parse(localStorage.getItem('glasssphere-prefs') || '{}');
   if (s.range) state.range = s.range; if (s.bucket) buckets.btc = s.bucket; Object.assign(buckets, s.bks || {});
-  if (s.tf) state.tf = s.tf; if (s.h3) state.horizon = s.h3; if (s.pcol) state.pcol = s.pcol; if (ASSETS[s.asset]) state.asset = s.asset;
+  if (s.tf) state.tf = s.tf; Object.assign(horizons, s.hzs || {}); if (s.pcol) state.pcol = s.pcol; if (ASSETS[s.asset]) state.asset = s.asset;
   if (s.weighted === false) state.weighted = false; (s.off || []).forEach(x => state.off.add(x));
 } catch (e) {}
 if (ASSETS[location.hash.slice(1)]) state.asset = location.hash.slice(1);
 let A = ASSETS[state.asset], BT = BTS[state.asset];
 state.bucket = A.buckets.includes(buckets[state.asset]) ? buckets[state.asset] : 0;
-const savePrefs = () => { buckets[state.asset] = state.bucket; try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ asset: state.asset, range: state.range, bks: buckets, tf: state.tf, h3: state.horizon, pcol: state.pcol, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
+state.horizon = hzOf(state.asset);
+const savePrefs = () => { buckets[state.asset] = state.bucket;
+  if (state.horizon === hzDefault(state.asset)) delete horizons[state.asset]; else horizons[state.asset] = state.horizon; try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ asset: state.asset, range: state.range, bks: buckets, tf: state.tf, hzs: horizons, pcol: state.pcol, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
 
 /* ---------- fetching ---------- */
 async function getJSON(url, opts = {}) {
@@ -1361,7 +1368,7 @@ async function start() {
   document.title = state.asset === 'btc' ? 'GlassSphere' : 'GlassSphere · ' + A.name;
   $('price').textContent = '—'; $('upd').textContent = '—'; $('rd-chip').textContent = '—'; $('rd-lab').textContent = '—'; $('rd-sc').textContent = ''; $('rd-story').innerHTML = '';
   $('src').textContent = 'laden…'; shown = { a: null, p: null }; document.body.classList.add('swap');
-  renderBuckets(); refresh();
+  renderBuckets(); $('hz').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === state.horizon)); refresh();
   const s = await loadSite(); if (g !== gen) return;
   site = s; if (site) setData(site, 'site');
   if (await loadLive()) { if (g === gen) timer = setInterval(loadLive, 15e3); return; }
@@ -1370,6 +1377,7 @@ async function start() {
 function selectAsset(a) {
   state.asset = a; A = ASSETS[a]; BT = BTS[a];
   state.bucket = A.buckets.includes(buckets[a]) ? buckets[a] : 0;
+  state.horizon = hzOf(a);
   savePrefs(); start();
 }
 $('asset').addEventListener('click', e => {
@@ -1548,16 +1556,16 @@ const intro = (() => {
   function verdicts() {
     const cnt = { up: 0, down: 0, neutral: 0 };
     for (const T of tiles) {
-      const h = summary?.assets?.[T.k]?.hz?.[state.horizon], [txt, cls] = VERDICT[h?.v] || ['—', ''];
+      const H = hzOf(T.k), h = summary?.assets?.[T.k]?.hz?.[H], [txt, cls] = VERDICT[h?.v] || ['—', ''];
       T.b.children[2].textContent = txt; T.b.children[2].className = cls;
       T.b.classList.remove('v-up', 'v-dn', 'v-nt'); if (cls) T.b.classList.add('v-' + cls);
       T.vc = VC[h?.v] || TEAL; if (h?.v) cnt[h.v]++;
-      T.b.title = h?.prob ? `${txt} · ${Math.round(h.prob * 100)}% · ${hzLabel(state.horizon)}` : '';
+      T.b.title = h?.prob ? `${txt} · ${Math.round(h.prob * 100)}% · ${hzLabel(H)}` : '';
       if (T.b.children[1].textContent === '—' && summary?.assets?.[T.k]) T.b.children[1].textContent = fmt(T.k, summary.assets[T.k].price);
     }
     const tot = cnt.up + cnt.down + cnt.neutral;
     moodTo = tot ? (cnt.up - cnt.down) / tot : 0;
-    $('intro-hint').textContent = tot ? `Kies een munt · ${cnt.up} omhoog · ${cnt.down} omlaag · ${cnt.neutral} neutraal (${hzLabel(state.horizon)})` : 'Kies een munt';
+    $('intro-hint').textContent = tot ? `Kies een munt · ${cnt.up} omhoog · ${cnt.down} omlaag · ${cnt.neutral} neutraal` : 'Kies een munt';
   }
   async function prices() {
     await Promise.all(tiles.map(async T => { try {

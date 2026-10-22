@@ -1,4 +1,5 @@
-"""Hourly check for GlassSphere: the 3-day first-target verdict (the default of the page) now and an hour ago, and alerts.
+"""Hourly check for GlassSphere: the first-target verdict on the page's standard horizon (3 days for BTC, ETH, SOL and BNB,
+1 day for the others) now and an hour ago, and alerts.
 
 Reads a data file written by `glasssphere_snapshot.py DIR --asset ...` (BTC, ETH, SOL, ..., WLD) and prints one status line,
 then one line per alert starting with "MELDING:". .github/workflows/pages.yml sends the alerts to ntfy, one message
@@ -21,6 +22,8 @@ import glasssphere_model as M  # noqa: E402
 DECIMALS = {'BTC': 0, 'ETH': 1, 'SOL': 2, 'BNB': 2, 'XRP': 4, 'DOGE': 5, 'SUI': 4, 'ENA': 5, 'GALA': 6, 'PEPE': 9,
             'WLD': 4, 'NEAR': 3}   # as the page shows prices
 # smallest liquidation wave worth an alert, USD per hour (Gate's liquidations in the smaller coins are small)
+# the standard horizon of the page per asset (3 days for BTC, ETH, SOL and BNB, 1 day for the others)
+DAYS = {'BTC': 3, 'ETH': 3, 'SOL': 3, 'BNB': 3}
 LIQ_MIN = {'BTC': 1e6, 'ETH': 5e5, 'SOL': 2e5, 'BNB': 2.5e4, 'XRP': 1e5, 'DOGE': 1e5, 'SUI': 5e4, 'ENA': 2.5e4,
            'GALA': 1e4, 'PEPE': 1e5, 'WLD': 5e4, 'NEAR': 5e4}
 
@@ -59,14 +62,16 @@ def main():
     candles = snap['candles']
     oi = {t: v for t, v in snap['oi']}
     taker = {t: v for t, v in snap['taker']}
-    price, up, dn, p_up = verdict(candles, oi, taker)
-    _, up0, dn0, p_up0 = verdict(candles[:-1], oi, taker)
+    days = DAYS.get(asset, 1)
+    price, up, dn, p_up = verdict(candles, oi, taker, days)
+    _, up0, dn0, p_up0 = verdict(candles[:-1], oi, taker, days)
     lab, lab0 = label(p_up), label(p_up0)
     if p_up is None:
         print(f'{lab} · prijs {fmt(price)}')
     else:
         first, other = (up, dn) if p_up >= 0.5 else (dn, up)
-        print(f'{lab} {round(max(p_up, 1 - p_up) * 100)}%: {fmt(first[0])} vóór {fmt(other[0])} · prijs {fmt(price)}')
+        print(f'{lab} {round(max(p_up, 1 - p_up) * 100)}% ({"1 dag" if days == 1 else f"{days} dagen"}): '
+              f'{fmt(first[0])} vóór {fmt(other[0])} · prijs {fmt(price)}')
         if abs(first[0] / price - 1) <= 0.003:
             print(f'MELDING: prijs {fmt(price)} zit binnen 0,3% van het eerste doel {fmt(first[0])}')
     last = candles[-1]
