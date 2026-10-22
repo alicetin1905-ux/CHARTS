@@ -172,6 +172,7 @@ footer .dot.snap{background:var(--nt)}
   .exd>summary::-webkit-details-marker{display:none}
   .exd[open]>summary{color:var(--txt);border-color:var(--blue)}
   #cv{touch-action:pan-y}
+  .stage{background:radial-gradient(130% 55% at 45% 50%,rgba(53,255,176,.07),transparent 65%),linear-gradient(180deg,rgba(110,200,255,.04),transparent 40%)}
   .px b{font-size:24px}
   .bar .legend{margin-left:0}
   .reading{grid-template-columns:minmax(0,1fr)}
@@ -558,6 +559,8 @@ function draw() {
   const colW = narrow ? Math.round(W * 0.27) : Math.min(150, W * 0.12);
   const chartR = W - axisW - colW * cols.length - 6;
   const fs = narrow ? 11 : 10;
+  const glass = narrow;                              // GlassSphere look on phones
+  const rrect = (x, yy, w, h, r) => ctx.roundRect ? ctx.roundRect(x, yy, w, h, r) : ctx.rect(x, yy, w, h);
   const y = p => top + (model.hi - p) / (model.hi - model.lo) * (bot - top);
   const rowH = (bot - top) / model.N;
   const cs = tfCandles(), barW = narrow ? 6 : 7, nBars = Math.min(cs.length, Math.floor((chartR - 10) / barW));
@@ -597,7 +600,10 @@ function draw() {
     const yy = top + (model.N - 1 - j) * rowH;
     const layers = [[model.stop[j], model.max.stop, C.stop], [model.liq[j], model.max.liq, C.liq]];
     if (!cells.length) layers.push([model.bid[j] + model.ask[j], model.max.book, model.bid[j] >= model.ask[j] ? C.up : C.dn]);
-    for (const [v, m, col] of layers) { const a = bandA(v, m); if (a > 0.015) { ctx.fillStyle = alpha(col, a / 3 * 1.8); ctx.fillRect(0, yy, chartR, Math.max(1, rowH)); } }
+    for (const [v, m, col] of layers) { const a = bandA(v, m); if (a > 0.015) {
+      if (glass) { const g = ctx.createLinearGradient(0, 0, chartR, 0); g.addColorStop(0, alpha(col, 0)); g.addColorStop(1, alpha(col, Math.min(.5, a * 1.1))); ctx.fillStyle = g; }
+      else ctx.fillStyle = alpha(col, a / 3 * 1.8);
+      ctx.fillRect(0, yy, chartR, Math.max(1, rowH)); } }
   }
 
   // candles
@@ -605,8 +611,11 @@ function draw() {
   shown.forEach((c, i) => {
     const x = 4 + i * barW, col = c[4] >= c[1] ? C.up : C.dn;
     ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1;
+    if (glass) { ctx.shadowColor = alpha(col, .55); ctx.shadowBlur = 6; ctx.strokeStyle = alpha(col, .7); }
     ctx.beginPath(); ctx.moveTo(x + barW / 2, y(c[2])); ctx.lineTo(x + barW / 2, y(c[3])); ctx.stroke();
-    const yo = y(c[1]), yc = y(c[4]); ctx.fillRect(x + 1, Math.min(yo, yc), barW - 2, Math.max(1, Math.abs(yo - yc)));
+    const yo = y(c[1]), yc = y(c[4]);
+    if (glass) { ctx.beginPath(); rrect(x + 1, Math.min(yo, yc), barW - 2, Math.max(1.5, Math.abs(yo - yc)), 1.5); ctx.fill(); ctx.shadowBlur = 0; }
+    else ctx.fillRect(x + 1, Math.min(yo, yc), barW - 2, Math.max(1, Math.abs(yo - yc)));
   });
   ctx.restore();
   // date ticks, at least 56px apart
@@ -629,8 +638,8 @@ function draw() {
   ctx.fillStyle = C.line; ctx.fillRect(0, sMid, chartR, 1);
   for (const [i, [lu, su]] of agg) {
     const x = 4 + i * barW + 1, w = Math.max(1, (state.tf === 15 ? barW * 4 : barW) - 2);
-    ctx.fillStyle = C.up; ctx.fillRect(x, sMid - su / lm * (stripH / 2 - 2), w, su / lm * (stripH / 2 - 2));
-    ctx.fillStyle = C.dn; ctx.fillRect(x, sMid + 1, w, lu / lm * (stripH / 2 - 2));
+    ctx.fillStyle = glass ? alpha(C.up, .8) : C.up; ctx.fillRect(x, sMid - su / lm * (stripH / 2 - 2), w, su / lm * (stripH / 2 - 2));
+    ctx.fillStyle = glass ? alpha(C.dn, .8) : C.dn; ctx.fillRect(x, sMid + 1, w, lu / lm * (stripH / 2 - 2));
   }
   ctx.fillStyle = C.faint; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillText((narrow ? 'echte liq. (Gate) ↑shorts ↓longs · max ' : 'echte liquidaties (Gate) · shorts ↑ longs ↓ · max ') + fmtUsd(lm) + '/u', 6, sTop);
@@ -643,6 +652,16 @@ function draw() {
     ctx.fillText(col.name.toUpperCase(), x0 + 2, 8);
     for (let j = 0; j < model.N; j++) {
       const yy = top + (model.N - 1 - j) * rowH, h = Math.max(1, rowH - (rowH > 4 ? 1 : 0));
+      if (glass) {
+        const mid = (model.lo + (j + .5) * model.B) < model.price;
+        const v = col.key === 'book' ? (mid ? model.bid[j] : model.ask[j]) : model[col.key][j]; if (!v) continue;
+        const c0 = col.key === 'book' ? (mid ? C.up : C.dn) : col.key === 'stop' ? C.stop : C.liq;
+        const rel = v / model.max[col.key], bw = rel * w; if (bw < 3) continue;   // skip slivers, they read as dots
+        const g = ctx.createLinearGradient(x0, 0, x0 + bw, 0); g.addColorStop(0, alpha(c0, .25)); g.addColorStop(1, alpha(c0, .95));
+        ctx.fillStyle = g; if (rel > .6) { ctx.shadowColor = alpha(c0, .7); ctx.shadowBlur = 8; }
+        ctx.beginPath(); rrect(x0, yy + .5, bw, Math.max(1, h - 1), Math.min(3, h / 2)); ctx.fill(); ctx.shadowBlur = 0;
+        continue;
+      }
       if (col.key === 'book') {
         const m = model.max.book, mid = (model.lo + (j + .5) * model.B) < model.price;
         // stack per exchange so the source of a wall is visible
@@ -664,11 +683,30 @@ function draw() {
     }
   });
 
+  // GlassSphere targets (the reading's chosen horizon) as dashed lines, the more likely one labelled
+  const T = state.targets;
+  if (glass && T) for (const [p, up] of [[T.up, true], [T.dn, false]]) {
+    if (p == null || p < model.lo || p > model.hi) continue;
+    const yy = Math.round(y(p)) + .5, c0 = up ? C.up : C.dn, isFirst = p === T.first;
+    ctx.strokeStyle = alpha(c0, isFirst ? .9 : .55); ctx.lineWidth = isFirst ? 1.5 : 1; ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W - axisW, yy); ctx.stroke(); ctx.setLineDash([]);
+    const txt = `${up ? '▲' : '▼'} ${fmtP(p)}${isFirst ? ` · eerst ${Math.round(T.prob * 100)}%` : ''}`;
+    ctx.font = `600 ${fs}px ` + css('--mono'); const tw = ctx.measureText(txt).width + 14;
+    ctx.fillStyle = alpha(css('--bg'), .85); ctx.strokeStyle = alpha(c0, .8); ctx.lineWidth = 1;
+    ctx.beginPath(); rrect(6, yy - 10, tw, 20, 10); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = c0; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(txt, 13, yy);
+  }
   // current price
   const yp = Math.round(y(model.price)) + .5;
+  if (glass) {
+    ctx.strokeStyle = C.txt; ctx.lineWidth = 1.5; ctx.shadowColor = alpha(C.txt, .8); ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.moveTo(0, yp); ctx.lineTo(W - axisW, yp); ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.fillStyle = C.txt; ctx.beginPath(); rrect(W - axisW + 1, yp - 10, axisW - 2, 20, 10); ctx.fill();
+  } else {
   ctx.strokeStyle = C.txt; ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, yp); ctx.lineTo(W - axisW, yp); ctx.stroke(); ctx.setLineDash([]);
   ctx.fillStyle = C.txt; ctx.fillRect(W - axisW + 1, yp - 10, axisW - 1, 20);
+  }
   ctx.fillStyle = css('--bg'); ctx.font = `700 ${fs}px ` + css('--mono'); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(fmtP(model.price), W - axisW + 4, yp);
 
@@ -896,6 +934,7 @@ function renderReading() {
     </ul></details>`;
   html += `<p class="fine">Een rekensom op de orders en posities van dit moment, geen advies. Muren in het orderboek kunnen binnen seconden verdwijnen, en stops en liquidaties zijn schattingen.</p>`;
   $('rd-story').innerHTML = html;
+  state.targets = { up: r.tUp?.p, dn: r.tDn?.p, first: first?.p, prob, hl };
 }
 
 /* ---------- controls ---------- */
@@ -938,8 +977,9 @@ $('pcol').addEventListener('click', e => {
 
 function refresh() {
   $('bk').querySelector('[data-v="0"]').textContent = 'Auto · $' + (AUTO_BUCKET[state.range] || 100);
-  buildModel(); renderExchanges(); draw(); renderLevels();
+  buildModel(); renderExchanges(); renderLevels();
   if (state.data) renderReading();
+  draw();
 }
 new ResizeObserver(() => draw()).observe(cv);
 
