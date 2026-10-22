@@ -1,4 +1,4 @@
-"""Hourly check for GlassSphere: the 1-day first-target verdict (the default of the page) now and an hour ago, and alerts.
+"""Hourly check for GlassSphere: the 3-day first-target verdict (the default of the page) now and an hour ago, and alerts.
 
 Reads the glasssphere-data.json written by `glasssphere_snapshot.py DIR` and prints one status line, then one
 line per alert starting with "MELDING:". .github/workflows/pages.yml sends the alerts to ntfy. Alerts:
@@ -24,7 +24,7 @@ def verdict(candles, oi, taker):
         book.step(k, c, oi.get(c[0]), oi.get(c[0] + 3600000), taker.get(c[0]))
     stops = M.estimate_stops(candles, price)
     pl = M.pools(stops, [(q[0], q[1], q[2]) for q in book.pos], price, rng=0.15)
-    up, dn, p_up = M.first_targets(pl, price, M.r24_of(candles), days=1)
+    up, dn, p_up = M.first_targets(pl, price, M.r24_of(candles), days=3)
     return price, up, dn, p_up
 
 
