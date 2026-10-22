@@ -1,4 +1,4 @@
-"""Backtest the reading of liquidity-map.html on Gate BTC_USDT perpetual, 1H, last 180 days.
+"""Backtest the reading of index.html on Gate BTC_USDT perpetual, 1H, last 180 days.
 
 Gate is the one free source with 180 days of hourly open interest, taker buy/sell ratio and real
 liquidations (contract_stats). The order-book factor cannot be tested: there is no free book history.

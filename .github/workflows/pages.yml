@@ -1,4 +1,4 @@
-# Publishes the HTML pages to GitHub Pages, with liquidity-data.json for liquidity-map.html refreshed every hour.
+# Publishes the HTML pages to GitHub Pages, with liquidity-data.json for index.html refreshed every hour.
 # One-time setup: Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
 name: Pages
 
@@ -32,7 +32,7 @@ jobs:
         run: |
           mkdir -p _site
           cp *.html _site/
-          # data for liquidity-map.html; the book history of the live site is carried forward
+          # data for index.html; the book history of the live site is carried forward
           python3 scripts/liquidity_snapshot.py --site _site --prev "${{ steps.pages.outputs.base_url }}/liquidity-data.json"
       - uses: actions/upload-pages-artifact@v3
         with:

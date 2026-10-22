@@ -1,4 +1,4 @@
-"""Fetch the data behind liquidity-map.html and embed it in the page, or write it for the page's database.
+"""Fetch the data behind index.html and embed it in the page, or write it for the page's database.
 
 The page fetches the same data live in the browser where the exchanges allow it. On GitHub Pages it also reads
 liquidity-data.json next to it (written every hour by .github/workflows/pages.yml with --site), for the exchanges a
@@ -17,7 +17,7 @@ Snapshot shape:
   market    {exchange: {oi, vol, fund}} open interest (USD), 24h volume (USD), funding per 8h
   bookHist  [{t, b: [[price, bid_usd, ask_usd], ...]}] hourly combined books, $100 bins within ±6%
 
-    python3 scripts/liquidity_snapshot.py                 embed into liquidity-map.html
+    python3 scripts/liquidity_snapshot.py                 embed into index.html
     python3 scripts/liquidity_snapshot.py --db DIR        write DIR/snap.json and DIR/bookhist.json (no embed)
     python3 scripts/liquidity_snapshot.py --site DIR [--prev URL]
                                                           write DIR/liquidity-data.json (no embed), carrying the
@@ -32,7 +32,7 @@ import time
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGE = os.path.join(ROOT, 'liquidity-map.html')
+PAGE = os.path.join(ROOT, 'index.html')
 BIN = 10
 HIST_BIN = 100
 
@@ -339,7 +339,7 @@ def main():
     html = open(PAGE, encoding='utf-8').read()
     old = re.search(r'/\*SNAPSHOT\*/(.*?)/\*END SNAPSHOT\*/', html, re.S)
     if not old:
-        raise SystemExit('snapshot markers not found in liquidity-map.html')
+        raise SystemExit('snapshot markers not found in index.html')
     try:
         with_history(json.loads(old.group(1)).get('bookHist', []))
     except (ValueError, AttributeError):

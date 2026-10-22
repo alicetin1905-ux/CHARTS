@@ -1,4 +1,4 @@
-"""Stop / liquidation estimates and reading signals of liquidity-map.html, in Python.
+"""Stop / liquidation estimates and reading signals of index.html, in Python.
 
 Mirrors the page's JavaScript so scripts/liquidity_backtest.py tests the same logic. Keep both in step.
 
