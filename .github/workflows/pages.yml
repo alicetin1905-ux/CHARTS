@@ -42,6 +42,8 @@ jobs:
           for a in eth sol bnb xrp doge sui ena gala pepe wld near; do
             python3 scripts/glasssphere_snapshot.py _site --asset $a --prev "$base/glasssphere-$a.json"
           done
+          # every asset's verdict in one small file, for the coin tiles on the start page
+          python3 scripts/glasssphere_summary.py _site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

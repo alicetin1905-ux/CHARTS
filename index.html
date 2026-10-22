@@ -213,17 +213,18 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
 #intro .ttl h2{font-size:22px;font-weight:600;letter-spacing:.06em;text-shadow:0 0 22px rgba(53,255,176,.35)}
 #intro .hint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);text-align:center;font-family:var(--mono);font-size:11px;
   color:var(--faint);letter-spacing:.08em;pointer-events:none}
-#intro .ct{position:absolute;left:0;top:0;width:86px;padding:8px 6px 7px;display:grid;gap:2px;justify-items:center;cursor:pointer;
+#intro .ct{position:absolute;left:0;top:0;width:92px;padding:8px 6px 7px;display:grid;gap:2px;justify-items:center;cursor:pointer;
   font:inherit;color:var(--txt);background:var(--glass),rgba(14,20,18,.72);border:1px solid var(--edge);border-radius:14px;
   box-shadow:inset 0 1px 0 var(--edge-hi),0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   will-change:transform,opacity;opacity:0;transition:border-color .2s,box-shadow .2s}
 #intro .ct b{font-family:var(--mono);font-size:14px;font-weight:600;letter-spacing:.05em}
 #intro .ct span{font-family:var(--mono);font-size:10px;color:var(--dim);white-space:nowrap}
-#intro .ct i{font-style:normal;font-family:var(--mono);font-size:10px}
+#intro .ct i{font-style:normal;font-family:var(--mono);font-size:10px;white-space:nowrap}
+#intro .ct i.nt{color:var(--nt)}
 #intro .ct:hover,#intro .ct:focus-visible{border-color:rgba(53,255,176,.55);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 22px rgba(53,255,176,.25)}
 .mark{cursor:pointer}
 @media (max-width:760px){
-  #intro .ct{width:72px;padding:6px 4px;border-radius:12px}
+  #intro .ct{width:80px;padding:6px 3px;border-radius:12px}
   #intro .ct b{font-size:12.5px}
   #intro .ct span,#intro .ct i{font-size:9px}
 }
@@ -1328,7 +1329,7 @@ const intro = (() => {
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); g.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   function geo() {
-    const R = Math.max(56, Math.min(140, Math.min(W, H) * 0.16)), tw = W < 640 ? 72 : 86, th = W < 640 ? 46 : 54;
+    const R = Math.max(56, Math.min(140, Math.min(W, H) * 0.16)), tw = W < 640 ? 80 : 92, th = W < 640 ? 46 : 54;
     const rx = Math.min(W / 2 - tw / 2 - 10, R * 3.4), ry = Math.min(H / 2 - th / 2 - 78, R * 4);
     // points spaced evenly along the ellipse (not by angle, which bunches the coins where it is flattest)
     if (!arc || arc.rx !== rx || arc.ry !== ry) {
@@ -1425,24 +1426,40 @@ const intro = (() => {
     orb(cx, cy + bob, R * (0.85 + 0.15 * ease(open)) * (1 + zoom * (Math.hypot(W, H) / R)), t, boost);
     g.globalAlpha = 1;
   }
-  async function prices() {     // OKX tickers: last price and change over 24h, on each tile
+  // each tile: the live price (OKX, every 15 s while the sphere is open) and the GlassSphere verdict for the chosen
+  // horizon, from glasssphere-summary.json (written every hour with the data files)
+  const fmt = (k, p) => p.toLocaleString('en-US', { minimumFractionDigits: ASSETS[k].dec, maximumFractionDigits: ASSETS[k].dec });
+  const VERDICT = { up: ['Eerst omhoog', 'up'], down: ['Eerst omlaag', 'dn'], neutral: ['Neutraal', 'nt'] };
+  let summary = null, ptimer = 0;
+  function verdicts() {
+    for (const T of tiles) {
+      const h = summary?.assets?.[T.k]?.hz?.[state.horizon], [txt, cls] = VERDICT[h?.v] || ['—', ''];
+      T.b.children[2].textContent = txt; T.b.children[2].className = cls;
+      T.b.title = h?.prob ? `${txt} · ${Math.round(h.prob * 100)}% · ${hzLabel(state.horizon)}` : '';
+      if (T.b.children[1].textContent === '—' && summary?.assets?.[T.k]) T.b.children[1].textContent = fmt(T.k, summary.assets[T.k].price);
+    }
+  }
+  async function prices() {
     await Promise.all(tiles.map(async T => { try {
-      const A2 = ASSETS[T.k], x = (await getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${A2.okx}`)).data[0];
-      const last = +x.last, ch = last / +x.open24h - 1;
-      T.b.children[1].textContent = last.toLocaleString('en-US', { minimumFractionDigits: A2.dec, maximumFractionDigits: A2.dec });
-      T.b.children[2].textContent = (ch >= 0 ? '+' : '') + (ch * 100).toFixed(1) + '%'; T.b.children[2].className = ch >= 0 ? 'up' : 'dn';
+      const x = (await getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${ASSETS[T.k].okx}`)).data[0];
+      T.b.children[1].textContent = fmt(T.k, +x.last);
     } catch (e) {} }));
   }
+  async function loadSummary() {
+    if (!/^https?:$/.test(location.protocol)) return;
+    try { const r = await fetch('glasssphere-summary.json', { cache: 'no-store' }); if (r.ok) { summary = await r.json(); verdicts(); } } catch (e) {}
+  }
   function finish() {
-    cancelAnimationFrame(raf); raf = 0; el.hidden = true; document.body.style.overflow = '';
+    cancelAnimationFrame(raf); raf = 0; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer);
     const a = tiles[pick.i].k; pick = null;
     if (location.hash !== '#' + a) location.hash = a;       // a history entry, so Back returns to the sphere
   }
   function show() {
     el.hidden = false; el.style.opacity = 1; document.body.style.overflow = 'hidden'; pick = null; hover = -1;
-    size(); t0 = performance.now(); if (!raf) raf = requestAnimationFrame(frame); prices();
+    size(); t0 = performance.now(); if (!raf) raf = requestAnimationFrame(frame);
+    verdicts(); loadSummary(); prices(); clearInterval(ptimer); ptimer = setInterval(prices, 15e3);
   }
-  function hide() { if (el.hidden) return; cancelAnimationFrame(raf); raf = 0; pick = null; el.hidden = true; document.body.style.overflow = ''; }
+  function hide() { if (el.hidden) return; cancelAnimationFrame(raf); raf = 0; pick = null; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); }
   wrap.addEventListener('click', e => {
     const b = e.target.closest('.ct'); if (!b || pick) return;
     const T = tiles.find(x => x.b === b);

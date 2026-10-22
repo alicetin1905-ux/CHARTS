@@ -25,14 +25,14 @@ LIQ_MIN = {'BTC': 1e6, 'ETH': 5e5, 'SOL': 2e5, 'BNB': 2.5e4, 'XRP': 1e5, 'DOGE':
            'GALA': 1e4, 'PEPE': 1e5, 'WLD': 5e4, 'NEAR': 5e4}
 
 
-def verdict(candles, oi, taker):
+def verdict(candles, oi, taker, days=3):
     price = candles[-1][4]
     book = M.LiqBook('taker')
     for k, c in enumerate(candles):
         book.step(k, c, oi.get(c[0]), oi.get(c[0] + 3600000), taker.get(c[0]))
     stops = M.estimate_stops(candles, price)
     pl = M.pools(stops, [(q[0], q[1], q[2]) for q in book.pos], price, rng=0.15)
-    up, dn, p_up = M.first_targets(pl, price, M.r24_of(candles), days=3)
+    up, dn, p_up = M.first_targets(pl, price, M.r24_of(candles), days=days)
     return price, up, dn, p_up
 
 
