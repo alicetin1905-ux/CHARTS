@@ -1306,7 +1306,7 @@ function setData(raw, mode) {
   $('upd').textContent = t.toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
   $('dot').className = 'dot ' + (mode === 'live' ? 'live' : 'snap');
   const n = Object.keys(raw.books).length;
-  $('src').textContent = mode === 'live' ? `live · ${n} orderboeken · ververst elke 15 s`
+  $('src').textContent = mode === 'live' ? `live · prijs per trade · ${n} orderboeken elke 15 s`
     : mode === 'site' ? `elk uur ververst · ${n} orderboeken · ${state.data.bookHist.length} uur boekgeschiedenis`
     : `${n} orderboeken`;
   refresh();
@@ -1330,13 +1330,60 @@ async function loadLive() {
     const books = await fetchBooks(); if (g !== gen) return false;
     if (!Object.keys(books).length) throw new Error('no books');
     const last = series.candles[series.candles.length - 1][4];
-    const ts = Date.now(), raw = { ts, price: last, books, ...series, market, bookHist: state.data?.bookHist || site?.bookHist };
+    const ts = Date.now(), raw = { ts, price: live.fresh() || last, books, ...series, market, bookHist: state.data?.bookHist || site?.bookHist };
     setData(raw, 'live');
     const e = histEntry(books, state.data.weights, last, ts);
     liveHist = [...liveHist.filter(x => x.t !== e.t), e].slice(-48);
     return true;
   } catch (e) { return false; }
 }
+// the live price: OKX's ticker stream for the coin on screen (it pushes every trade), polling the ticker every 3 s
+// while the stream is down. The header, the last candle and the chart's price line follow it, at most once a second
+const live = (() => {
+  let ws = null, inst = null, px = null, at = 0, ping = 0, poll = 0, retry = 0, retryT = 0, shownAt = 0, drawT = 0;
+  const DUR = [['candles', 3.6e6], ['candles15', 9e5], ['candles4h', 1.44e7]];
+  const paint = () => { drawT = 0; shownAt = Date.now(); showPrice(px); draw(); dot(px); };
+  // the price's dot on the target bar: where it sits between the lower and the upper target
+  function dot(p) {
+    const T = state.targets; if (!T || !(T.up > T.dn)) return;
+    const pos = Math.max(0, Math.min(100, (p - T.dn) / (T.up - T.dn) * 100));
+    $('rd-dot').style.left = pos + '%'; $('rd-now').textContent = fmtP(p);
+    $('rd-now').style.transform = `translateX(${pos > 80 ? -85 : pos < 20 ? -15 : -50}%)`;
+  }
+  function apply(p) {
+    if (!(p > 0) || inst !== A.okx) return;
+    px = p; at = Date.now();
+    const D = state.data; if (!D || !model) return;
+    for (const [k, ms] of DUR) { const cs = D[k], c = cs?.[cs.length - 1];       // only a candle that is still open
+      if (c && at < c[0] + ms) { c[4] = p; if (p > c[2]) c[2] = p; if (p < c[3]) c[3] = p; } }
+    model.price = p;
+    if (at - shownAt >= 1000) paint(); else if (!drawT) drawT = setTimeout(paint, 1000 - (at - shownAt));
+  }
+  async function pollOnce() {
+    const i = inst; try { const x = (await getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${i}`)).data[0]; if (i === inst) apply(+x.last); } catch (e) {}
+  }
+  function open() {
+    if (!inst || ws) return;
+    let me; try { me = ws = new WebSocket('wss://ws.okx.com:8443/ws/v5/public'); } catch (e) { ws = null; return; }
+    me.onopen = () => { retry = 0; clearInterval(poll); poll = 0;
+      me.send(JSON.stringify({ op: 'subscribe', args: [{ channel: 'tickers', instId: inst }] }));
+      ping = setInterval(() => me.readyState === 1 && me.send('ping'), 25e3); };      // OKX closes a silent stream after 30 s
+    me.onmessage = e => { if (e.data === 'pong') return;
+      try { const m = JSON.parse(e.data); if (m.arg?.instId === inst && m.data?.[0]) apply(+m.data[0].last); } catch (er) {} };
+    me.onclose = () => { clearInterval(ping); if (ws !== me) return; ws = null; if (!inst) return;
+      if (!poll) poll = setInterval(pollOnce, 3000);
+      retryT = setTimeout(open, Math.min(30e3, 1000 * 2 ** retry++)); };
+    me.onerror = () => me.close();
+  }
+  function stop() {
+    inst = null; px = null; clearTimeout(retryT); clearInterval(poll); poll = 0; clearTimeout(drawT); drawT = 0; clearInterval(ping);
+    const w = ws; ws = null; if (w) { w.onclose = null; try { w.close(); } catch (e) {} }
+  }
+  function start() { stop(); if (document.visibilityState === 'hidden') return; inst = A.okx; pollOnce(); open(); }
+  // the price if it is fresh (the candles behind loadLive are fetched every 5 minutes)
+  const fresh = () => inst === A.okx && px && Date.now() - at < 10e3 ? px : null;
+  return { start, stop, fresh, get on() { return !!inst; } };
+})();
 let loaded = null;        // the asset start() last loaded
 async function start() {
   const g = ++gen; loaded = state.asset;
@@ -1349,6 +1396,7 @@ async function start() {
   $('price').textContent = '—'; $('upd').textContent = '—'; $('rd-chip').textContent = '—'; $('rd-lab').textContent = '—'; $('rd-sc').textContent = ''; $('rd-story').innerHTML = '';
   $('src').textContent = 'laden…'; shown = { a: null, p: null }; document.body.classList.add('swap');
   renderBuckets(); $('hz').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === state.horizon)); refresh();
+  live.start();
   const s = await loadSite(); if (g !== gen) return;
   site = s; if (site) setData(site, 'site');
   if (await loadLive()) { if (g === gen) timer = setInterval(loadLive, 15e3); return; }
@@ -1676,7 +1724,7 @@ const intro = (() => {
   }
   function show() {
     el.hidden = false; el.style.opacity = 1; document.body.style.overflow = 'hidden'; pick = null; hover = -1; hideCard(cardEl); hideCard(sumEl);
-    size(); t0 = performance.now(); if (!raf) raf = requestAnimationFrame(frame);
+    size(); t0 = performance.now(); if (!raf) raf = requestAnimationFrame(frame); live.stop();
     verdicts(); loadSummary(); prices(); clearInterval(ptimer); ptimer = setInterval(prices, 15e3);
   }
   function hide() { if (el.hidden) return; cancelAnimationFrame(raf); raf = 0; pick = null; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); instant = false; }
@@ -1725,8 +1773,12 @@ $('back').addEventListener('click', toSphere);
 document.querySelector('.mark').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toSphere(); } });
 addEventListener('hashchange', () => {          // Back / Forward between the sphere and a coin
   const a = location.hash.slice(1);
-  if (ASSETS[a]) { intro.hide(); if (a !== loaded) selectAsset(a); }
+  if (ASSETS[a]) { intro.hide(); if (a !== loaded) selectAsset(a); else live.start(); }
   else intro.show();
+});
+// the live price only while a coin's page is on screen
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') live.stop(); else if (!intro.open && loaded) live.start();
 });
 if (ASSETS[location.hash.slice(1)]) start(); else intro.show();
 
