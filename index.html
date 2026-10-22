@@ -61,6 +61,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .mark h1{font-size:16px;font-weight:600;letter-spacing:.04em}
 .mark span{font-size:11px;color:var(--faint);font-family:var(--mono)}
 .px{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.px .clogo{width:30px;height:30px;border-radius:50%;align-self:center;transition:box-shadow .6s}
 .px b{font-size:30px;font-weight:600;letter-spacing:-.02em}
 .px span{font-family:var(--mono);font-size:12px;color:var(--dim)}
 .ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0;max-width:100%}
@@ -116,9 +117,19 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 .verdict .k{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 .verdict .lab{font-size:24px;font-weight:700;letter-spacing:-.01em}
 .verdict .sc{font-family:var(--mono);font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
-.gauge{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--dn),var(--line2) 50%,var(--up));margin-top:4px}
-.gauge i{position:absolute;top:-4px;width:3px;height:16px;background:var(--txt);border-radius:2px;transform:translateX(-50%)}
-.gauge-sc{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--faint)}
+/* target bar: the lower target left, the upper right, the live price as a glowing dot between them */
+.route{margin-top:22px}
+.rt-bar{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--dn),rgba(255,255,255,.08) 50%,var(--up))}
+.rt-dot{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--txt);
+  box-shadow:0 0 0 3px rgba(238,244,240,.18),0 0 14px rgba(238,244,240,.9);transition:left .9s cubic-bezier(.3,.7,.3,1)}
+.rt-dot span{position:absolute;bottom:17px;left:50%;transform:translateX(-50%);font:600 11px var(--mono);color:var(--txt);white-space:nowrap}
+.rt-ends{display:flex;justify-content:space-between;gap:8px;margin-top:9px;font-family:var(--mono);font-size:11px}
+.rt-ends span{display:grid;gap:1px;padding:3px 7px;border-radius:8px;border:1px solid transparent}
+.rt-ends span:last-child{text-align:right}
+.rt-ends b{font-weight:600}
+.rt-ends em{font-style:normal;font-size:10px;color:var(--dim)}
+.rt-ends .first{border-color:var(--nt);box-shadow:0 0 12px rgba(255,200,87,.2)}
+.rt-ends .lo b{color:var(--dn)} .rt-ends .hi b{color:var(--up)}
 .story{padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0;line-height:1.6}
 .story p{max-width:90ch}
 .story h3{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
@@ -199,7 +210,7 @@ header.top{background:rgba(7,10,9,.7);backdrop-filter:blur(18px) saturate(1.2);-
 .meter i{border-radius:4px}
 .verdict{border-right-color:var(--edge)}
 .verdict .lab{text-shadow:0 0 18px currentColor}
-.gauge i{box-shadow:0 0 10px rgba(238,244,240,.8)}
+
 .tg-row,.kv div{background:var(--glass);border-color:var(--edge);border-radius:12px;box-shadow:inset 0 1px 0 var(--edge-hi)}
 .tg-row b,.kv b{text-shadow:0 0 12px currentColor}
 .tg-row.now{background:transparent;border-color:rgba(238,244,240,.18)}
@@ -283,6 +294,22 @@ body.swap header.top .px{opacity:.25}
 @media (prefers-reduced-motion:reduce){main,header.top .px{transition:none}}
 #intro .ct:hover,#intro .ct:focus-visible{border-color:rgba(53,255,176,.55);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 22px rgba(53,255,176,.25)}
 .mark{cursor:pointer}
+/* phone: a slim glass bar with the coin, price and verdict once the header has scrolled away */
+.mini{display:none}
+@media (max-width:760px){
+  .mini{position:fixed;left:0;right:0;top:0;z-index:25;display:flex;align-items:center;gap:8px;cursor:pointer;
+    padding:calc(env(safe-area-inset-top,0px) + 7px) 16px 8px;background:rgba(7,10,9,.78);backdrop-filter:blur(16px) saturate(1.2);
+    -webkit-backdrop-filter:blur(16px) saturate(1.2);border-bottom:1px solid var(--edge);font-family:var(--mono);font-size:13px;
+    transform:translateY(-110%);transition:transform .25s ease}
+  .mini.show{transform:none}
+  .mini[hidden]{display:none}
+  .mini img{width:20px;height:20px;border-radius:50%}
+  .mini #mini-v{margin-left:auto;font-size:12px}
+  .px .clogo{width:24px;height:24px}
+}
+/* a short note on the chart while zoomed */
+.vh canvas{display:block;width:100%;height:96px}
+.vh-t{font-size:12px;color:var(--dim);margin-top:6px}
 /* back to the sphere: a clear glass pill at the start of the header */
 .back{display:inline-flex;align-items:center;gap:7px;font:inherit;font-size:13px;font-weight:600;color:var(--txt);cursor:pointer;
   padding:7px 14px 7px 10px;border-radius:999px;border:1px solid rgba(53,255,176,.45);
@@ -369,7 +396,7 @@ body.swap header.top .px{opacity:.25}
     <button data-a="wld"><img src="icons/coins/wld.png" alt="" width="16" height="16">WLD</button>
     <button data-a="near"><img src="icons/coins/near.png" alt="" width="16" height="16">NEAR</button>
   </nav>
-  <div class="px"><b id="price">—</b><span id="upd">—</span></div>
+  <div class="px"><img class="clogo" id="coin-logo" src="icons/coins/btc.png" alt="" width="30" height="30"><b id="price">—</b><span id="upd">—</span></div>
   <div class="ctl">
     <span class="grp"><label for="tf">Kaarsen</label>
     <div class="seg" id="tf">
@@ -388,6 +415,9 @@ body.swap header.top .px{opacity:.25}
     <div class="seg" id="bk"></div></span>
   </div>
 </header>
+<div class="mini" id="mini" hidden role="button" tabindex="0" title="Naar boven">
+  <img id="mini-logo" src="icons/coins/btc.png" alt="" width="20" height="20"><b id="mini-name">BTC</b><span id="mini-price">—</span><span id="mini-v">—</span>
+</div>
 
 <main>
   <details class="card" id="rd" open>
@@ -402,8 +432,10 @@ body.swap header.top .px{opacity:.25}
         <div class="k">Eerste doel</div>
         <div class="lab" id="rd-lab">—</div>
         <div class="sc" id="rd-sc">—</div>
-        <div><div class="gauge"><i id="rd-g" style="left:50%"></i></div>
-        <div class="gauge-sc"><span>omlaag</span><span>50/50</span><span>omhoog</span></div></div>
+        <div class="route" aria-label="De prijs tussen de twee doelen">
+          <div class="rt-bar"><b class="rt-dot" id="rd-dot"><span id="rd-now">—</span></b></div>
+          <div class="rt-ends"><span id="rd-lo">—</span><span id="rd-hi">—</span></div>
+        </div>
       </div>
       <div class="story" id="rd-story"></div>
     </div>
@@ -643,7 +675,7 @@ const horizons = {};      // chosen horizon per asset, where it differs from the
 const hzOf = k => horizons[k] || hzDefault(k);
 
 const $ = id => document.getElementById(id);
-const state = { asset: 'btc', data: null, live: false, src: '', range: 0.03, bucket: 0, tf: 60, horizon: 3, pcol: 'book', weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
+const state = { zoom: 1, hoverX: null, asset: 'btc', data: null, live: false, src: '', range: 0.03, bucket: 0, tf: 60, horizon: 3, pcol: 'book', weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
 const buckets = {};      // bucket per asset (0 = auto)
 try {
   const s = JSON.parse(localStorage.getItem('glasssphere-prefs') || '{}');
@@ -787,22 +819,24 @@ function estimateStops(candles, price, lo, hi) {
 }
 // Liquidations: OI added each hour at that hour's average price, split long/short half by where the candle
 // closed and half by the taker buy share, at the leverage mix that best matched real liquidations.
-function estimateLiqs(candles, oi, taker) {
+// onBar(i, positions), if given, sees the open positions after each bar (the verdict history uses it).
+function estimateLiqs(candles, oi, taker, onBar) {
   const oiAt = new Map(oi), tkAt = new Map(taker || []); let pos = [];
-  for (const [t, o, h, l, c] of candles) {
+  candles.forEach(([t, o, h, l, c], i) => {
     pos = pos.filter(q => q.side === 'long' ? l > q.p : h < q.p);
-    const a = oiAt.get(t), b = oiAt.get(t + 3.6e6);
-    if (a == null || b == null) continue;
-    const d = b - a;
-    if (d < 0) { const r = b / a; pos.forEach(q => q.usd *= r); continue; }
-    let share = h > l ? (c - l) / (h - l) : 0.5;
-    const tk = tkAt.get(t); if (tk != null) share = 0.5 * share + 0.5 * tk;
-    const entry = (o + h + l + c) / 4;
-    for (const [L, w] of LEV) {
-      pos.push({ p: entry * (1 - 1 / L + MAINT), side: 'long', usd: d * share * w });
-      pos.push({ p: entry * (1 + 1 / L - MAINT), side: 'short', usd: d * (1 - share) * w });
+    const a = oiAt.get(t), b = oiAt.get(t + 3.6e6), d = a != null && b != null ? b - a : null;
+    if (d != null && d < 0) { const r = b / a; pos.forEach(q => q.usd *= r); }
+    else if (d != null) {
+      let share = h > l ? (c - l) / (h - l) : 0.5;
+      const tk = tkAt.get(t); if (tk != null) share = 0.5 * share + 0.5 * tk;
+      const entry = (o + h + l + c) / 4;
+      for (const [L, w] of LEV) {
+        pos.push({ p: entry * (1 - 1 / L + MAINT), side: 'long', usd: d * share * w });
+        pos.push({ p: entry * (1 + 1 / L - MAINT), side: 'short', usd: d * (1 - share) * w });
+      }
     }
-  }
+    if (onBar) onBar(i, pos);
+  });
   return pos;
 }
 // Exchanges whose share of the depth within ±1% exceeds their share of 24h volume are scaled down to it.
@@ -877,14 +911,14 @@ function showPrice(p) {
   const el = $('price');
   cancelAnimationFrame(priceTween);
   if (shown.a !== state.asset || shown.p == null || matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    el.textContent = fmtP(p); shown = { a: state.asset, p }; return;
+    el.textContent = $('mini-price').textContent = fmtP(p); shown = { a: state.asset, p }; return;
   }
   const from = shown.p; shown.p = p;
   if (from === p) { el.textContent = fmtP(p); return; }
   flash(el, p > from);
   const t0 = performance.now();
   const step = now => { const k = Math.min(1, (now - t0) / 450), e = 1 - Math.pow(1 - k, 3);
-    el.textContent = fmtP(from + (p - from) * e); if (k < 1) priceTween = requestAnimationFrame(step); };
+    el.textContent = $('mini-price').textContent = fmtP(from + (p - from) * e); if (k < 1) priceTween = requestAnimationFrame(step); };
   priceTween = requestAnimationFrame(step);
 }
 const fmtP = p => p.toLocaleString('nl-NL', { minimumFractionDigits: A.dec, maximumFractionDigits: A.dec });
@@ -912,7 +946,7 @@ function draw() {
   const rrect = (x, yy, w, h, r) => ctx.roundRect ? ctx.roundRect(x, yy, w, h, r) : ctx.rect(x, yy, w, h);
   const y = p => top + (model.hi - p) / (model.hi - model.lo) * (bot - top);
   const rowH = (bot - top) / model.N;
-  const cs = tfCandles(), barW = narrow ? 6 : 7, nBars = Math.min(cs.length, Math.floor((chartR - 10) / barW));
+  const cs = tfCandles(), barW = (narrow ? 6 : 7) * state.zoom, nBars = Math.min(cs.length, Math.floor((chartR - 10) / barW));
   const shown = cs.slice(cs.length - nBars), tfMs = state.tf * 60e3;
   const colOf = t => { for (let i = nBars - 1; i >= 0; i--) if (shown[i][0] <= t) return t < shown[i][0] + tfMs ? i : -1; return -1; };
   geo = { y, top, bot, chartR, colW, axisW, W, H, barW, nBars, shown };
@@ -1060,11 +1094,28 @@ function draw() {
   ctx.fillStyle = css('--bg'); ctx.font = `700 ${fs}px ` + css('--mono'); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(fmtP(model.price), W - axisW + 4, yp);
 
-  // hover line
+  // crosshair: a line at the pointer both ways, its price on the axis and the candle's time at the bottom
   if (state.hover != null) {
-    const yy = state.hover; ctx.strokeStyle = C.dim; ctx.lineWidth = 1;
+    const yy = state.hover; ctx.strokeStyle = C.dim; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
     ctx.beginPath(); ctx.moveTo(0, yy + .5); ctx.lineTo(W - axisW, yy + .5); ctx.stroke();
+    const xx = state.hoverX;
+    if (xx != null && xx < chartR) { ctx.beginPath(); ctx.moveTo(Math.round(xx) + .5, top); ctx.lineTo(Math.round(xx) + .5, bot + stripH); ctx.stroke(); }
+    ctx.setLineDash([]);
+    const ph = model.hi - (yy - top) / (bot - top) * (model.hi - model.lo), lbl = fmtP(ph);
+    ctx.font = fs + 'px ' + css('--mono'); const lw = ctx.measureText(lbl).width + 10;
+    ctx.fillStyle = 'rgba(238,244,240,.9)'; ctx.beginPath(); rrect(W - axisW + 1, yy - 9, Math.min(lw, axisW - 2), 18, 9); ctx.fill();
+    ctx.fillStyle = css('--bg'); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(lbl, W - axisW + 6, yy);
+    const i = xx == null ? -1 : Math.floor((xx - 4) / barW);
+    if (i >= 0 && i < nBars) {
+      const d = new Date(shown[i][0]);
+      const tl = d.toLocaleString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      const tw2 = ctx.measureText(tl).width + 12, tx = Math.max(2, Math.min(chartR - tw2 - 2, xx - tw2 / 2));
+      ctx.fillStyle = 'rgba(14,20,18,.92)'; ctx.strokeStyle = C.line2; ctx.beginPath(); rrect(tx, bot + 2, tw2, 18, 9); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = C.txt; ctx.textAlign = 'center'; ctx.fillText(tl, tx + tw2 / 2, bot + 11); ctx.textAlign = 'left';
+    }
   }
+  if (state.zoom !== 1) { ctx.font = '10px ' + css('--mono'); ctx.fillStyle = C.faint; ctx.textBaseline = 'top';
+    ctx.fillText(`zoom ${fx(state.zoom, 1)}× · dubbeltik = terug`, 8, 6); }
 }
 
 /* ---------- tooltip ---------- */
@@ -1074,7 +1125,7 @@ function showTip(e) {
   if (yy < geo.top || yy > geo.bot) { hideTip(); return; }
   const p = model.hi - (yy - geo.top) / (geo.bot - geo.top) * (model.hi - model.lo);
   const j = Math.floor(p / model.B) - model.i0; if (j < 0 || j >= model.N) { hideTip(); return; }
-  state.hover = yy; draw();
+  state.hover = yy; state.hoverX = xx; draw();
   const p0 = (model.i0 + j) * model.B, rows = [];
   rows.push(['Kooporders', fmtUsd(model.bid[j])], ['Verkooporders', fmtUsd(model.ask[j])]);
   const byEx = Object.keys(EXCH).map(ex => [ex, model.per[ex].b[j] + model.per[ex].a[j]]).filter(x => x[1]).sort((a, b) => b[1] - a[1]);
@@ -1093,9 +1144,30 @@ function showTip(e) {
   tip.style.left = Math.max(4, Math.min(geo.W - tw - 4, xx < geo.W / 2 ? xx + 14 : xx - tw - 14)) + 'px';
   tip.style.top = Math.max(4, Math.min(geo.H - th - 4, yy - th / 2)) + 'px';
 }
-function hideTip() { $('tip').hidden = true; if (state.hover != null) { state.hover = null; draw(); } }
-cv.addEventListener('pointermove', showTip);
-cv.addEventListener('pointerdown', showTip);
+function hideTip() { $('tip').hidden = true; if (state.hover != null) { state.hover = null; state.hoverX = null; draw(); } }
+// two fingers on the chart zoom in time (more or fewer candles); ctrl + wheel or a trackpad pinch does the same
+const touches = new Map(); let pinch = null, gesturePinched = false;
+const setZoom = z => { state.zoom = Math.max(0.5, Math.min(4, z)); draw(); };
+cv.addEventListener('pointerdown', e => {
+  touches.set(e.pointerId, e.clientX);
+  if (touches.size === 1) gesturePinched = false;
+  if (touches.size === 2) { const [a, b] = [...touches.values()]; pinch = { d: Math.max(20, Math.abs(a - b)), z: state.zoom }; gesturePinched = true; hideTip(); }
+});
+cv.addEventListener('pointermove', e => {
+  if (touches.has(e.pointerId)) touches.set(e.pointerId, e.clientX);
+  if (pinch && touches.size === 2) { const [a, b] = [...touches.values()]; setZoom(pinch.z * Math.max(20, Math.abs(a - b)) / pinch.d); }
+});
+['pointerup', 'pointercancel'].forEach(ev => cv.addEventListener(ev, e => { touches.delete(e.pointerId); if (touches.size < 2) pinch = null; }));
+cv.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); setZoom(state.zoom * Math.exp(-e.deltaY * 0.01)); }, { passive: false });
+cv.addEventListener('dblclick', () => setZoom(1));
+let lastTap = 0;
+cv.addEventListener('pointerup', e => {     // a double tap with one finger (not the end of a pinch) resets the zoom
+  if (e.pointerType !== 'touch' || touches.size) return;
+  if (gesturePinched) { lastTap = 0; return; }
+  const now = Date.now(); if (now - lastTap < 300) { setZoom(1); lastTap = 0; } else lastTap = now;
+});
+cv.addEventListener('pointermove', e => { if (!pinch) showTip(e); });
+cv.addEventListener('pointerdown', e => { if (!pinch) showTip(e); });
 cv.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') hideTip(); });
 document.addEventListener('pointerdown', e => { if (e.target !== cv) hideTip(); });
 
@@ -1142,29 +1214,35 @@ const READ = { range: 0.15 };
 const clamp1 = x => Math.max(-1, Math.min(1, x));
 const ema = (xs, n) => { const k = 2 / (n + 1); let e = xs[0]; for (const x of xs) e = x * k + e * (1 - k); return e; };
 const pc = (x, d = 2) => (x > 0 ? '+' : '') + fx(x * 100, d) + '%';
-function analyze() {
-  const D = state.data, P = D.price, B = nice(P * 0.0012), cs = D.candles, n = cs.length;   // B: $100 for BTC
-  const lo = P * (1 - READ.range), hi = P * (1 + READ.range);
-  // pools: stop score + liquidation size per level of B, each normalised to its own maximum
-  const bins = new Map();
+// pools: stop score + liquidation size per level of B within ±15%, each normalised to its own maximum
+function poolsOf(stops, liqs, P) {
+  const B = nice(P * 0.0012), lo = P * (1 - READ.range), hi = P * (1 + READ.range), bins = new Map();   // B: $100 for BTC
   const add = (p, kind, v) => { if (p < lo || p > hi) return; const k = Math.floor(p / B + 1e-9) * B;
     const o = bins.get(k) || { stop: 0, liq: 0 }; o[kind] += v; bins.set(k, o); };
-  D.stops.forEach(s => add(s.p, 'stop', s.w)); D.liqs.forEach(q => add(q.p, 'liq', q.usd));
-  const mS = Math.max(1e-9, ...[...bins.values()].map(o => o.stop)), mL = Math.max(1e-9, ...[...bins.values()].map(o => o.liq));
-  const pools = [...bins].map(([k, o]) => ({ p: k + B / 2, stop: o.stop / mS, liq: o.liq / mL, liqUsd: o.liq, v: o.stop / mS + o.liq / mL }));
-  let up = 0, dn = 0;
-  for (const q of pools) { const w = q.v / Math.max(Math.abs(q.p / P - 1) * 100, 0.25); q.p > P ? up += w : dn += w; }
-  const pull = up + dn ? (up - dn) / (up + dn) : 0;
-  // average high - low of the last 14 days (24-bar blocks)
-  const ranges = [];
-  for (let e = n; e >= 24 && ranges.length < 14; e -= 24) { const w = cs.slice(e - 24, e); ranges.push(Math.max(...w.map(c => c[2])) - Math.min(...w.map(c => c[3]))); }
+  stops.forEach(s => add(s.p, 'stop', s.w)); liqs.forEach(q => add(q.p, 'liq', q.usd));
+  let mS = 1e-9, mL = 1e-9; for (const o of bins.values()) { if (o.stop > mS) mS = o.stop; if (o.liq > mL) mL = o.liq; }
+  return [...bins].map(([k, o]) => ({ p: k + B / 2, stop: o.stop / mS, liq: o.liq / mL, liqUsd: o.liq, v: o.stop / mS + o.liq / mL }));
+}
+// targets: the largest pool on each side between HZ_MIN x and 1 x the expected range of the horizon (the average
+// high - low of the last 14 days x √days), and the chance the upper one comes first
+function targetsOf(cs, pools, P, days) {
+  const n = cs.length, ranges = [];
+  for (let e = n; e >= 24 && ranges.length < 14; e -= 24) { let h = -Infinity, l = Infinity;
+    for (let k = e - 24; k < e; k++) { if (cs[k][2] > h) h = cs[k][2]; if (cs[k][3] < l) l = cs[k][3]; } ranges.push(h - l); }
   const range24 = ranges.reduce((s, x) => s + x, 0) / ranges.length;
-  // targets: the largest pool on each side between HZ_MIN x and 1 x the expected range of the horizon
-  const rH = range24 * Math.sqrt(state.horizon), minD = HZ_MIN * rH;
+  const rH = range24 * Math.sqrt(days), minD = HZ_MIN * rH;
   const best = arr => arr.length ? arr.reduce((x, y) => y.v > x.v ? y : x) : undefined;
   const tUp = best(pools.filter(q => q.p - P > minD && q.p - P <= rH));
   const tDn = best(pools.filter(q => P - q.p > minD && P - q.p <= rH));
-  const pUp = tUp && tDn ? (P - tDn.p) / (tUp.p - tDn.p) : null;
+  return { range24, rH, minD, tUp, tDn, pUp: tUp && tDn ? (P - tDn.p) / (tUp.p - tDn.p) : null };
+}
+function analyze() {
+  const D = state.data, P = D.price, B = nice(P * 0.0012), cs = D.candles, n = cs.length;
+  const pools = poolsOf(D.stops, D.liqs, P);
+  let up = 0, dn = 0;
+  for (const q of pools) { const w = q.v / Math.max(Math.abs(q.p / P - 1) * 100, 0.25); q.p > P ? up += w : dn += w; }
+  const pull = up + dn ? (up - dn) / (up + dn) : 0;
+  const { range24, rH, minD, tUp, tDn, pUp } = targetsOf(cs, pools, P, state.horizon);
   // context factors (shown, not counted)
   const ret24 = P / cs[Math.max(0, n - 25)][4] - 1;
   const closes = cs.map(c => c[4]), ef = ema(closes, 20), es = ema(closes, 50);
@@ -1195,6 +1273,69 @@ function analyze() {
   return { P, range24, rH, minD, tUp, tDn, pUp, pull, up, dn, ret24, ef, es, mom, b05, a05, b10, a10, book, oiChg, oiS, oiTot,
     fund, fundS, netBuy, cvd, liq24, support: walls('b'), resist: walls('a') };
 }
+// The verdict of each of the last 48 hours, worked out from the data as it was at that hour (the same calculation as
+// now), and which target the price reached first afterwards. Cached per coin, hour and horizon.
+const vhCache = new Map();
+function verdictHistory() {
+  const D = state.data, cs = D.candles, n = cs.length, Hd = state.horizon;
+  const key = `${state.asset}:${cs[n - 1][0]}:${n}:${Hd}`; if (vhCache.has(key)) return vhCache.get(key);
+  const from = Math.max(48, n - 48), snaps = [];
+  estimateLiqs(cs, D.oi || [], D.taker, (i, pos) => { if (i >= from) snaps[i] = pos.map(q => ({ p: q.p, side: q.side, usd: q.usd })); });
+  const out = [];
+  for (let i = from; i < n; i++) {
+    const c = cs.slice(0, i + 1), P = cs[i][4];
+    const t = targetsOf(c, poolsOf(estimateStops(c, P, P * 0.85, P * 1.15), snaps[i], P), P, Hd);
+    const e = { t: cs[i][0], p: t.pUp, v: null, prob: null, res: null };
+    if (t.pUp != null) {
+      e.prob = Math.max(t.pUp, 1 - t.pUp);
+      e.v = Math.round(e.prob * 100) < 60 ? 'neutral' : t.pUp >= 0.5 ? 'up' : 'down';
+      const last = Math.min(n - 1, i + 24 * Hd);
+      for (let j = i + 1; j <= last && !e.res; j++) {           // which target came first, within the horizon
+        const hu = cs[j][2] >= t.tUp.p, hd = cs[j][3] <= t.tDn.p;
+        if (hu || hd) e.res = hu && hd ? 'both' : hu ? 'up' : 'down';
+      }
+      if (!e.res && i + 24 * Hd <= n - 1) e.res = 'none';      // horizon over, neither reached
+    }
+    out.push(e);
+  }
+  vhCache.set(key, out);
+  if (vhCache.size > 40) vhCache.delete(vhCache.keys().next().value);
+  return out;
+}
+function renderHistory() {
+  const cv2 = $('rd-vh-cv'); if (!cv2 || !state.data) return;
+  const h = verdictHistory(), n = h.length; if (!n) return;
+  const dpr = window.devicePixelRatio || 1, W = cv2.clientWidth, H = 96, g = cv2.getContext('2d');
+  cv2.width = Math.round(W * dpr); cv2.height = Math.round(H * dpr); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const COL = { up: '#35ffb0', down: '#ff4d6a', neutral: '#ffc857' }, top = 6, bot = 66, x = i => 6 + i / Math.max(1, n - 1) * (W - 12);
+  const y = p => top + (1 - p) * (bot - top);
+  g.fillStyle = 'rgba(255,200,87,.07)'; g.fillRect(0, y(0.6), W, y(0.4) - y(0.6));       // the neutral zone, 40 to 60%
+  g.strokeStyle = 'rgba(238,244,240,.15)'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(0, y(0.5)); g.lineTo(W, y(0.5)); g.stroke(); g.setLineDash([]);
+  g.font = '9px ' + css('--mono'); g.fillStyle = css('--faint'); g.textBaseline = 'top';
+  g.fillText('omhoog eerst', 6, 0); g.textBaseline = 'bottom'; g.fillText('omlaag eerst', 6, bot + 2);
+  g.strokeStyle = 'rgba(238,244,240,.45)'; g.lineWidth = 1.2; g.beginPath(); let on = false;
+  h.forEach((e, i) => { if (e.p == null) { on = false; return; } on ? g.lineTo(x(i), y(e.p)) : g.moveTo(x(i), y(e.p)); on = true; }); g.stroke();
+  h.forEach((e, i) => { if (e.p == null) return; const last = i === n - 1;
+    g.fillStyle = COL[e.v]; g.shadowColor = COL[e.v]; g.shadowBlur = last ? 10 : 0;
+    g.beginPath(); g.arc(x(i), y(e.p), last ? 4 : 2.2, 0, 7); g.fill(); g.shadowBlur = 0; });
+  // under it, per hour with a verdict: did its first target come first (green), the other (red), or not yet (grey)
+  const oy = 76, ok = { n: 0 }, bad = { n: 0 }, open = { n: 0 };
+  h.forEach((e, i) => { if (e.v !== 'up' && e.v !== 'down') return;
+    let c = 'rgba(238,244,240,.18)';
+    if (e.res === e.v) { c = '#35ffb0'; ok.n++; } else if (e.res === 'up' || e.res === 'down' || e.res === 'both') { c = '#ff4d6a'; bad.n++; } else open.n++;
+    g.fillStyle = c; g.fillRect(x(i) - 2, oy, 4, 8); });
+  g.fillStyle = css('--faint'); g.textBaseline = 'bottom'; g.fillText('48 u geleden', 6, H); g.textAlign = 'right'; g.fillText('nu', W - 6, H); g.textAlign = 'left';
+  // in words: how long the verdict has held, and how the earlier ones turned out
+  const VW = { up: 'Eerst omhoog', down: 'Eerst omlaag', neutral: 'Neutraal' };
+  const cur = h[n - 1].v; let k = n - 1; while (k > 0 && h[k - 1].v === cur) k--;
+  const held = n - k, prev = k > 0 ? h[k - 1].v : null;
+  let txt = cur ? (held >= n ? `Al ${n} uur ${VW[cur]}.` : `${held} uur ${VW[cur]}${prev ? `, daarvoor ${VW[prev]}` : ''}.`) : 'Geen doelen.';
+  const cnt = v => h.filter(e => e.v === v).length;
+  txt += ` In 48 uur: ${cnt('up')}× omhoog, ${cnt('down')}× omlaag, ${cnt('neutral')}× neutraal.`;
+  if (ok.n + bad.n) txt += ` Afgelopen doelen: ${ok.n} goed, ${bad.n} fout` + (open.n ? `, ${open.n} lopen nog.` : '.');
+  else if (open.n) txt += ` De doelen van die uren zijn nog niet bereikt.`;
+  $('rd-vh-t').textContent = txt;
+}
 function renderReading() {
   const r = analyze(), P = r.P;
   const kind = q => q.stop >= q.liq ? (q.p > P ? 'koopstops' : 'verkoopstops') : (q.p > P ? 'short-liquidaties' : 'long-liquidaties');
@@ -1209,7 +1350,17 @@ function renderReading() {
   $('rd-lab').textContent = lab; $('rd-lab').style.color = col;
   $('rd-sc').textContent = prob == null ? `geen cluster aan beide kanten binnen ${hl}` : `${fmtP(first.p)} vóór ${fmtP(other.p)} · ${Math.round(prob * 100)}% kans`;
   $('rd-chip').textContent = prob == null ? `${lab} · ${hl}` : `${lab} · ${Math.round(prob * 100)}% · ${hl}`; $('rd-chip').style.color = col;
-  $('rd-g').style.left = (r.pUp == null ? 50 : r.pUp * 100) + '%';
+  // the target bar: lower target left, upper right, the live price as a dot at its place between them
+  const pos = r.pUp == null ? 50 : Math.max(0, Math.min(100, r.pUp * 100));
+  $('rd-dot').style.left = pos + '%'; $('rd-now').textContent = fmtP(P);
+  $('rd-now').style.transform = `translateX(${pos > 80 ? -85 : pos < 20 ? -15 : -50}%)`;
+  const end = (q, cls) => q ? `<b>${fmtP(q.p)}</b><em>${pc(q.p / P - 1, 1)}${first === q ? ' · eerst' : ''}</em>` : '<b>—</b><em>geen doel</em>';
+  $('rd-lo').innerHTML = end(r.tDn); $('rd-lo').className = 'lo' + (first && first === r.tDn ? ' first' : '');
+  $('rd-hi').innerHTML = end(r.tUp); $('rd-hi').className = 'hi' + (first && first === r.tUp ? ' first' : '');
+  // the coin's logo glows in the colour of the verdict; the phone's sticky bar shows the same verdict
+  const glow = col === 'var(--up)' ? 'rgba(53,255,176,.6)' : col === 'var(--dn)' ? 'rgba(255,77,106,.6)' : 'rgba(255,200,87,.45)';
+  $('coin-logo').style.boxShadow = `0 0 0 1px ${glow},0 0 18px ${glow}`;
+  $('mini-v').textContent = prob == null ? lab : `${lab.replace('Eerst o', 'O')} ${Math.round(prob * 100)}%`; $('mini-v').style.color = col;
   $('rd-at').textContent = 'data van ' + $('upd').textContent;
 
   const dist = x => fx(x / P * 100, 1) + '%';
@@ -1250,6 +1401,7 @@ function renderReading() {
     r.fund != null && ['Financiering / 8u', `${fx(r.fund * 100, 4)}% · ${r.fund > 0.00015 ? 'hoog' : r.fund < 0.00005 ? 'laag' : 'normaal'}`],
     ['Liquidaties 24u (Gate)', `longs ${fmtUsd(r.liq24[0])} · shorts ${fmtUsd(r.liq24[1])}`],
   ].filter(Boolean);
+  html += `<h3>Oordeel laatste 48 uur</h3><div class="vh" id="rd-vh"><canvas id="rd-vh-cv" height="96"></canvas><p class="vh-t" id="rd-vh-t">berekenen…</p></div>`;
   html += `<h3>Markt nu</h3><dl class="facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
   // 3. scenarios
   const scDn = r.tDn ? `<b>Omlaag:</b> ${r.support ? `breekt ${fmtP(r.support.p)} (koopmuur), dan` : 'dan'} ${fmtP(r.tDn.p)} (${pc(r.tDn.p / P - 1)}).` : null;
@@ -1284,6 +1436,7 @@ function renderReading() {
     </ul></details>`;
   html += `<p class="fine">Een rekensom op de orders en posities van dit moment, geen advies. Muren in het orderboek kunnen binnen seconden verdwijnen, en stops en liquidaties zijn schattingen.</p>`;
   $('rd-story').innerHTML = html;
+  setTimeout(renderHistory, 0);
   state.targets = { up: r.tUp?.p, dn: r.tDn?.p, first: first?.p, prob, hl };
 }
 
@@ -1341,6 +1494,12 @@ function refresh() {
   draw();
 }
 new ResizeObserver(() => draw()).observe(cv);
+addEventListener('resize', () => { if (state.data) renderHistory(); });
+// phone: the sticky bar slides in once the price in the header has scrolled away; a tap goes back to the top
+$('mini').hidden = false;
+$('mini').addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
+new IntersectionObserver(([en]) => $('mini').classList.toggle('show', !en.isIntersecting && !!state.data))
+  .observe(document.querySelector('header.top .px'));
 
 /* ---------- loading: glasssphere-data.json, then live exchange data ---------- */
 let liveHist = [];       // one book snapshot per hour while the page is open live
@@ -1401,6 +1560,8 @@ async function start() {
   clearInterval(timer); site = null; series = null; market = null; liveHist = []; state.data = null; state.targets = null; model = null;
   document.querySelectorAll('#asset button').forEach(b => { b.classList.toggle('on', b.dataset.a === state.asset); b.setAttribute('aria-current', b.dataset.a === state.asset); });
   $('sub').textContent = A.name + '-termijncontract · 1u';
+  $('coin-logo').src = $('mini-logo').src = `icons/coins/${state.asset}.png`; $('coin-logo').style.boxShadow = 'none';
+  $('mini-name').textContent = A.name; $('mini-price').textContent = '—'; $('mini-v').textContent = '';
   document.title = state.asset === 'btc' ? 'GlassSphere' : 'GlassSphere · ' + A.name;
   $('price').textContent = '—'; $('upd').textContent = '—'; $('rd-chip').textContent = '—'; $('rd-lab').textContent = '—'; $('rd-sc').textContent = ''; $('rd-story').innerHTML = '';
   $('src').textContent = 'laden…'; shown = { a: null, p: null }; document.body.classList.add('swap');
