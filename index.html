@@ -157,9 +157,6 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 .kv b{font-size:17px}
 .kv em{font-style:normal;font-size:11px;color:var(--dim);line-height:1.35}
 .story .lead{color:var(--dim);font-size:12px}
-.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px 18px;max-width:760px}
-.facts dt{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-.facts dd{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums}
 .story ul.sc{gap:6px}
 #rd > summary{list-style:none;cursor:pointer;user-select:none}
 #rd > summary::-webkit-details-marker{display:none}
@@ -462,7 +459,7 @@ body.swap header.top .px{opacity:.25}
     <div class="stage"><canvas id="cv"></canvas><div id="tip" hidden></div></div>
   </section>
 
-  <details class="card" id="lvls">
+  <details class="card" id="lvls" open>
     <summary class="bar"><span class="chev" aria-hidden="true"></span><h2>Alle niveaus</h2><div class="legend"><span>muren, stops en liquidaties binnen het bereik</span></div></summary>
     <section class="readouts lv-ro">
       <div class="ro"><div class="k">Grootste koopmuur</div><div class="v up" id="r-bid">—</div><div class="s" id="r-bid-s">—</div></div>
@@ -1174,7 +1171,6 @@ function renderReading() {
   $('rd-at').textContent = 'data van ' + $('upd').textContent;
 
   const dist = x => fx(x / P * 100, 1) + '%';
-  const bidShare = Math.round(r.b05 / (r.b05 + r.a05) * 100);
   let html = '';
   // 1. the two targets and the price, as a ladder; the more likely one is marked
   if (prob != null) {
@@ -1194,21 +1190,7 @@ function renderReading() {
   } else {
     html += `<p class="lead">Voor ${hl} (bewegingsruimte ±${dist(r.rH)}) ligt er niet aan beide kanten een cluster tussen ${dist(r.minD)} en ${dist(r.rH)} van de prijs. Kies een andere termijn.</p>`;
   }
-  // 2. the market now, as a compact list
-  const trend = P > r.ef && r.ef > r.es ? 'omhoog' : P < r.ef && r.ef < r.es ? 'omlaag' : 'zijwaarts';
-  const facts = [
-    ['Prijs 24 uur', `<span class="${r.ret24 >= 0 ? 'up' : 'dn'}">${pc(r.ret24)}</span>`],
-    ['Korte trend (EMA, 1u)', trend],
-    ['Marktorders (Gate, 24u)', `${r.netBuy >= 0 ? 'kopen' : 'verkopen'} ${fx(Math.abs(r.netBuy * 100), 1)}%`],
-    ['Orderboek ±0,5%', `${bidShare}% koopkant`],
-    r.support && ['Grootste koopmuur', `${fmtP(r.support.p)} · ${fmtUsd(r.support.v)}`],
-    r.resist && ['Grootste verkoopmuur', `${fmtP(r.resist.p)} · ${fmtUsd(r.resist.v)}`],
-    r.oiTot && ['Openstaande posities', `${fmtUsd(r.oiTot)}${r.oiChg != null ? ` · Gate ${pc(r.oiChg, 1)}` : ''}`],
-    r.fund != null && ['Financiering / 8u', `${fx(r.fund * 100, 4)}% · ${r.fund > 0.00015 ? 'hoog' : r.fund < 0.00005 ? 'laag' : 'normaal'}`],
-    ['Liquidaties 24u (Gate)', `longs ${fmtUsd(r.liq24[0])} · shorts ${fmtUsd(r.liq24[1])}`],
-  ].filter(Boolean);
-  html += `<h3>Markt nu</h3><dl class="facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
-  // 3. scenarios
+  // 2. scenarios
   const scDn = r.tDn ? `<b>Omlaag:</b> ${r.support ? `breekt ${fmtP(r.support.p)} (koopmuur), dan` : 'dan'} ${fmtP(r.tDn.p)} (${pc(r.tDn.p / P - 1)}).` : null;
   const scUp = r.tUp ? `<b>Omhoog:</b> ${r.resist ? `eerst ${fmtP(r.resist.p)} (verkoopmuur) opkopen, dan` : 'dan'} ${fmtP(r.tUp.p)} (${pc(r.tUp.p / P - 1)}).` : null;
   const sc = ((r.pUp ?? 0.5) < 0.5 ? [scDn, scUp] : [scUp, scDn]).filter(Boolean);
