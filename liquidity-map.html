@@ -120,9 +120,10 @@ footer .dot.snap{background:var(--nt)}
     </div></span>
     <span class="grp"><label for="bk">Bucket</label>
     <div class="seg" id="bk">
+      <button data-v="0" class="on" title="Bucket volgt het bereik">Auto</button>
       <button data-v="25">$25</button>
       <button data-v="50">$50</button>
-      <button data-v="100" class="on">$100</button>
+      <button data-v="100">$100</button>
       <button data-v="250">$250</button>
       <button data-v="500">$500</button>
     </div></span>
@@ -187,11 +188,13 @@ const BIN = 10;                       // raw books are kept in $10 bins, rebinne
 const LEV = [[10, .35], [25, .30], [50, .20], [100, .15]];   // assumed leverage mix
 const MAINT = 0.004;                  // maintenance margin used for the liquidation price
 const HALF_LIFE_H = 168;              // stop weight halves every week
+const AUTO_BUCKET = { 0.015: 50, 0.03: 100, 0.06: 250, 0.12: 500 };   // range -> bucket in auto mode
+const bucketSize = () => state.bucket || AUTO_BUCKET[state.range] || 100;
 
 const $ = id => document.getElementById(id);
-const state = { data: null, live: false, range: 0.03, bucket: 100, off: new Set(), hover: null };
-try { const s = JSON.parse(localStorage.getItem('lm-prefs') || '{}'); if (s.range) state.range = s.range; if (s.bucket) state.bucket = s.bucket; (s.off || []).forEach(x => state.off.add(x)); } catch (e) {}
-const savePrefs = () => { try { localStorage.setItem('lm-prefs', JSON.stringify({ range: state.range, bucket: state.bucket, off: [...state.off] })); } catch (e) {} };
+const state = { data: null, live: false, range: 0.03, bucket: 0, off: new Set(), hover: null };   // bucket 0 = auto
+try { const s = JSON.parse(localStorage.getItem('lm-prefs-v2') || '{}'); if (s.range) state.range = s.range; if (s.bucket) state.bucket = s.bucket; (s.off || []).forEach(x => state.off.add(x)); } catch (e) {}
+const savePrefs = () => { try { localStorage.setItem('lm-prefs-v2', JSON.stringify({ range: state.range, bucket: state.bucket, off: [...state.off] })); } catch (e) {} };
 
 /* ---------- fetching ---------- */
 async function getJSON(url, opts = {}) {
@@ -291,7 +294,7 @@ function estimateLiqs(candles, oi) {
 let model = null;
 function buildModel() {
   const D = state.data; if (!D) return;
-  const price = D.price, B = state.bucket, lo = price * (1 - state.range), hi = price * (1 + state.range);
+  const price = D.price, B = bucketSize(), lo = price * (1 - state.range), hi = price * (1 + state.range);
   const i0 = Math.floor(lo / B), i1 = Math.ceil(hi / B), N = i1 - i0 + 1;
   const bid = new Float64Array(N), ask = new Float64Array(N), stop = new Float64Array(N), liq = new Float64Array(N);
   const per = {}; for (const k in EXCH) per[k] = { b: new Float64Array(N), a: new Float64Array(N) };
@@ -490,7 +493,10 @@ function seg(id, key) {
 }
 seg('rng', 'range'); seg('bk', 'bucket');
 
-function refresh() { buildModel(); renderExchanges(); draw(); renderLevels(); }
+function refresh() {
+  $('bk').querySelector('[data-v="0"]').textContent = 'Auto · $' + (AUTO_BUCKET[state.range] || 100);
+  buildModel(); renderExchanges(); draw(); renderLevels();
+}
 new ResizeObserver(() => draw()).observe(cv);
 
 /* ---------- loading ---------- */

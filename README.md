@@ -44,7 +44,8 @@ Where open orders sit around the BTC perpetual price: 1H candles with three side
 - **Liquidations** (estimate): hourly OKX open-interest increases opened at that hour's average price, split
   long/short by where the candle closed, at 10× / 25× / 50× / 100× (35 / 30 / 20 / 15%). Levels price already hit are
   removed; falling OI scales everything down. Amounts are OKX only.
-- Range ±1.5–12%, bucket $25–$500, exchanges can be switched off. Hover a level for the per-exchange breakdown.
+- Range ±1.5–12%, bucket $25–$500 or Auto (default: $50 / $100 / $250 / $500 for ±1.5 / 3 / 6 / 12%),
+  exchanges can be switched off. Hover a level for the per-exchange breakdown.
   A table lists the 4 largest levels of each kind above and below the price.
 
 Opened as a file it refreshes the books every 15 seconds. The hosted claude.ai page cannot reach the exchanges and
