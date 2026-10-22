@@ -89,6 +89,26 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 .meter{display:inline-block;width:70px;height:6px;background:var(--line);border-radius:3px;overflow:hidden;vertical-align:1px}
 .meter i{display:block;height:100%}
 
+.reading{display:grid;grid-template-columns:230px minmax(0,1fr)}
+.verdict{padding:16px;border-right:1px solid var(--line);display:grid;gap:10px;align-content:start}
+.verdict .k{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.verdict .lab{font-size:24px;font-weight:700;letter-spacing:-.01em}
+.verdict .sc{font-family:var(--mono);font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.gauge{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--dn),var(--line2) 50%,var(--up));margin-top:4px}
+.gauge i{position:absolute;top:-4px;width:3px;height:16px;background:var(--txt);border-radius:2px;transform:translateX(-50%)}
+.gauge-sc{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--faint)}
+.story{padding:14px 16px;display:grid;gap:12px;min-width:0;line-height:1.6}
+.story p{max-width:90ch}
+.story h3{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.story ul{padding-left:18px;display:grid;gap:4px;max-width:90ch}
+.story b{font-weight:600}
+.story .fine{color:var(--dim);font-size:12px}
+.calc th:first-child,.calc td:first-child,.calc th:nth-child(2),.calc td:nth-child(2){text-align:left}
+.calc th:nth-child(3),.calc td:nth-child(3){text-align:right}
+.calc tr.tot td{font-weight:700;color:var(--txt)}
+.story details summary{cursor:pointer;color:var(--dim);font-size:12px}
+.story details ul{margin-top:8px;font-size:12px;color:var(--dim)}
+
 footer{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;color:var(--faint);font-size:11px}
 footer .status{font-family:var(--mono);padding:4px 9px;border-radius:20px;border:1px solid var(--line);color:var(--dim);display:inline-flex;align-items:center;gap:7px}
 footer .dot{width:7px;height:7px;border-radius:50%;background:var(--faint)}
@@ -101,6 +121,8 @@ footer .dot.snap{background:var(--nt)}
   .stage{height:520px}
   .px b{font-size:24px}
   .bar .legend{margin-left:0}
+  .reading{grid-template-columns:minmax(0,1fr)}
+  .verdict{border-right:0;border-bottom:1px solid var(--line)}
 }
 </style>
 
@@ -131,6 +153,20 @@ footer .dot.snap{background:var(--nt)}
 </header>
 
 <main>
+  <section class="card">
+    <div class="bar"><h2>Lezing</h2><div class="legend"><span id="rd-at">—</span></div></div>
+    <div class="reading">
+      <div class="verdict">
+        <div class="k">Richting</div>
+        <div class="lab" id="rd-lab">—</div>
+        <div class="sc" id="rd-sc">—</div>
+        <div><div class="gauge"><i id="rd-g" style="left:50%"></i></div>
+        <div class="gauge-sc"><span>−100</span><span>0</span><span>+100</span></div></div>
+      </div>
+      <div class="story" id="rd-story"></div>
+    </div>
+  </section>
+
   <section class="readouts">
     <div class="ro"><div class="k">Grootste bid-muur</div><div class="v up" id="r-bid">—</div><div class="s" id="r-bid-s">—</div></div>
     <div class="ro"><div class="k">Grootste ask-muur</div><div class="v dn" id="r-ask">—</div><div class="s" id="r-ask-s">—</div></div>
@@ -472,6 +508,116 @@ function renderLevels() {
       `<td><span class="meter"><i style="width:${Math.max(3, r.rel * 100).toFixed(0)}%;background:${r.col}"></i></span></td></tr>`).join('');
 }
 
+/* ---------- reading: direction score from the data ----------
+   Fixed $100 buckets, ±6% and all exchanges, so the reading does not change with the view. */
+const READ = { range: 0.06, B: 100, w: { mom: .30, book: .25, pull: .30, oi: .15 } };
+const clamp1 = x => Math.max(-1, Math.min(1, x));
+const ema = (xs, n) => { const k = 2 / (n + 1); let e = xs[0]; for (const x of xs) e = x * k + e * (1 - k); return e; };
+const pc = (x, d = 2) => (x > 0 ? '+' : '') + (x * 100).toFixed(d) + '%';
+function analyze() {
+  const D = state.data, P = D.price, B = READ.B, cs = D.candles, n = cs.length;
+  const lo = P * (1 - READ.range), hi = P * (1 + READ.range);
+  // 1. momentum: 24h return and 1H EMA20 vs EMA50
+  const ret24 = P / cs[Math.max(0, n - 25)][4] - 1;
+  const closes = cs.map(c => c[4]), ef = ema(closes, 20), es = ema(closes, 50);
+  const mom = clamp1(0.5 * Math.tanh(ret24 / 0.02) + 0.5 * Math.tanh((ef / es - 1) / 0.004));
+  // 2. order book imbalance close to the price
+  const near = w => { let b = 0, a = 0; for (const bk of Object.values(D.books)) {
+    for (const [p, v] of bk.b) if (p >= P * (1 - w)) b += v;
+    for (const [p, v] of bk.a) if (p <= P * (1 + w)) a += v; } return [b, a]; };
+  const [b05, a05] = near(0.005), [b10, a10] = near(0.01);
+  const imb = (b, a) => b + a ? (b - a) / (b + a) : 0;
+  const book = clamp1(0.6 * imb(b05, a05) + 0.4 * imb(b10, a10));
+  // 3. liquidity pull: stop + liquidation pools, weighted by 1 / distance in %
+  const bins = new Map();
+  const add = (p, kind, v) => { if (p < lo || p > hi) return; const k = Math.floor(p / B) * B;
+    const o = bins.get(k) || { stop: 0, liq: 0 }; o[kind] += v; bins.set(k, o); };
+  D.stops.forEach(s => add(s.p, 'stop', s.w)); D.liqs.forEach(q => add(q.p, 'liq', q.usd));
+  const mS = Math.max(1e-9, ...[...bins.values()].map(o => o.stop)), mL = Math.max(1e-9, ...[...bins.values()].map(o => o.liq));
+  const pools = [...bins].map(([k, o]) => ({ p: k + B / 2, stop: o.stop / mS, liq: o.liq / mL, liqUsd: o.liq, v: o.stop / mS + o.liq / mL }));
+  let up = 0, dn = 0;
+  for (const q of pools) { const w = q.v / Math.max(Math.abs(q.p / P - 1) * 100, 0.25); q.p > P ? up += w : dn += w; }
+  const pull = up + dn ? (up - dn) / (up + dn) : 0;
+  // 4. positioning: 24h open interest change against the price move
+  const oi = D.oi, oiChg = oi.length > 24 ? oi[oi.length - 1][1] / oi[oi.length - 25][1] - 1 : null;
+  let oiS = 0;
+  if (oiChg != null && Math.abs(oiChg) >= 0.005)
+    oiS = oiChg > 0 ? Math.sign(ret24) * Math.min(1, oiChg / 0.03) : -Math.sign(ret24) * Math.min(1, -oiChg / 0.03) * 0.5;
+  const W = READ.w, score = Math.round(100 * (W.mom * mom + W.book * book + W.pull * pull + W.oi * oiS));
+  // average high - low of the last 14 days (24-bar blocks)
+  const ranges = [];
+  for (let e = n; e >= 24 && ranges.length < 14; e -= 24) { const w = cs.slice(e - 24, e); ranges.push(Math.max(...w.map(c => c[2])) - Math.min(...w.map(c => c[3]))); }
+  const range24 = ranges.reduce((s, x) => s + x, 0) / ranges.length;
+  // biggest walls within 1%, biggest pools within one average day (else anywhere in ±6%)
+  const walls = key => { const m = new Map();
+    for (const bk of Object.values(D.books)) for (const [p, v] of bk[key]) {
+      if (Math.abs(p / P - 1) > 0.01 || (key === 'b') !== (p < P)) continue;
+      const k = Math.floor(p / B) * B; m.set(k, (m.get(k) || 0) + v); }
+    return [...m].map(([k, v]) => ({ p: k + B / 2, v })).sort((x, y) => y.v - x.v)[0]; };
+  const best = arr => arr.sort((x, y) => y.v - x.v)[0];
+  const side = above => pools.filter(q => (q.p > P) === above);
+  const tUp = best(side(true).filter(q => q.p - P <= range24)) || best(side(true));
+  const tDn = best(side(false).filter(q => P - q.p <= range24)) || best(side(false));
+  return { P, ret24, ef, es, mom, b05, a05, b10, a10, book, up, dn, pull, oiChg, oiS, score, range24,
+    support: walls('b'), resist: walls('a'), tUp, tDn };
+}
+function renderReading() {
+  const r = analyze(), W = READ.w, P = r.P, s = r.score;
+  const lab = s >= 25 ? 'Opwaarts' : s >= 10 ? 'Licht opwaarts' : s > -10 ? 'Neutraal' : s > -25 ? 'Licht neerwaarts' : 'Neerwaarts';
+  $('rd-lab').textContent = lab;
+  $('rd-lab').style.color = s >= 10 ? 'var(--up)' : s <= -10 ? 'var(--dn)' : 'var(--nt)';
+  $('rd-sc').textContent = `score ${s > 0 ? '+' : ''}${s} van −100 tot +100`;
+  $('rd-g').style.left = (50 + s / 2) + '%';
+  $('rd-at').textContent = 'data van ' + $('upd').textContent;
+
+  const kind = q => q.stop >= q.liq ? (q.p > P ? 'buy-stops' : 'sell-stops') : (q.p > P ? 'short-liquidaties' : 'long-liquidaties');
+  const at = q => `<b>${fmtP(q.p)}</b> (${kind(q)}, ${pc(q.p / P - 1)})`;
+  const trend = P > r.ef && r.ef > r.es ? 'boven de 1H-EMA20, en de EMA20 boven de EMA50: de korte trend wijst omhoog'
+    : P < r.ef && r.ef < r.es ? 'onder de 1H-EMA20, en de EMA20 onder de EMA50: de korte trend wijst omlaag'
+    : 'tussen de 1H-EMA20 en EMA50 in: de korte trend is niet uitgesproken';
+  const bidShare = Math.round(r.b05 / (r.b05 + r.a05) * 100), upShare = Math.round(r.up / (r.up + r.dn) * 100);
+  const p = [];
+  p.push(`De prijs staat op <b>${fmtP(P)}</b>, ${pc(r.ret24)} ten opzichte van 24 uur geleden, ${trend}.`);
+  p.push(`Binnen ±0,5% van de prijs staat ${fmtUsd(r.b05)} aan kooporders tegenover ${fmtUsd(r.a05)} aan verkooporders (${bidShare}% koopkant)` +
+    (r.support ? `. De grootste koopmuur ligt op <b>${fmtP(r.support.p)}</b> (${fmtUsd(r.support.v)})` : '') +
+    (r.resist ? `, de grootste verkoopmuur op <b>${fmtP(r.resist.p)}</b> (${fmtUsd(r.resist.v)})` : '') + '.');
+  p.push(`Prijs beweegt vaak naar plekken waar veel stops en liquidaties liggen, omdat daar grote orders gevuld kunnen worden. ` +
+    (r.tDn ? `Onder de prijs is het zwaarste cluster ${at(r.tDn)}` : 'Onder de prijs liggen geen clusters') + ', ' +
+    (r.tUp ? `boven de prijs ${at(r.tUp)}` : 'boven de prijs geen') + `. Gewogen naar afstand ligt ${100 - upShare}% van die liquiditeit onder en ${upShare}% boven de prijs.`);
+  if (r.oiChg != null) {
+    const o = Math.abs(r.oiChg) < 0.005 ? 'vrijwel gelijk gebleven: er komen weinig nieuwe posities bij'
+      : r.oiChg > 0 ? (r.ret24 < 0 ? 'gestegen terwijl de prijs daalde: er komen vooral nieuwe shorts bij' : 'gestegen terwijl de prijs steeg: er komen vooral nieuwe longs bij')
+      : (r.ret24 > 0 ? 'gedaald terwijl de prijs steeg: shorts sluiten, wat minder kracht heeft dan nieuwe kopers' : 'gedaald terwijl de prijs daalde: longs sluiten of worden geliquideerd');
+    p.push(`Open interest op OKX is ${pc(r.oiChg, 1)} in 24 uur, ${o}.`);
+  }
+  const scDn = r.tDn ? `<b>Omlaag:</b> ${r.support ? `breekt de koopmuur op ${fmtP(r.support.p)}, dan` : 'dan'} is ${at(r.tDn)} het eerstvolgende doel.` : null;
+  const scUp = r.tUp ? `<b>Omhoog:</b> ${r.resist ? `eerst moet de verkoopmuur op ${fmtP(r.resist.p)} worden opgekocht; daarna` : 'dan'} is ${at(r.tUp)} het eerstvolgende doel.` : null;
+  const sc = (s < 0 ? [scDn, scUp] : [scUp, scDn]).filter(Boolean);
+  sc.push(`<b>Bewegingsruimte:</b> de gemiddelde dagrange van de laatste 14 dagen is $${fmtP(r.range24)} (${pc(r.range24 / P)}), dus ${fmtP(P - r.range24)} – ${fmtP(P + r.range24)} is op één dag haalbaar.`);
+  const rows = [
+    ['Momentum', `24u ${pc(r.ret24)} · EMA20/50 ${pc(r.ef / r.es - 1)}`, r.mom, W.mom],
+    ['Orderboek', `koopkant ${bidShare}% (±0,5%) · ${Math.round(r.b10 / (r.b10 + r.a10) * 100)}% (±1%)`, r.book, W.book],
+    ['Liquiditeit', `boven ${upShare}% · onder ${100 - upShare}%`, r.pull, W.pull],
+    ['Open interest', r.oiChg == null ? 'geen data' : `${pc(r.oiChg, 1)} in 24u, prijs ${pc(r.ret24)}`, r.oiS, W.oi],
+  ];
+  const sg = x => (x > 0 ? '+' : '') + x.toFixed(2);
+  $('rd-story').innerHTML =
+    p.map(t => `<p>${t}</p>`).join('') +
+    `<p>Samen geeft dat <b>${lab.toLowerCase()}</b> (score ${s > 0 ? '+' : ''}${s}).</p>` +
+    `<h3>Scenario's</h3><ul>${sc.map(t => `<li>${t}</li>`).join('')}</ul>` +
+    `<h3>Berekening</h3><div class="levels calc"><table><thead><tr><th>Factor</th><th>Meting</th><th>Signaal</th><th>Gewicht</th><th>Bijdrage</th></tr></thead><tbody>` +
+    rows.map(([f, m, v, w]) => `<tr><td>${f}</td><td>${m}</td><td class="${v > 0.05 ? 'up' : v < -0.05 ? 'dn' : ''}">${sg(v)}</td><td>${Math.round(w * 100)}%</td><td>${sg(v * w * 100)}</td></tr>`).join('') +
+    `<tr class="tot"><td>Score</td><td></td><td></td><td>100%</td><td>${s > 0 ? '+' : ''}${s}</td></tr></tbody></table></div>` +
+    `<details><summary>Hoe de signalen berekend worden</summary><ul>
+      <li>Momentum = ½·tanh(24u-rendement / 2%) + ½·tanh((EMA20/EMA50 − 1) / 0,4%), op 1H-candles.</li>
+      <li>Orderboek = 0,6 × (bids − asks)/(bids + asks) binnen ±0,5% + 0,4 × hetzelfde binnen ±1%, alle beurzen samen.</li>
+      <li>Liquiditeit = (boven − onder)/(boven + onder), waarbij elk $100-niveau binnen ±6% telt als (stopscore + liquidatiebedrag, elk geschaald naar het grootste) gedeeld door de afstand in % (minimaal 0,25%).</li>
+      <li>Open interest: stijgt OI (meer dan 0,5%), dan telt het mee in de richting van de prijs, tot ±1 bij 3%. Daalt OI, dan telt het half tegen de prijsrichting in (de beweging komt van sluitende posities).</li>
+      <li>Score = 100 × gewogen som. ≥ +25 opwaarts, +10 tot +25 licht opwaarts, −10 tot +10 neutraal, enzovoort.</li>
+    </ul></details>` +
+    `<p class="fine">Een rekensom op de orders en posities van dit moment, geen voorspelling. Muren in het orderboek kunnen binnen seconden verdwijnen, en stops en liquidaties zijn schattingen.</p>`;
+}
+
 /* ---------- controls ---------- */
 function renderExchanges() {
   $('ex').innerHTML = Object.entries(EXCH).map(([k, e]) => {
@@ -511,6 +657,7 @@ function setData(raw, live) {
   const n = Object.keys(raw.books).length;
   $('src').textContent = live ? `live · ${n} orderboeken · ververst elke 15 s` : `momentopname · ${n} orderboeken · beurzen niet bereikbaar vanaf deze pagina`;
   refresh();
+  renderReading();
 }
 let hist = null, histAt = 0;
 async function loadLive() {

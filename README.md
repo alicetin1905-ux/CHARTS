@@ -48,6 +48,20 @@ Where open orders sit around the BTC perpetual price: 1H candles with three side
   exchanges can be switched off. Hover a level for the per-exchange breakdown.
   A table lists the 4 largest levels of each kind above and below the price.
 
+A **Reading** block at the top describes the chart in words and gives a direction score from −100 to +100, recomputed
+on every data update (fixed $100 buckets, ±6%, all exchanges, so it does not change with the view):
+
+| Factor | Signal (−1 … +1) | Weight |
+|---|---|---|
+| Momentum | ½·tanh(24h return / 2%) + ½·tanh((EMA20 / EMA50 − 1) / 0.4%) on 1H | 30% |
+| Order book | 0.6 × bid/ask imbalance within ±0.5% + 0.4 × within ±1% | 25% |
+| Liquidity pull | (above − below) / (above + below) of stop score + liquidation size per level, divided by distance in % | 30% |
+| Open interest | 24h OI change: rising OI counts with the price move (±1 at 3%), falling OI half against it | 15% |
+
+≥ +25 up, +10 … +25 slightly up, −10 … +10 neutral (and mirrored). It also lists the down / up scenario (nearest
+wall to break, then the largest stop or liquidation cluster within one average day's range) and that range
+(mean high − low of the last 14 days). It is arithmetic on current orders, not a forecast; not backtested.
+
 Opened as a file it refreshes the books every 15 seconds. The hosted claude.ai page cannot reach the exchanges and
 shows the snapshot embedded by `scripts/liquidity_snapshot.py` (run it again to refresh the snapshot).
 
