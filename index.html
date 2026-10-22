@@ -223,6 +223,13 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
 #intro .ct i.nt{color:var(--nt)}
 #intro .ct:hover,#intro .ct:focus-visible{border-color:rgba(53,255,176,.55);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 22px rgba(53,255,176,.25)}
 .mark{cursor:pointer}
+/* back to the sphere: a clear glass pill at the start of the header */
+.back{display:inline-flex;align-items:center;gap:7px;font:inherit;font-size:13px;font-weight:600;color:var(--txt);cursor:pointer;
+  padding:7px 14px 7px 10px;border-radius:999px;border:1px solid rgba(53,255,176,.45);
+  background:radial-gradient(120% 140% at 20% 0%,rgba(53,255,176,.16),rgba(53,255,176,.03) 60%),rgba(14,20,18,.6);
+  box-shadow:inset 0 1px 0 var(--edge-hi),0 0 16px rgba(53,255,176,.18);transition:box-shadow .2s,border-color .2s}
+.back span{font-size:20px;line-height:0;margin-top:-2px;color:var(--up)}
+.back:hover,.back:focus-visible{border-color:rgba(53,255,176,.75);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 22px rgba(53,255,176,.35)}
 @media (max-width:760px){
   #intro .ct{width:80px;padding:6px 3px;border-radius:12px}
   #intro .ct b{font-size:12.5px}
@@ -233,6 +240,8 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
 .exd>summary{display:none}
 @media (max-width:760px){
   header.top{position:static}
+  .back,.mark{order:-2}
+  .back{padding:6px 12px 6px 8px;font-size:12.5px}
   .tabs{order:-1;width:100%}
   .tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
   .tabs button{padding:8px 0;font-size:12.5px;letter-spacing:0}
@@ -266,6 +275,7 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
 </div>
 
 <header class="top">
+  <button class="back" id="back" type="button" title="Terug naar de glazen bol"><span aria-hidden="true">‹</span> Glazen bol</button>
   <div class="mark" role="button" tabindex="0" title="Terug naar de bol" aria-label="Terug naar de bol">
     <img src="icons/icon-192.png" alt="" width="22" height="22">
     <h1>GlassSphere</h1>
@@ -1475,6 +1485,7 @@ const intro = (() => {
 })();
 const toSphere = () => { history.pushState(null, '', location.pathname + location.search); intro.show(); };
 document.querySelector('.mark').addEventListener('click', toSphere);
+$('back').addEventListener('click', toSphere);
 document.querySelector('.mark').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toSphere(); } });
 addEventListener('hashchange', () => {          // Back / Forward between the sphere and a coin
   const a = location.hash.slice(1);
