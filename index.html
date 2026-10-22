@@ -459,7 +459,6 @@ body.swap header.top .px{opacity:.25}
         <span><i class="sw" style="background:linear-gradient(90deg,var(--up),var(--dn))"></i>Doelen GlassSphere</span>
         <span><i class="sw" style="background:var(--stop)"></i>Stops (stippellijn, schatting)</span>
         <span><i class="sw" style="background:var(--liq)"></i>Liquidaties (stippellijn, schatting)</span>
-        <span><i class="sw" style="background:var(--dim)"></i>Echte liquidaties (onderin)</span>
       </div>
     </div>
     <div class="stage"><canvas id="cv"></canvas><div id="tip" hidden></div></div>
@@ -479,7 +478,7 @@ body.swap header.top .px{opacity:.25}
       <summary>Uitleg: waar de cijfers vandaan komen</summary>
       <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van de perp op tot 14 beurzen (niet elke munt staat op elke beurs; BitMEX heeft alleen BTC), in USD per blok. Waar een beurs PEPE per 1000 noteert (Binance, Bybit, Hyperliquid, Deribit) is de prijs teruggerekend naar 1 PEPE. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is het boek onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2%, dYdX ±1,5%, Hyperliquid ±2,4% (grove blokken), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json en glasssphere-&lt;munt&gt;.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De kolom Stabiel in de tabel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke nepmuren) opvallen.</p>
       <p><b>Stops</b> (stop-loss, koopstop, verkoopstop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke top die nog niet is geraakt (koopstops van shorts en uitbraakkopers), net onder elke ongeraakte bodem (verkoopstops van longs), gewogen naar het volume rond die top of bodem en hoe recent die is, plus een kleine bijdrage op ronde $1000-niveaus. In de grafiek staan de sterkste stop-niveaus boven en onder de prijs als gele stippellijn; een score 0–100, geen bedrag.</p>
-      <p><b>Liquidaties</b> zijn geschat uit de groei van de openstaande posities (open interest) per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de kaars sloot en voor de helft naar het aandeel kopende marktorders, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar de openstaande posities van alle beurzen samen. De grootste liquidatieniveaus staan in de grafiek als paarse stippellijn. Onderin de grafiek staan de echte liquidaties van Gate per kaars.</p>
+      <p><b>Liquidaties</b> zijn geschat uit de groei van de openstaande posities (open interest) per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de kaars sloot en voor de helft naar het aandeel kopende marktorders, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar de openstaande posities van alle beurzen samen. De grootste liquidatieniveaus staan in de grafiek als paarse stippellijn.</p>
       <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week; standaard 3 dagen) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddeld dagbereik × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, openstaande posities, financiering (funding), CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
     </details>
   </footer>
@@ -835,7 +834,7 @@ function draw() {
   if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
   const C = { up: css('--up'), dn: css('--dn'), stop: css('--stop'), liq: css('--liq'), txt: css('--txt'), dim: css('--dim'), faint: css('--faint'), line: css('--line'), line2: css('--line2') };
-  const narrow = W < 640, fs = narrow ? 11 : 10, top = 26, stripH = 44, bot = H - 8 - stripH - 6;
+  const narrow = W < 640, fs = narrow ? 11 : 10, top = 26, bot = H - 30;      // room below for the crosshair's time
   ctx.font = fs + 'px ' + css('--mono');
   const axisW = Math.max(narrow ? 50 : 62, Math.ceil(ctx.measureText(fmtP(model.hi)).width) + 12);   // room for long prices (PEPE)
   const chartR = W - axisW - 6;
@@ -843,8 +842,7 @@ function draw() {
   const rrect = (x, yy, w, h, r) => ctx.roundRect ? ctx.roundRect(x, yy, w, h, r) : ctx.rect(x, yy, w, h);
   const y = p => top + (model.hi - p) / (model.hi - model.lo) * (bot - top);
   const cs = tfCandles(), barW = (narrow ? 6 : 7) * state.zoom, nBars = Math.min(cs.length, Math.floor((chartR - 10) / barW));
-  const shown = cs.slice(cs.length - nBars), tfMs = state.tf * 60e3;
-  const colOf = t => { for (let i = nBars - 1; i >= 0; i--) if (shown[i][0] <= t) return t < shown[i][0] + tfMs ? i : -1; return -1; };
+  const shown = cs.slice(cs.length - nBars);
   geo = { y, top, bot, chartR, axisW, W, H, barW, nBars, shown };
 
   // grid + price axis
@@ -888,22 +886,9 @@ function draw() {
     if (!mark || i < 3 || i > nBars - 4 || x - lastX < 56) return;
     lastX = x;
     ctx.fillText(state.tf === 15 ? String(d.getUTCHours()).padStart(2, '0') + ':00' : d.getUTCDate() + '/' + (d.getUTCMonth() + 1), x, 8);
-    ctx.fillStyle = C.line2; ctx.fillRect(x, top, 1, bot - top + stripH + 6); ctx.fillStyle = C.faint;
+    ctx.fillStyle = C.line2; ctx.fillRect(x, top, 1, bot - top); ctx.fillStyle = C.faint;
   });
 
-  // real liquidations (Gate, hourly) under the candles: shorts up, longs down
-  const sTop = bot + 6, sMid = sTop + stripH / 2, agg = new Map();
-  for (const [t, lu, su] of state.data.liqReal || []) { const i = colOf(t); if (i < 0 && state.tf !== 15) continue;
-    const k = state.tf === 15 ? colOf(t) : i; if (k < 0) continue; const o = agg.get(k) || [0, 0]; o[0] += lu; o[1] += su; agg.set(k, o); }
-  const lm = Math.max(1, ...[...agg.values()].map(o => Math.max(o[0], o[1])));
-  ctx.fillStyle = C.line; ctx.fillRect(0, sMid, chartR, 1);
-  for (const [i, [lu, su]] of agg) {
-    const x = 4 + i * barW + 1, w = Math.max(1, (state.tf === 15 ? barW * 4 : barW) - 2);
-    ctx.fillStyle = glass ? alpha(C.up, .8) : C.up; ctx.fillRect(x, sMid - su / lm * (stripH / 2 - 2), w, su / lm * (stripH / 2 - 2));
-    ctx.fillStyle = glass ? alpha(C.dn, .8) : C.dn; ctx.fillRect(x, sMid + 1, w, lu / lm * (stripH / 2 - 2));
-  }
-  ctx.fillStyle = C.faint; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  ctx.fillText((narrow ? 'echte liq. (Gate) ↑shorts ↓longs · max ' : 'echte liquidaties (Gate) · shorts ↑ longs ↓ · max ') + fmtUsd(lm) + '/u', 6, sTop);
 
 
   // the strongest stop and liquidation levels above and below the price as dotted lines (one per kind and side, two
@@ -981,7 +966,7 @@ function draw() {
     const yy = state.hover; ctx.strokeStyle = C.dim; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
     ctx.beginPath(); ctx.moveTo(0, yy + .5); ctx.lineTo(W - axisW, yy + .5); ctx.stroke();
     const xx = state.hoverX;
-    if (xx != null && xx < chartR) { ctx.beginPath(); ctx.moveTo(Math.round(xx) + .5, top); ctx.lineTo(Math.round(xx) + .5, bot + stripH); ctx.stroke(); }
+    if (xx != null && xx < chartR) { ctx.beginPath(); ctx.moveTo(Math.round(xx) + .5, top); ctx.lineTo(Math.round(xx) + .5, bot); ctx.stroke(); }
     ctx.setLineDash([]);
     const ph = model.hi - (yy - top) / (bot - top) * (model.hi - model.lo), lbl = fmtP(ph);
     ctx.font = fs + 'px ' + css('--mono'); const lw = ctx.measureText(lbl).width + 10;
