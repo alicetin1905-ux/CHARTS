@@ -1,4 +1,4 @@
-"""Longer backtest of the GlassSphere reading on Binance BTCUSDT perpetual, 1H, Jan 2022 - Sep 2026.
+"""Longer backtest of the GlassSphere reading on a Binance USDT perpetual (BTC, ETH or SOL), 1H, Jan 2022 - Sep 2026.
 
 Same evaluation as glasssphere_backtest.py (stops, liquidations from hourly OI growth, signals, first touch of the
 largest pool above / below), on the free Binance archive at data.binance.vision:
@@ -7,8 +7,9 @@ largest pool above / below), on the free Binance archive at data.binance.vision:
   funding  funding rate (monthly files)
 The archive has no liquidations, so the liquidation model cannot be calibrated here (that is done on Gate).
 
-    python3 scripts/glasssphere_backtest_long.py [cache_dir]      (default data/)
-Appends a section to backtests/glasssphere.md (replacing an earlier one).
+    python3 scripts/glasssphere_backtest_long.py [cache_dir] [--symbol BTCUSDT|ETHUSDT|SOLUSDT]   (default data/)
+Writes a section per symbol into backtests/glasssphere.md (replacing that symbol's earlier one), and prints the numbers the
+page's BT constants take (BT_JSON line).
 """
 import csv
 import io
@@ -25,12 +26,15 @@ import glasssphere_backtest as BT  # noqa: E402
 import glasssphere_model as M  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CACHE = os.path.join(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'data'), 'binance_btc_archive')
+SYM = sys.argv[sys.argv.index('--symbol') + 1] if '--symbol' in sys.argv else 'BTCUSDT'
+_args = [a for i, a in enumerate(sys.argv[1:], 1) if not a.startswith('--') and sys.argv[i - 1] != '--symbol']
+CACHE = os.path.join(_args[0] if _args else os.path.join(ROOT, 'data'),
+                     'binance_btc_archive' if SYM == 'BTCUSDT' else f'binance_{SYM[:-4].lower()}_archive')
 OUT = os.path.join(ROOT, 'backtests', 'glasssphere.md')
 ARCHIVE = 'https://data.binance.vision/data/futures/um/'
 FIRST, LAST = (2022, 1), (2026, 9)
 STEP = 6          # evaluate every 6 hours
-MARK = '## 4. Longer test: Binance, 2022 – 2026'
+MARK = f'## 4. Longer test: Binance {SYM}, 2022 – 2026'
 HORIZONS = [(1, 0.0), (1, 0.3), (3, 0.0), (3, 0.3), (3, 0.5), (7, 0.3), (7, 0.5)]   # (days, min distance / range)
 FEE = 0.001       # round trip, taker in and out
 
@@ -75,9 +79,9 @@ def load():
         days.append(time.strftime('%Y-%m-%d', time.gmtime(t)))
         t += 86400
     with ThreadPoolExecutor(16) as ex:
-        kl = ex.map(lambda ym: fetch_csv(f'{ARCHIVE}monthly/klines/BTCUSDT/1h/BTCUSDT-1h-{ym[0]}-{ym[1]:02d}.zip'), ms)
-        fr = ex.map(lambda ym: fetch_csv(f'{ARCHIVE}monthly/fundingRate/BTCUSDT/BTCUSDT-fundingRate-{ym[0]}-{ym[1]:02d}.zip'), ms)
-        me = ex.map(lambda d: fetch_csv(f'{ARCHIVE}daily/metrics/BTCUSDT/BTCUSDT-metrics-{d}.zip'), days)
+        kl = ex.map(lambda ym: fetch_csv(f'{ARCHIVE}monthly/klines/{SYM}/1h/{SYM}-1h-{ym[0]}-{ym[1]:02d}.zip'), ms)
+        fr = ex.map(lambda ym: fetch_csv(f'{ARCHIVE}monthly/fundingRate/{SYM}/{SYM}-fundingRate-{ym[0]}-{ym[1]:02d}.zip'), ms)
+        me = ex.map(lambda d: fetch_csv(f'{ARCHIVE}daily/metrics/{SYM}/{SYM}-metrics-{d}.zip'), days)
         kl, fr, me = list(kl), list(fr), list(me)
     candles, stats = [], {}
     for rows in kl:
@@ -179,7 +183,7 @@ def main():
     years = sorted({time.gmtime(r['t'] / 1000).tm_year for r in rows})
     by_year = {y: [r for r in rows if time.gmtime(r['t'] / 1000).tm_year == y] for y in years}
     lines = [MARK, '',
-             f'Binance BTCUSDT perpetual from the free archive at data.binance.vision: 1H candles, open interest '
+             f'Binance {SYM} perpetual from the free archive at data.binance.vision: 1H candles, open interest '
              f'(5-minute, sampled on the hour), taker buy volume and funding. {len(candles)} hours, evaluated every '
              f'{STEP}h after the {M.WINDOW}-bar warm-up ({len(rows)} points), the same model and leverage mix as above. '
              'No liquidation data in the archive, so section 1 cannot be repeated here.', '',
@@ -210,11 +214,40 @@ def main():
         if b:
             lines.append(f'| {lo:.0%}–{min(hi, 1):.0%} (mean {sum(r["touch"][2] for r in b) / len(b):.0%}) | {len(b)} | '
                          f'{sum(r["touch"][0] == "up" for r in b) / len(b):.0%} |')
-    lines += horizon_lines(horizon_test(candles, stats))
+    hz = horizon_test(candles, stats)
+    lines += horizon_lines(hz)
+    # the page's BT constants for this asset
+    tot = [r for r in rows if r['touch']]
+    bt = {'neither': round(sum(1 for r in tot if r['touch'][0] is None) / len(tot), 2), 'calib': [],
+          'ic': {k: [round(BT.stats_for(rows, k, STEP)[0], 3),
+                     sum(BT.stats_for(by_year[y], k, STEP)[0] > 0 for y in years)] for k in keys}, 'hz': {}}
+    for lo, hi in ((0, .2), (.2, .4), (.4, .6), (.6, .8), (.8, 1.01)):
+        b = [r for r in hits if lo <= r['touch'][2] < hi]
+        if b:
+            bt['calib'].append([f'{lo:.0%}–{min(hi, 1):.0%}', round(100 * sum(r['touch'][2] for r in b) / len(b)),
+                                round(100 * sum(r['touch'][0] == 'up' for r in b) / len(b))])
+    for days in (1, 3, 7):
+        rs = hz[(days, 0.3)]
+        hit = [r for r in rs if r['first'] in ('up', 'down', 'both')]
+        m = sum(r['pnl'] for r in rs) / len(rs)
+        sd = (sum((r['pnl'] - m) ** 2 for r in rs) / len(rs)) ** 0.5
+        bt['hz'][days] = {'tgt': round(100 * sorted(r['tgt'] for r in rs)[len(rs) // 2], 2),
+                          'stp': round(100 * sorted(r['stp'] for r in rs)[len(rs) // 2], 2),
+                          'pred': round(100 * sum(max(r['p_up'], 1 - r['p_up']) for r in rs) / len(rs)),
+                          'act': round(100 * sum(1 for r in hit if r['first'] != 'both' and
+                                                 (r['first'] == 'up') == (r['p_up'] >= 0.5)) / max(len(hit), 1)),
+                          'neither': round(100 * (1 - len(hit) / len(rs))), 'ev': round(100 * m, 3),
+                          't': round(m / sd * max(len(rs) * 12 / (24 * days), 2) ** 0.5, 1) if sd else 0}
+    print('BT_JSON', json.dumps(bt, ensure_ascii=False))
     text = open(OUT).read()
-    if MARK in text:
-        text = text[:text.index(MARK)].rstrip() + '\n'
-    open(OUT, 'w').write(text + '\n' + '\n'.join(lines) + '\n')
+    section = '\n'.join(lines) + '\n'
+    if MARK in text:      # replace this symbol's section, keep the others
+        a = text.index(MARK)
+        b = text.find('\n## ', a + len(MARK))
+        text = text[:a] + section + (text[b:] if b >= 0 else '')
+    else:
+        text = text.rstrip() + '\n\n' + section
+    open(OUT, 'w').write(text)
     print('\n'.join(lines))
 
 

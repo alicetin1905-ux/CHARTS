@@ -14,6 +14,13 @@ HALF_LIFE_H = 168
 WINDOW = 400  # 1H bars the page works with
 
 
+def nice(x):
+    """The nearest of 1, 2, 2.5, 5 x 10^k (on a log scale), so level sizes scale with the price of the asset.
+    BTC at $80k: round levels nice(price x 0.012) = $1000, pool bins nice(price x 0.0012) = $100."""
+    m = 10 ** math.floor(math.log10(x))
+    return min((c * m for c in (1, 2, 2.5, 5, 10)), key=lambda v: abs(math.log(x / v)))
+
+
 def estimate_stops(candles, price):
     """Just beyond swing highs / lows that price has not traded through since."""
     n = len(candles)
@@ -44,10 +51,11 @@ def estimate_stops(candles, price):
     ws = sorted(o[2] for o in out)
     med = ws[len(ws) // 2] if ws else 1
     lo, hi = price * 0.85, price * 1.15
-    p = math.ceil(lo / 1000) * 1000
+    rs = nice(price * 0.012)  # round levels: $1000 for BTC
+    p = math.ceil(lo / rs) * rs
     while p <= hi:
-        out.append((p + 50 if p > price else p - 50, 'buy' if p > price else 'sell', med * 0.25))
-        p += 1000
+        out.append((p + rs * 0.05 if p > price else p - rs * 0.05, 'buy' if p > price else 'sell', med * 0.25))
+        p += rs
     return [o for o in out if (o[1] == 'buy') == (o[0] > price)]
 
 
@@ -99,8 +107,10 @@ def ema(xs, n):
     return e
 
 
-def pools(stops, liqs, price, rng=0.06, B=100):
-    """Stop score + liquidation size per $B level within ±rng, each normalised to its own maximum."""
+def pools(stops, liqs, price, rng=0.06, B=None):
+    """Stop score + liquidation size per level of B (default about 0.12% of the price, $100 for BTC) within ±rng,
+    each normalised to its own maximum."""
+    B = B or nice(price * 0.0012)
     lo, hi = price * (1 - rng), price * (1 + rng)
     bins = {}
     for p, _, w in stops:

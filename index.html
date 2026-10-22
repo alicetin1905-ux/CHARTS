@@ -197,11 +197,19 @@ footer .dot.snap{box-shadow:0 0 8px var(--nt)}
 footer{flex-direction:column;align-items:stretch}
 footer .status{align-self:flex-start}
 footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);border-radius:14px;padding:14px 16px;box-shadow:inset 0 1px 0 var(--edge-hi)}
+.tabs{display:flex;gap:4px;padding:3px;border:1px solid var(--edge);border-radius:12px;background:rgba(255,255,255,.03)}
+.tabs button{font:inherit;font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--dim);background:none;border:0;
+  border-radius:9px;padding:6px 14px;cursor:pointer}
+.tabs button:hover{color:var(--txt)}
+.tabs button.on{color:var(--txt);background:rgba(53,255,176,.12);box-shadow:inset 0 0 0 1px rgba(53,255,176,.42),0 0 16px rgba(53,255,176,.2);
+  text-shadow:0 0 12px rgba(53,255,176,.5)}
 .pcol{display:none}
 .exd{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
 .exd>summary{display:none}
 @media (max-width:760px){
   header.top{position:static}
+  .tabs{order:-1;width:100%}
+  .tabs button{flex:1;padding:9px 0;font-size:14px}
   .stage{height:max(480px,68vh)}
   .pcol{display:flex}
   .exd{width:100%}
@@ -228,8 +236,13 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
   <div class="mark">
     <img src="icons/icon-192.png" alt="" width="22" height="22">
     <h1>GlassSphere</h1>
-    <span>BTC perpetual · 1H</span>
+    <span id="sub">BTC perpetual · 1H</span>
   </div>
+  <nav class="tabs" id="asset" aria-label="Munt">
+    <button data-a="btc" class="on">BTC</button>
+    <button data-a="eth">ETH</button>
+    <button data-a="sol">SOL</button>
+  </nav>
   <div class="px"><b id="price">—</b><span id="upd">—</span></div>
   <div class="ctl">
     <span class="grp"><label for="tf">Candles</label>
@@ -246,14 +259,7 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
       <button data-v="0.12">±12%</button>
     </div></span>
     <span class="grp"><label for="bk">Bucket</label>
-    <div class="seg" id="bk">
-      <button data-v="0" class="on" title="Bucket volgt het bereik">Auto</button>
-      <button data-v="25">$25</button>
-      <button data-v="50">$50</button>
-      <button data-v="100">$100</button>
-      <button data-v="250">$250</button>
-      <button data-v="500">$500</button>
-    </div></span>
+    <div class="seg" id="bk"></div></span>
   </div>
 </header>
 
@@ -320,7 +326,7 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
   <footer>
     <span class="status"><i class="dot" id="dot"></i><span id="src">laden…</span></span>
     <div class="note">
-      <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van BTC-perps op 14 beurzen, in USD per bucket. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is de balk onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2% (in blokken van $10), dYdX ±1,5%, Hyperliquid ±2,4% (blokken van $100), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de candles toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke spoofing) opvallen.</p>
+      <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van de perp op 14 beurzen (BitMEX alleen voor BTC), in USD per bucket. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is de balk onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2%, dYdX ±1,5%, Hyperliquid ±2,4% (grove blokken), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json, -eth.json en -sol.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de candles toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke spoofing) opvallen.</p>
       <p><b>Stops</b> (stop-loss, buy-stop, sell-stop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke swing-high die nog niet is geraakt (buy-stops van shorts en breakout-kopers), net onder elke ongeraakte swing-low (sell-stops van longs), gewogen naar het volume rond de swing en hoe recent hij is, plus een kleine bijdrage op ronde $1000-niveaus. Score 0–100, geen bedrag.</p>
       <p><b>Liquidaties</b> zijn geschat uit de groei van open interest per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de candle sloot en voor de helft naar de taker-koopratio, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar het open interest van alle beurzen samen. Onderin de chart staan de echte liquidaties van Gate per candle.</p>
       <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddelde dagrange × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, open interest, funding, CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
@@ -346,36 +352,73 @@ const EXCH = {
   dydx:        { name: 'dYdX' },
   bitfinex:    { name: 'Bitfinex', snap: true },
 };
-const BIN = 10;                       // raw books are kept in $10 bins, rebinned at render
-const HIST_BIN = 100;                 // hourly book history is kept in $100 bins within ±6%
+// Per asset: symbols and contract sizes on each exchange (null = not listed there), book bins (raw books and the
+// hourly history, as in scripts/glasssphere_snapshot.py), bucket choices, auto bucket per range and price decimals.
+const ASSETS = {
+  btc: { name: 'BTC', file: 'glasssphere-data.json', okx: 'BTC-USDT-SWAP', okxCt: 0.01, usdt: 'BTCUSDT', gate: 'BTC_USDT', gateMul: 1e-4, gateIv: '10',
+    htx: 'BTC-USDT', htxCt: 0.001, deribit: 'BTC-PERPETUAL', deribitUsd: true, bitmex: 'XBTUSD', cdc: 'BTCUSD-PERP', hl: 'BTC', hlSig: 3, dydx: 'BTC-USD',
+    bin: 10, histBin: 100, buckets: [25, 50, 100, 250, 500], auto: { 0.015: 50, 0.03: 100, 0.06: 250, 0.12: 500 }, dec: 0 },
+  eth: { name: 'ETH', file: 'glasssphere-eth.json', okx: 'ETH-USDT-SWAP', okxCt: 0.1, usdt: 'ETHUSDT', gate: 'ETH_USDT', gateMul: 0.01, gateIv: '1',
+    htx: 'ETH-USDT', htxCt: 0.01, deribit: 'ETH-PERPETUAL', deribitUsd: true, bitmex: null, cdc: 'ETHUSD-PERP', hl: 'ETH', hlSig: 4, dydx: 'ETH-USD',
+    bin: 0.25, histBin: 2.5, buckets: [0.5, 1, 2.5, 5, 10], auto: { 0.015: 1, 0.03: 2.5, 0.06: 5, 0.12: 10 }, dec: 1 },
+  sol: { name: 'SOL', file: 'glasssphere-sol.json', okx: 'SOL-USDT-SWAP', okxCt: 1, usdt: 'SOLUSDT', gate: 'SOL_USDT', gateMul: 1, gateIv: '0.1',
+    htx: 'SOL-USDT', htxCt: 1, deribit: 'SOL_USDC-PERPETUAL', deribitUsd: false, bitmex: null, cdc: 'SOLUSD-PERP', hl: 'SOL', hlSig: 4, dydx: 'SOL-USD',
+    bin: 0.01, histBin: 0.1, buckets: [0.02, 0.05, 0.1, 0.25, 0.5], auto: { 0.015: 0.05, 0.03: 0.1, 0.06: 0.25, 0.12: 0.5 }, dec: 2 },
+};
+// The nearest of 1, 2, 2.5, 5 x 10^k: level sizes that scale with the price (as nice() in scripts/glasssphere_model.py)
+const nice = x => { const m = 10 ** Math.floor(Math.log10(x));
+  return [1, 2, 2.5, 5, 10].map(c => c * m).reduce((a, b) => Math.abs(Math.log(x / b)) < Math.abs(Math.log(x / a)) ? b : a); };
 const LEV = [[5, .30], [10, .35], [25, .25], [50, .10]];   // leverage mix that best matched real liquidations
 const MAINT = 0.004;                  // maintenance margin used for the liquidation price
 const HALF_LIFE_H = 168;              // stop weight halves every week
-const AUTO_BUCKET = { 0.015: 50, 0.03: 100, 0.06: 250, 0.12: 500 };   // range -> bucket in auto mode
-const bucketSize = () => state.bucket || AUTO_BUCKET[state.range] || 100;
-// From backtests/glasssphere.md: liquidation fit on Gate (161 days to 2026-10-21); calibration and IC on
-// Binance BTCUSDT 1H, Jan 2022 – Sep 2026 (3858 first touches). ic: [IC over all years, years with a positive IC of 5]
-const BT = {
-  liqCorr: 0.78, neither: 0.44,
-  calib: [['0–20%', 15, 5], ['20–40%', 32, 28], ['40–60%', 50, 49], ['60–80%', 68, 75], ['80–100%', 85, 87]],
-  ic: { mom: [0.010, 3], cvd: [0.042, 5], oi: [0.010, 2], fund: [0.026, 4], pull: [-0.001, 1] },
-  // per horizon (targets between 0.3 x and 1 x the expected range): median target / stop in %, predicted and actual
-  // share where the more likely target came first, share with neither, average trade after 0.1% cost in %, t-stat
-  hz: { 1: { tgt: 2.02, stp: 2.95, pred: 59, act: 63, neither: 49, ev: -0.148, t: -3.1 },
-        3: { tgt: 3.10, stp: 4.49, pred: 59, act: 64, neither: 41, ev: -0.192, t: -1.4 },
-        7: { tgt: 4.35, stp: 7.00, pred: 60, act: 66, neither: 35, ev: 0.114, t: 0.4 } },
+const bucketSize = () => state.bucket || A.auto[state.range] || A.buckets[2];
+// From backtests/glasssphere.md: liquidation fit on Gate BTC (161 days to 2026-10-21); calibration and IC per asset on
+// the Binance perpetual 1H, Jan 2022 – Sep 2026. ic: [IC over all years, years with a positive IC of 5]
+// hz, per horizon (targets between 0.3 x and 1 x the expected range): median target / stop in %, predicted and actual
+// share where the more likely target came first, share with neither, average trade after 0.1% cost in %, t-stat
+const LIQ_CORR = 0.78;
+const BTS = {
+  btc: {
+    neither: 0.44, pullOk: 59, nearOk: 67,
+    why: 'Momentum, open interest en de liquiditeitstrek zitten rond 0 en wisselen per jaar van teken. Funding (tegendraads) en vooral CVD waren bijna elk jaar licht positief, maar met een IC van 0,03–0,04 te zwak om op te handelen.',
+    calib: [['0–20%', 15, 7], ['20–40%', 32, 28], ['40–60%', 50, 49], ['60–80%', 69, 74], ['80–100%', 86, 88]],
+    ic: { mom: [0.010, 3], cvd: [0.042, 5], oi: [0.010, 2], fund: [0.026, 4], pull: [-0.005, 1] },
+    hz: { 1: { tgt: 2.03, stp: 2.97, pred: 59, act: 63, neither: 50, ev: -0.151, t: -3.2 },
+          3: { tgt: 3.13, stp: 4.52, pred: 59, act: 64, neither: 41, ev: -0.144, t: -1.0 },
+          7: { tgt: 4.40, stp: 7.00, pred: 59, act: 65, neither: 35, ev: 0.076, t: 0.2 } } },
+  eth: {
+    neither: 0.39, pullOk: 59, nearOk: 68,
+    why: 'Momentum en de liquiditeitstrek zitten rond 0 en wisselen per jaar van teken; open interest was zelfs licht negatief. Funding (tegendraads) was elk jaar licht positief en CVD in 4 van de 5 jaar, maar met een IC van 0,02–0,03 te zwak om op te handelen.',
+    calib: [['0–20%', 15, 4], ['20–40%', 32, 25], ['40–60%', 50, 50], ['60–80%', 69, 74], ['80–100%', 87, 90]],
+    ic: { mom: [0.006, 2], cvd: [0.018, 4], oi: [-0.032, 1], fund: [0.031, 5], pull: [0.007, 2] },
+    hz: { 1: { tgt: 2.64, stp: 3.87, pred: 59, act: 64, neither: 49, ev: -0.142, t: -2.2 },
+          3: { tgt: 4.27, stp: 6.51, pred: 59, act: 64, neither: 42, ev: -0.224, t: -1.2 },
+          7: { tgt: 6.20, stp: 9.20, pred: 59, act: 61, neither: 34, ev: -0.215, t: -0.5 } } },
+  sol: {
+    neither: 0.29, pullOk: 59, nearOk: 67,
+    why: 'Momentum, open interest en de liquiditeitstrek waren licht positief, maar met een IC rond 0,02 nauwelijks meer dan ruis; funding werkte hier niet. CVD was het sterkst (IC 0,05, 4 van de 5 jaar positief), nog steeds te zwak om op te handelen.',
+    calib: [['0–20%', 16, 10], ['20–40%', 32, 29], ['40–60%', 50, 51], ['60–80%', 69, 72], ['80–100%', 88, 91]],
+    ic: { mom: [0.021, 3], cvd: [0.053, 4], oi: [0.021, 5], fund: [-0.012, 1], pull: [0.014, 4] },
+    hz: { 1: { tgt: 3.68, stp: 5.33, pred: 59, act: 65, neither: 46, ev: -0.105, t: -1.2 },
+          3: { tgt: 5.87, stp: 8.81, pred: 59, act: 65, neither: 39, ev: -0.053, t: -0.2 },
+          7: { tgt: 8.10, stp: 10.82, pred: 57, act: 59, neither: 25, ev: -0.208, t: -0.4 } } },
 };
 const HZ_MIN = 0.3;                   // targets at least 0.3 x the expected range away, so they are worth a trade
 const hzLabel = d => d === 1 ? '1 dag' : d === 7 ? '1 week' : d + ' dagen';
 
 const $ = id => document.getElementById(id);
-const state = { data: null, live: false, src: '', range: 0.03, bucket: 0, tf: 60, horizon: 3, pcol: 'book', weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
+const state = { asset: 'btc', data: null, live: false, src: '', range: 0.03, bucket: 0, tf: 60, horizon: 3, pcol: 'book', weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
+const buckets = {};      // bucket per asset (0 = auto)
 try {
   const s = JSON.parse(localStorage.getItem('glasssphere-prefs') || '{}');
-  if (s.range) state.range = s.range; if (s.bucket) state.bucket = s.bucket; if (s.tf) state.tf = s.tf; if (s.h3) state.horizon = s.h3; if (s.pcol) state.pcol = s.pcol;
+  if (s.range) state.range = s.range; if (s.bucket) buckets.btc = s.bucket; Object.assign(buckets, s.bks || {});
+  if (s.tf) state.tf = s.tf; if (s.h3) state.horizon = s.h3; if (s.pcol) state.pcol = s.pcol; if (ASSETS[s.asset]) state.asset = s.asset;
   if (s.weighted === false) state.weighted = false; (s.off || []).forEach(x => state.off.add(x));
 } catch (e) {}
-const savePrefs = () => { try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ range: state.range, bucket: state.bucket, tf: state.tf, h3: state.horizon, pcol: state.pcol, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
+if (ASSETS[location.hash.slice(1)]) state.asset = location.hash.slice(1);
+let A = ASSETS[state.asset], BT = BTS[state.asset];
+state.bucket = A.buckets.includes(buckets[state.asset]) ? buckets[state.asset] : 0;
+const savePrefs = () => { buckets[state.asset] = state.bucket; try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ asset: state.asset, range: state.range, bks: buckets, tf: state.tf, h3: state.horizon, pcol: state.pcol, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
 
 /* ---------- fetching ---------- */
 async function getJSON(url, opts = {}) {
@@ -384,65 +427,68 @@ async function getJSON(url, opts = {}) {
   finally { clearTimeout(t); }
 }
 const hlPost = body => getJSON('https://api.hyperliquid.xyz/info', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-// [[price, usd], ...] -> [[price, usd], ...] in $10 bins
+// [[price, usd], ...] -> [[price, usd], ...] in bins of A.bin
 function binLevels(rows, side) {
-  const m = {};
+  const m = {}, B = A.bin;
   for (const [p, usd] of rows) {
     if (!(usd > 0)) continue;
-    const k = side === 'b' ? Math.floor(p / BIN) * BIN : Math.ceil(p / BIN) * BIN;
+    const k = +((side === 'b' ? Math.floor(p / B + 1e-9) : Math.ceil(p / B - 1e-9)) * B).toFixed(8);
     m[k] = (m[k] || 0) + usd;
   }
   return Object.entries(m).map(([k, v]) => [+k, Math.round(v)]);
 }
 const BOOKS = {
-  okx: async () => { const b = (await getJSON('https://www.okx.com/api/v5/market/books-full?instId=BTC-USDT-SWAP&sz=5000')).data[0];
-    const f = r => [+r[0], +r[1] * 0.01 * +r[0]]; return { b: b.bids.map(f), a: b.asks.map(f) }; },
-  binance: async () => { const j = await getJSON('https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000');
+  okx: async () => { const b = (await getJSON(`https://www.okx.com/api/v5/market/books-full?instId=${A.okx}&sz=5000`)).data[0];
+    const f = r => [+r[0], +r[1] * A.okxCt * +r[0]]; return { b: b.bids.map(f), a: b.asks.map(f) }; },
+  binance: async () => { const j = await getJSON(`https://fapi.binance.com/fapi/v1/depth?symbol=${A.usdt}&limit=1000`);
     const f = r => [+r[0], +r[1] * +r[0]]; return { b: j.bids.map(f), a: j.asks.map(f) }; },
-  deribit: async () => { const j = (await getJSON('https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=10000')).result;
-    return { b: j.bids, a: j.asks }; },           // BTC-PERPETUAL amounts are already USD
-  gate: async () => { const j = await getJSON('https://api.gateio.ws/api/v4/futures/usdt/order_book?contract=BTC_USDT&limit=300&interval=10');
-    const f = r => [+r.p, r.s * 1e-4 * +r.p]; return { b: j.bids.map(f), a: j.asks.map(f) }; },
-  hyperliquid: async () => { const j = await hlPost({ type: 'l2Book', coin: 'BTC', nSigFigs: 3 });
+  deribit: async () => { const j = (await getJSON(`https://www.deribit.com/api/v2/public/get_order_book?instrument_name=${A.deribit}&depth=10000`)).result;
+    const f = A.deribitUsd ? r => r : r => [r[0], r[1] * r[0]];   // inverse perps quote USD, the linear SOL perp quotes SOL
+    return { b: j.bids.map(f), a: j.asks.map(f) }; },
+  gate: async () => { const j = await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/order_book?contract=${A.gate}&limit=300&interval=${A.gateIv}`);
+    const f = r => [+r.p, r.s * A.gateMul * +r.p]; return { b: j.bids.map(f), a: j.asks.map(f) }; },
+  hyperliquid: async () => { const j = await hlPost({ type: 'l2Book', coin: A.hl, nSigFigs: A.hlSig });
     const f = r => [+r.px, +r.sz * +r.px]; return { b: j.levels[0].map(f), a: j.levels[1].map(f) }; },
-  bybit: async () => { const r = (await getJSON('https://api.bybit.com/v5/market/orderbook?category=linear&symbol=BTCUSDT&limit=500')).result;
+  bybit: async () => { const r = (await getJSON(`https://api.bybit.com/v5/market/orderbook?category=linear&symbol=${A.usdt}&limit=500`)).result;
     const f = x => [+x[0], +x[1] * +x[0]]; return { b: r.b.map(f), a: r.a.map(f) }; },
-  bitget: async () => { const d = (await getJSON('https://api.bitget.com/api/v2/mix/market/merge-depth?productType=usdt-futures&symbol=BTCUSDT&limit=max&precision=scale2')).data;
+  bitget: async () => { const d = (await getJSON(`https://api.bitget.com/api/v2/mix/market/merge-depth?productType=usdt-futures&symbol=${A.usdt}&limit=max&precision=scale2`)).data;
     const f = x => [+x[0], +x[1] * +x[0]]; return { b: d.bids.map(f), a: d.asks.map(f) }; },
-  htx: async () => { const t = (await getJSON('https://api.hbdm.com/linear-swap-ex/market/depth?contract_code=BTC-USDT&type=step0')).tick;
-    const f = x => [x[0], x[1] * 0.001 * x[0]]; return { b: t.bids.map(f), a: t.asks.map(f) }; },
-  bitmex: async () => { const j = await getJSON('https://www.bitmex.com/api/v1/orderBook/L2?symbol=XBTUSD&depth=0');
+  htx: async () => { const t = (await getJSON(`https://api.hbdm.com/linear-swap-ex/market/depth?contract_code=${A.htx}&type=step0`)).tick;
+    const f = x => [x[0], x[1] * A.htxCt * x[0]]; return { b: t.bids.map(f), a: t.asks.map(f) }; },
+  bitmex: async () => { if (!A.bitmex) throw new Error('not listed');
+    const j = await getJSON(`https://www.bitmex.com/api/v1/orderBook/L2?symbol=${A.bitmex}&depth=0`);
     const f = x => [x.price, x.size];      // XBTUSD contracts are $1 each
     return { b: j.filter(x => x.side === 'Buy').map(f), a: j.filter(x => x.side === 'Sell').map(f) }; },
-  cryptocom: async () => { const d = (await getJSON('https://api.crypto.com/exchange/v1/public/get-book?instrument_name=BTCUSD-PERP&depth=150')).result.data[0];
+  cryptocom: async () => { const d = (await getJSON(`https://api.crypto.com/exchange/v1/public/get-book?instrument_name=${A.cdc}&depth=150`)).result.data[0];
     const f = x => [+x[0], +x[1] * +x[0]]; return { b: d.bids.map(f), a: d.asks.map(f) }; },
-  dydx: async () => { const j = await getJSON('https://indexer.dydx.trade/v4/orderbooks/perpetualMarket/BTC-USD');
+  dydx: async () => { const j = await getJSON(`https://indexer.dydx.trade/v4/orderbooks/perpetualMarket/${A.dydx}`);
     const f = x => [+x.price, +x.size * +x.price]; return { b: j.bids.map(f), a: j.asks.map(f) }; },
 };
 // open interest (USD), 24h volume (USD), funding per 8h
 const MARKET = {
-  okx: async () => { const [o, t, f] = await Promise.all([getJSON('https://www.okx.com/api/v5/public/open-interest?instType=SWAP&instId=BTC-USDT-SWAP'),
-      getJSON('https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT-SWAP'), getJSON('https://www.okx.com/api/v5/public/funding-rate?instId=BTC-USDT-SWAP')]);
+  okx: async () => { const [o, t, f] = await Promise.all([getJSON(`https://www.okx.com/api/v5/public/open-interest?instType=SWAP&instId=${A.okx}`),
+      getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${A.okx}`), getJSON(`https://www.okx.com/api/v5/public/funding-rate?instId=${A.okx}`)]);
     return { oi: +o.data[0].oiUsd, vol: +t.data[0].volCcy24h * +t.data[0].last, fund: +f.data[0].fundingRate }; },
-  gate: async () => { const [t] = await getJSON('https://api.gateio.ws/api/v4/futures/usdt/tickers?contract=BTC_USDT');
-    return { oi: +t.total_size * 1e-4 * +t.mark_price, vol: +t.volume_24h_quote, fund: +t.funding_rate }; },
-  bitget: async () => { const t = (await getJSON('https://api.bitget.com/api/v2/mix/market/ticker?symbol=BTCUSDT&productType=usdt-futures')).data[0];
+  gate: async () => { const [t] = await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/tickers?contract=${A.gate}`);
+    return { oi: +t.total_size * A.gateMul * +t.mark_price, vol: +t.volume_24h_quote, fund: +t.funding_rate }; },
+  bitget: async () => { const t = (await getJSON(`https://api.bitget.com/api/v2/mix/market/ticker?symbol=${A.usdt}&productType=usdt-futures`)).data[0];
     return { oi: +t.holdingAmount * +t.lastPr, vol: +t.usdtVolume, fund: +t.fundingRate }; },
-  htx: async () => ({ vol: +(await getJSON('https://api.hbdm.com/linear-swap-ex/market/detail/merged?contract_code=BTC-USDT')).tick.trade_turnover }),
-  deribit: async () => { const r = (await getJSON('https://www.deribit.com/api/v2/public/get_book_summary_by_instrument?instrument_name=BTC-PERPETUAL')).result[0];
-    return { oi: r.open_interest, vol: r.volume_usd, fund: r.funding_8h }; },
-  cryptocom: async () => { const t = (await getJSON('https://api.crypto.com/exchange/v1/public/get-tickers?instrument_name=BTCUSD-PERP')).result.data[0];
+  htx: async () => ({ vol: +(await getJSON(`https://api.hbdm.com/linear-swap-ex/market/detail/merged?contract_code=${A.htx}`)).tick.trade_turnover }),
+  deribit: async () => { const r = (await getJSON(`https://www.deribit.com/api/v2/public/get_book_summary_by_instrument?instrument_name=${A.deribit}`)).result[0];
+    return { oi: A.deribitUsd ? r.open_interest : r.open_interest * r.mark_price, vol: r.volume_usd, fund: r.funding_8h || 0 }; },
+  cryptocom: async () => { const t = (await getJSON(`https://api.crypto.com/exchange/v1/public/get-tickers?instrument_name=${A.cdc}`)).result.data[0];
     return { oi: +t.oi * +t.a, vol: +t.vv }; },
   hyperliquid: async () => { const [m, c] = await hlPost({ type: 'metaAndAssetCtxs' });
-    const x = c[m.universe.findIndex(u => u.name === 'BTC')]; return { oi: +x.openInterest * +x.markPx, vol: +x.dayNtlVlm, fund: +x.funding * 8 }; },
-  dydx: async () => { const x = (await getJSON('https://indexer.dydx.trade/v4/perpetualMarkets?ticker=BTC-USD')).markets['BTC-USD'];
+    const x = c[m.universe.findIndex(u => u.name === A.hl)]; return { oi: +x.openInterest * +x.markPx, vol: +x.dayNtlVlm, fund: +x.funding * 8 }; },
+  dydx: async () => { const x = (await getJSON(`https://indexer.dydx.trade/v4/perpetualMarkets?ticker=${A.dydx}`)).markets[A.dydx];
     return { oi: +x.openInterest * +x.oraclePrice, vol: +x.volume24H, fund: +x.nextFundingRate * 8 }; },
-  binance: async () => { const [o, t, f] = await Promise.all([getJSON('https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT'),
-      getJSON('https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=BTCUSDT'), getJSON('https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT')]);
+  binance: async () => { const [o, t, f] = await Promise.all([getJSON(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${A.usdt}`),
+      getJSON(`https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${A.usdt}`), getJSON(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${A.usdt}`)]);
     return { oi: +o.openInterest * +f.markPrice, vol: +t.quoteVolume, fund: +f.lastFundingRate }; },
-  bybit: async () => { const t = (await getJSON('https://api.bybit.com/v5/market/tickers?category=linear&symbol=BTCUSDT')).result.list[0];
+  bybit: async () => { const t = (await getJSON(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${A.usdt}`)).result.list[0];
     return { oi: +t.openInterestValue, vol: +t.turnover24h, fund: +t.fundingRate }; },
-  bitmex: async () => { const [x] = await getJSON('https://www.bitmex.com/api/v1/instrument?symbol=XBTUSD');
+  bitmex: async () => { if (!A.bitmex) throw new Error('not listed');
+    const [x] = await getJSON(`https://www.bitmex.com/api/v1/instrument?symbol=${A.bitmex}`);
     return { oi: x.openInterest, vol: x.foreignNotional24h || 0, fund: x.fundingRate }; },
 };
 async function fetchAll(table, wrap) {
@@ -456,14 +502,14 @@ async function fetchSeries() {
   const base = 'https://www.okx.com/api/v5/market/';
   const toC = r => [+r[0], +r[1], +r[2], +r[3], +r[4], +r[7]];
   const okx = async (bar, more) => {
-    const rows = (await getJSON(base + `candles?instId=BTC-USDT-SWAP&bar=${bar}&limit=300`)).data;
-    if (more) try { rows.push(...(await getJSON(base + `history-candles?instId=BTC-USDT-SWAP&bar=${bar}&limit=100&after=${rows[rows.length - 1][0]}`)).data); } catch (e) {}
+    const rows = (await getJSON(base + `candles?instId=${A.okx}&bar=${bar}&limit=300`)).data;
+    if (more) try { rows.push(...(await getJSON(base + `history-candles?instId=${A.okx}&bar=${bar}&limit=100&after=${rows[rows.length - 1][0]}`)).data); } catch (e) {}
     return rows.map(toC).sort((a, b) => a[0] - b[0]);
   };
   const candles = (await okx('1H', true)).slice(-400);
   const [candles15, candles4h] = await Promise.all([okx('15m').catch(() => null), okx('4H').catch(() => null)]);
   // Gate hourly stats: open interest, taker buy share and real liquidations
-  const st = await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/contract_stats?contract=BTC_USDT&interval=1h&from=${candles[0][0] / 1000}&limit=1000`);
+  const st = await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/contract_stats?contract=${A.gate}&interval=1h&from=${candles[0][0] / 1000}&limit=1000`);
   return { candles, candles15, candles4h,
     oi: st.map(r => [r.time * 1000, Math.round(r.open_interest_usd)]),
     taker: st.map(r => [r.time * 1000, r.lsr_taker / (1 + r.lsr_taker)]),
@@ -490,8 +536,9 @@ function estimateStops(candles, price, lo, hi) {
     }
   }
   const ws = out.map(o => o.w).sort((a, b) => a - b), med = ws.length ? ws[ws.length >> 1] : 1;
-  for (let p = Math.ceil(lo / 1000) * 1000; p <= hi; p += 1000) {
-    out.push({ p: p > price ? p + 50 : p - 50, side: p > price ? 'buy' : 'sell', w: med * 0.25 });
+  const rs = nice(price * 0.012);       // round levels: $1000 for BTC
+  for (let i = Math.ceil(lo / rs); i * rs <= hi; i++) {
+    const p = i * rs; out.push({ p: p > price ? p + rs * 0.05 : p - rs * 0.05, side: p > price ? 'buy' : 'sell', w: med * 0.25 });
   }
   return out.filter(o => (o.side === 'buy') === (o.p > price));
 }
@@ -528,12 +575,12 @@ function volumeWeights(books, market, P) {
   return w;
 }
 function histEntry(books, weights, P, ts) {
-  const m = new Map();
+  const m = new Map(), HB = A.histBin;
   for (const [ex, bk] of Object.entries(books)) {
     const w = weights[ex] ?? 1;
     [['b', 0], ['a', 1]].forEach(([side, i]) => { for (const [p, v] of bk[side]) {
       if (p < P * 0.94 || p > P * 1.06) continue;
-      const k = Math.floor(p / HIST_BIN) * HIST_BIN, o = m.get(k) || [0, 0]; o[i] += v * w; m.set(k, o); } });
+      const k = +(Math.floor(p / HB + 1e-9) * HB).toFixed(8), o = m.get(k) || [0, 0]; o[i] += v * w; m.set(k, o); } });
   }
   return { t: Math.floor(ts / 3.6e6) * 3.6e6, b: [...m].sort((x, y) => x[0] - y[0]).map(([k, [b, a]]) => [k, Math.round(b), Math.round(a)]) };
 }
@@ -543,10 +590,10 @@ let model = null;
 function buildModel() {
   const D = state.data; if (!D) return;
   const price = D.price, B = bucketSize(), lo = price * (1 - state.range), hi = price * (1 + state.range);
-  const i0 = Math.floor(lo / B), i1 = Math.ceil(hi / B), N = i1 - i0 + 1;
+  const i0 = Math.floor(lo / B), i1 = Math.ceil(hi / B), N = i1 - i0 + 1;   // (1e-9: bin edges like 104.3 / 0.1 stay in their bucket)
   const bid = new Float64Array(N), ask = new Float64Array(N), stop = new Float64Array(N), liq = new Float64Array(N), wtot = new Float64Array(N);
   const per = {}; for (const k in EXCH) per[k] = { b: new Float64Array(N), a: new Float64Array(N) };
-  const idx = p => Math.floor(p / B) - i0;
+  const idx = p => Math.floor(p / B + 1e-9) - i0;
   for (const [ex, bk] of Object.entries(D.books)) {
     const w = D.weights[ex] ?? 1, f = state.weighted ? w : 1, on = !state.off.has(ex);
     for (const [side, arr] of [['b', bid], ['a', ask]]) for (const [p, v] of bk[side]) {
@@ -558,10 +605,11 @@ function buildModel() {
   for (const s of D.stops) { const j = idx(s.p); if (j >= 0 && j < N) stop[j] += s.w; }
   for (const q of D.liqs) { const j = idx(q.p); if (j >= 0 && j < N) liq[j] += q.usd; }
   // book history rebinned to the view
+  const HB = A.histBin, sub = Math.max(1, Math.round(HB / B));   // a history bin spread over the buckets it covers
   const hist = (D.bookHist || []).map(e => {
     const b = new Float64Array(N), a = new Float64Array(N);
-    for (const [p, vb, va] of e.b) for (let q = p; q < p + HIST_BIN; q += Math.min(B, HIST_BIN)) {
-      const j = idx(q); if (j < 0 || j >= N) continue; const k = Math.max(1, HIST_BIN / B); b[j] += vb / k; a[j] += va / k;
+    for (const [p, vb, va] of e.b) for (let s = 0; s < sub; s++) {
+      const j = idx(p + (s + 0.5) * HB / sub); if (j < 0 || j >= N) continue; b[j] += vb / sub; a[j] += va / sub;
     }
     return { t: e.t, b, a };
   });
@@ -576,7 +624,7 @@ function buildModel() {
 /* ---------- drawing ---------- */
 const cv = $('cv'), ctx = cv.getContext('2d');
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const fmtP = p => p.toLocaleString('en-US', { maximumFractionDigits: 0 });
+const fmtP = p => p.toLocaleString('en-US', { minimumFractionDigits: A.dec, maximumFractionDigits: A.dec });
 const fmtUsd = v => v >= 1e9 ? '$' + (v / 1e9).toFixed(2) + 'B' : v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? '$' + (v / 1e3).toFixed(0) + 'K' : '$' + v.toFixed(0);
 const pct = p => { const d = (p / model.price - 1) * 100; return (d > 0 ? '+' : '') + d.toFixed(2) + '%'; };
 function alpha(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; }
@@ -608,8 +656,9 @@ function draw() {
   // grid + price axis
   ctx.font = fs + 'px ' + css('--mono'); ctx.textBaseline = 'middle';
   const span = model.hi - model.lo, rough = span / (narrow ? 7 : 10), ypNow = y(model.price);
-  const step = [100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000].find(s => s >= rough) || 10000;
-  for (let p = Math.ceil(model.lo / step) * step; p <= model.hi; p += step) {
+  const mag = 10 ** Math.floor(Math.log10(rough)), step = [1, 2, 2.5, 5, 10].map(c => c * mag).find(s => s >= rough);
+  for (let i = Math.ceil(model.lo / step); i * step <= model.hi; i++) {
+    const p = i * step;
     const yy = Math.round(y(p)) + .5; ctx.strokeStyle = C.line; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W - axisW, yy); ctx.stroke();
     if (Math.abs(yy - ypNow) < 13) continue;           // keep the label clear of the current-price tag
@@ -825,16 +874,16 @@ function renderLevels() {
 /* ---------- reading ----------
    Fixed $100 buckets, ±15% and all exchanges (volume-weighted), so the reading does not change with the view.
    Only the first-target probability is used as the verdict: it is the one part the backtest supports. */
-const READ = { range: 0.15, B: 100 };
+const READ = { range: 0.15 };
 const clamp1 = x => Math.max(-1, Math.min(1, x));
 const ema = (xs, n) => { const k = 2 / (n + 1); let e = xs[0]; for (const x of xs) e = x * k + e * (1 - k); return e; };
 const pc = (x, d = 2) => (x > 0 ? '+' : '') + (x * 100).toFixed(d) + '%';
 function analyze() {
-  const D = state.data, P = D.price, B = READ.B, cs = D.candles, n = cs.length;
+  const D = state.data, P = D.price, B = nice(P * 0.0012), cs = D.candles, n = cs.length;   // B: $100 for BTC
   const lo = P * (1 - READ.range), hi = P * (1 + READ.range);
-  // pools: stop score + liquidation size per $100 level, each normalised to its own maximum
+  // pools: stop score + liquidation size per level of B, each normalised to its own maximum
   const bins = new Map();
-  const add = (p, kind, v) => { if (p < lo || p > hi) return; const k = Math.floor(p / B) * B;
+  const add = (p, kind, v) => { if (p < lo || p > hi) return; const k = Math.floor(p / B + 1e-9) * B;
     const o = bins.get(k) || { stop: 0, liq: 0 }; o[kind] += v; bins.set(k, o); };
   D.stops.forEach(s => add(s.p, 'stop', s.w)); D.liqs.forEach(q => add(q.p, 'liq', q.usd));
   const mS = Math.max(1e-9, ...[...bins.values()].map(o => o.stop)), mL = Math.max(1e-9, ...[...bins.values()].map(o => o.liq));
@@ -877,7 +926,7 @@ function analyze() {
   const walls = key => { const m = new Map();
     for (const [ex, bk] of Object.entries(D.books)) { const f = D.weights[ex] ?? 1; for (const [p, v] of bk[key]) {
       if (Math.abs(p / P - 1) > 0.01 || (key === 'b') !== (p < P)) continue;
-      const k = Math.floor(p / B) * B; m.set(k, (m.get(k) || 0) + v * f); } }
+      const k = Math.floor(p / B + 1e-9) * B; m.set(k, (m.get(k) || 0) + v * f); } }
     return [...m].map(([k, v]) => ({ p: k + B / 2, v })).sort((x, y) => y.v - x.v)[0]; };
   return { P, range24, rH, minD, tUp, tDn, pUp, pull, up, dn, ret24, ef, es, mom, b05, a05, b10, a10, book, oiChg, oiS, oiTot,
     fund, fundS, netBuy, cvd, liq24, support: walls('b'), resist: walls('a') };
@@ -964,10 +1013,10 @@ function renderReading() {
     rows.map(([f, m, v, t]) => `<tr><td>${f}</td><td>${m}</td><td class="${v > 0.05 ? 'up' : v < -0.05 ? 'dn' : ''}">${sg(v)}</td><td>${t}</td></tr>`).join('') +
     `</tbody></table></div>` +
     `<ul class="why">
-      <li>Getest op Binance BTC-perp (1H) van januari 2022 tot september 2026: elke factor tegen het rendement van de volgende 24 uur. IC is de correlatie; 0 betekent geen verband.</li>
-      <li>Momentum, open interest en de liquiditeitstrek zitten rond 0 en wisselen per jaar van teken. Funding (tegendraads) en vooral CVD waren bijna elk jaar licht positief, maar met een IC van 0,03–0,04 te zwak om op te handelen.</li>
-      <li>De liquiditeitstrek wees minder vaak het eerst geraakte cluster aan (60%) dan simpelweg het dichtstbijzijnde (67%), in elk jaar.</li>
-      <li>Het liquidatiemodel zelf klopt wel: de geschatte liquidaties vallen op dezelfde uren als de echte (correlatie ${BT.liqCorr.toFixed(2)}).</li>
+      <li>Getest op Binance ${A.name}-perp (1H) van januari 2022 tot september 2026: elke factor tegen het rendement van de volgende 24 uur. IC is de correlatie; 0 betekent geen verband.</li>
+      <li>${BT.why}</li>
+      <li>De liquiditeitstrek wees minder vaak het eerst geraakte cluster aan (${BT.pullOk}%) dan simpelweg het dichtstbijzijnde (${BT.nearOk}%).</li>
+      <li>Het liquidatiemodel zelf klopt wel: de geschatte liquidaties vallen op dezelfde uren als de echte (correlatie ${LIQ_CORR.toFixed(2)} op Gate BTC${A.name === 'BTC' ? '' : '; voor ' + A.name + ' is dat niet apart getest'}).</li>
     </ul></details>`;
   html += `<p class="fine">Een rekensom op de orders en posities van dit moment, geen advies. Muren in het orderboek kunnen binnen seconden verdwijnen, en stops en liquidaties zijn schattingen.</p>`;
   $('rd-story').innerHTML = html;
@@ -980,7 +1029,7 @@ function renderExchanges() {
   $('exs').textContent = `Beurzen · ${on} aan${state.weighted ? ' · gewogen' : ''} ▾`;
   $('ex').innerHTML = Object.entries(EXCH).map(([k, e]) => {
     const has = state.data && state.data.books[k];
-    const why = e.snap && state.live ? 'Alleen in de uurlijkse data (de beurs blokkeert browsers)' : 'Niet bereikbaar';
+    const why = A[k] === null ? `${A.name} staat niet op ${e.name}` : e.snap && state.live ? 'Alleen in de uurlijkse data (de beurs blokkeert browsers)' : 'Niet bereikbaar';
     const w = state.data?.weights[k], wt = has && state.weighted && w < 0.995 ? ` title="Telt voor ${Math.round(w * 100)}% mee"` : '';
     return `<button data-k="${k}" ${has ? wt : `disabled title="${why}"`} class="${has ? (state.off.has(k) ? 'off' : 'on') : 'off'}" aria-pressed="${has && !state.off.has(k)}">${e.name}${has && state.weighted && w < 0.995 ? ` <span style="color:var(--faint)">${Math.round(w * 100)}%</span>` : ''}</button>`;
   }).join('');
@@ -1005,6 +1054,10 @@ function seg(id, key) {
     state[key] = +b.dataset.v; el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); savePrefs(); refresh();
   });
 }
+function renderBuckets() {
+  $('bk').innerHTML = [0, ...A.buckets].map(v => `<button data-v="${v}"${v === state.bucket ? ' class="on"' : ''}${v ? '' : ' title="Bucket volgt het bereik"'}>${v ? '$' + v : 'Auto'}</button>`).join('');
+}
+renderBuckets();
 seg('rng', 'range'); seg('bk', 'bucket'); seg('tf', 'tf'); seg('hz', 'horizon');
 $('pcol').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === state.pcol));
 $('pcol').addEventListener('click', e => {
@@ -1013,7 +1066,12 @@ $('pcol').addEventListener('click', e => {
 });
 
 function refresh() {
-  $('bk').querySelector('[data-v="0"]').textContent = 'Auto · $' + (AUTO_BUCKET[state.range] || 100);
+  $('bk').querySelector('[data-v="0"]').textContent = 'Auto · $' + A.auto[state.range];
+  if (!state.data) {     // switching asset: clear the old asset's numbers until the new data is in
+    renderExchanges(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+    ['r-bid', 'r-ask', 'r-bs', 'r-ss', 'r-sl', 'r-ll'].forEach(id => { $(id).textContent = '—'; $(id + '-s').textContent = ''; });
+    $('lv').innerHTML = ''; return;
+  }
   buildModel(); renderExchanges(); renderLevels();
   if (state.data) renderReading();
   draw();
@@ -1047,20 +1105,22 @@ function setData(raw, mode) {
     : `${n} orderboeken`;
   refresh();
 }
-// On GitHub Pages: glasssphere-data.json next to the page, refreshed every hour by .github/workflows/pages.yml
+// On GitHub Pages: the asset's data file next to the page, refreshed every hour by .github/workflows/pages.yml
 let site = null;
 async function loadSite() {
   if (!/^https?:$/.test(location.protocol)) return null;
-  try { const r = await fetch('glasssphere-data.json', { cache: 'no-store' }); return r.ok ? await r.json() : null; } catch (e) { return null; }
+  try { const r = await fetch(A.file, { cache: 'no-store' }); return r.ok ? await r.json() : null; } catch (e) { return null; }
 }
-let series = null, seriesAt = 0, market = null;
+let series = null, seriesAt = 0, market = null, gen = 0, timer = null;   // gen: answers for an asset left meanwhile are dropped
 async function loadLive() {
+  const g = gen;
   try {
     if (!series || Date.now() - seriesAt > 5 * 60e3) {
-      [series, market] = await Promise.all([fetchSeries(), fetchMarket()]); seriesAt = Date.now();
-      market = { ...(site?.market || {}), ...market };   // exchanges a browser cannot reach keep their last known values
+      const [se, mk] = await Promise.all([fetchSeries(), fetchMarket()]); if (g !== gen) return false;
+      series = se; seriesAt = Date.now();
+      market = { ...(site?.market || {}), ...mk };   // exchanges a browser cannot reach keep their last known values
     }
-    const books = await fetchBooks();
+    const books = await fetchBooks(); if (g !== gen) return false;
     if (!Object.keys(books).length) throw new Error('no books');
     const last = series.candles[series.candles.length - 1][4];
     const ts = Date.now(), raw = { ts, price: last, books, ...series, market, bookHist: state.data?.bookHist || site?.bookHist };
@@ -1070,12 +1130,28 @@ async function loadLive() {
     return true;
   } catch (e) { return false; }
 }
-(async () => {
-  site = await loadSite();
-  if (site) setData(site, 'site');
-  if (await loadLive()) { setInterval(loadLive, 15e3); return; }
-  if (!site) $('src').textContent = 'geen data: beurzen en glasssphere-data.json niet bereikbaar';
-})();
+async function start() {
+  const g = ++gen;
+  clearInterval(timer); site = null; series = null; market = null; liveHist = []; state.data = null; state.targets = null; model = null;
+  document.querySelectorAll('#asset button').forEach(b => { b.classList.toggle('on', b.dataset.a === state.asset); b.setAttribute('aria-current', b.dataset.a === state.asset); });
+  $('sub').textContent = A.name + ' perpetual · 1H';
+  document.title = state.asset === 'btc' ? 'GlassSphere' : 'GlassSphere · ' + A.name;
+  $('price').textContent = '—'; $('upd').textContent = '—'; $('rd-chip').textContent = '—'; $('rd-lab').textContent = '—'; $('rd-sc').textContent = ''; $('rd-story').innerHTML = '';
+  $('src').textContent = 'laden…';
+  renderBuckets(); refresh();
+  const s = await loadSite(); if (g !== gen) return;
+  site = s; if (site) setData(site, 'site');
+  if (await loadLive()) { if (g === gen) timer = setInterval(loadLive, 15e3); return; }
+  if (g === gen && !site) $('src').textContent = `geen data: beurzen en ${A.file} niet bereikbaar`;
+}
+$('asset').addEventListener('click', e => {
+  const b = e.target.closest('button[data-a]'); if (!b || b.dataset.a === state.asset) return;
+  state.asset = b.dataset.a; A = ASSETS[state.asset]; BT = BTS[state.asset];
+  state.bucket = A.buckets.includes(buckets[state.asset]) ? buckets[state.asset] : 0;
+  history.replaceState(null, '', state.asset === 'btc' ? location.pathname + location.search : '#' + state.asset);
+  savePrefs(); start();
+});
+start();
 </script>
 </body>
 </html>

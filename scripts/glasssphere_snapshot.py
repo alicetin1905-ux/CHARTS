@@ -1,22 +1,25 @@
-"""Fetch the data behind index.html into glasssphere-data.json.
+"""Fetch the data behind index.html into glasssphere-data.json (BTC), glasssphere-eth.json or glasssphere-sol.json.
 
 index.html fetches the same data live in the browser where the exchanges allow it. On GitHub Pages it first reads
-glasssphere-data.json next to it, written every hour by .github/workflows/pages.yml, for the exchanges a browser
+that file next to it, written every hour by .github/workflows/pages.yml, for the exchanges a browser
 cannot reach and the book history of past hours.
 
 Data shape:
   ts, price
-  books     {exchange: {b: [[price, usd], ...], a: [...]}} in $10 bins, within ±15% of the price
-  candles   [[open_ms, open, high, low, close, volume_usd], ...] OKX BTC-USDT-SWAP 1H (400), oldest first
+  asset     BTC, ETH or SOL
+  bin, histBin  bin sizes of books and bookHist (BTC $10 / $100, ETH $0.25 / $2.5, SOL $0.01 / $0.1)
+  books     {exchange: {b: [[price, usd], ...], a: [...]}} in bins of `bin`, within ±15% of the price
+  candles   [[open_ms, open, high, low, close, volume_usd], ...] OKX <coin>-USDT-SWAP 1H (400), oldest first
   candles15, candles4h   the same for 15m and 4H (300 each), for display only
-  oi        [[ms, usd], ...] Gate BTC_USDT open interest, 1H
+  oi        [[ms, usd], ...] Gate <coin>_USDT open interest, 1H
   taker     [[ms, buy share 0..1], ...] Gate taker buy / (buy + sell), 1H
   liqReal   [[ms, long_usd, short_usd], ...] Gate real liquidations, 1H
   market    {exchange: {oi, vol, fund}} open interest (USD), 24h volume (USD), funding per 8h
-  bookHist  [{t, b: [[price, bid_usd, ask_usd], ...]}] hourly combined books, $100 bins within ±6%, last 48 hours
+  bookHist  [{t, b: [[price, bid_usd, ask_usd], ...]}] hourly combined books in bins of `histBin` within ±6%,
+            last 48 hours
 
-    python3 scripts/glasssphere_snapshot.py DIR [--prev URL ...]
-        writes DIR/glasssphere-data.json, carrying the book history of the first --prev URL that answers forward
+    python3 scripts/glasssphere_snapshot.py DIR [--asset btc|eth|sol] [--prev URL ...]
+        writes the asset's file into DIR, carrying the book history of the first --prev URL that answers forward
 """
 import json
 import math
@@ -25,8 +28,22 @@ import sys
 import time
 import urllib.request
 
-BIN = 10
-HIST_BIN = 100
+# Per asset: book bins (fixed, so the hourly history stays comparable; about 0.012% and 0.12% of the price),
+# symbols and contract sizes on each exchange. None = the exchange is left out for that asset.
+ASSETS = {
+    'btc': dict(bin=10, hist_bin=100, name='BTC', file='glasssphere-data.json', okx='BTC-USDT-SWAP', okx_ct=0.01, usdt='BTCUSDT',
+                gate='BTC_USDT', gate_mul=1e-4, gate_iv='10', htx='BTC-USDT', htx_ct=0.001, mexc='BTC_USDT', mexc_ct=1e-4,
+                deribit='BTC-PERPETUAL', deribit_usd=True, bitmex='XBTUSD', kraken='PF_XBTUSD', cdc='BTCUSD-PERP',
+                hl='BTC', hl_sig=3, dydx='BTC-USD', bfx='tBTCF0:USTF0'),
+    'eth': dict(bin=0.25, hist_bin=2.5, name='ETH', file='glasssphere-eth.json', okx='ETH-USDT-SWAP', okx_ct=0.1, usdt='ETHUSDT',
+                gate='ETH_USDT', gate_mul=0.01, gate_iv='1', htx='ETH-USDT', htx_ct=0.01, mexc='ETH_USDT', mexc_ct=0.01,
+                deribit='ETH-PERPETUAL', deribit_usd=True, bitmex=None, kraken='PF_ETHUSD', cdc='ETHUSD-PERP',
+                hl='ETH', hl_sig=4, dydx='ETH-USD', bfx='tETHF0:USTF0'),
+    'sol': dict(bin=0.01, hist_bin=0.1, name='SOL', file='glasssphere-sol.json', okx='SOL-USDT-SWAP', okx_ct=1, usdt='SOLUSDT',
+                gate='SOL_USDT', gate_mul=1, gate_iv='0.1', htx='SOL-USDT', htx_ct=1, mexc='SOL_USDT', mexc_ct=0.1,
+                deribit='SOL_USDC-PERPETUAL', deribit_usd=False, bitmex=None, kraken='PF_SOLUSD', cdc='SOLUSD-PERP',
+                hl='SOL', hl_sig=4, dydx='SOL-USD', bfx='tSOLF0:USTF0'),
+}
 
 
 def get(url, body=None):
@@ -39,98 +56,100 @@ def get(url, body=None):
         return json.load(r)
 
 
-def bin_levels(rows, side):
+def bin_levels(rows, side, step):
     m = {}
     for p, usd in rows:
         if usd <= 0:
             continue
-        k = math.floor(p / BIN) * BIN if side == 'b' else math.ceil(p / BIN) * BIN
+        k = (math.floor(p / step + 1e-9) if side == 'b' else math.ceil(p / step - 1e-9)) * step
+        k = round(k, 8)
         m[k] = m.get(k, 0) + usd
     return [[k, round(v)] for k, v in sorted(m.items())]
 
 
 # ---------- order books: (bids, asks) as [(price, usd)] ----------
 
-def book_okx():
-    b = get('https://www.okx.com/api/v5/market/books-full?instId=BTC-USDT-SWAP&sz=5000')['data'][0]
-    f = lambda r: (float(r[0]), float(r[1]) * 0.01 * float(r[0]))
+def book_okx(A):
+    b = get(f'https://www.okx.com/api/v5/market/books-full?instId={A["okx"]}&sz=5000')['data'][0]
+    f = lambda r: (float(r[0]), float(r[1]) * A['okx_ct'] * float(r[0]))
     return [f(r) for r in b['bids']], [f(r) for r in b['asks']]
 
 
-def book_binance():
-    j = get('https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000')
+def book_binance(A):
+    j = get(f'https://fapi.binance.com/fapi/v1/depth?symbol={A["usdt"]}&limit=1000')
     f = lambda r: (float(r[0]), float(r[1]) * float(r[0]))
     return [f(r) for r in j['bids']], [f(r) for r in j['asks']]
 
 
-def book_deribit():
-    j = get('https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=10000')['result']
-    return [tuple(r) for r in j['bids']], [tuple(r) for r in j['asks']]  # amounts are USD
-
-
-def book_gate():
-    j = get('https://api.gateio.ws/api/v4/futures/usdt/order_book?contract=BTC_USDT&limit=300&interval=10')
-    f = lambda r: (float(r['p']), r['s'] * 1e-4 * float(r['p']))
+def book_deribit(A):
+    j = get(f'https://www.deribit.com/api/v2/public/get_order_book?instrument_name={A["deribit"]}&depth=10000')['result']
+    f = (lambda r: (r[0], r[1])) if A['deribit_usd'] else (lambda r: (r[0], r[1] * r[0]))  # inverse: USD, linear: coin
     return [f(r) for r in j['bids']], [f(r) for r in j['asks']]
 
 
-def book_hyperliquid():
-    j = get('https://api.hyperliquid.xyz/info', {'type': 'l2Book', 'coin': 'BTC', 'nSigFigs': 3})
+def book_gate(A):
+    j = get(f'https://api.gateio.ws/api/v4/futures/usdt/order_book?contract={A["gate"]}&limit=300&interval={A["gate_iv"]}')
+    f = lambda r: (float(r['p']), r['s'] * A['gate_mul'] * float(r['p']))
+    return [f(r) for r in j['bids']], [f(r) for r in j['asks']]
+
+
+def book_hyperliquid(A):
+    j = get('https://api.hyperliquid.xyz/info', {'type': 'l2Book', 'coin': A['hl'], 'nSigFigs': A['hl_sig']})
     f = lambda r: (float(r['px']), float(r['sz']) * float(r['px']))
     return [f(r) for r in j['levels'][0]], [f(r) for r in j['levels'][1]]
 
 
-def book_bybit():
-    r = get('https://api.bybit.com/v5/market/orderbook?category=linear&symbol=BTCUSDT&limit=500')['result']
+def book_bybit(A):
+    r = get(f'https://api.bybit.com/v5/market/orderbook?category=linear&symbol={A["usdt"]}&limit=500')['result']
     f = lambda x: (float(x[0]), float(x[1]) * float(x[0]))
     return [f(x) for x in r['b']], [f(x) for x in r['a']]
 
 
-def book_bitget():
+def book_bitget(A):
     d = get('https://api.bitget.com/api/v2/mix/market/merge-depth'
-            '?productType=usdt-futures&symbol=BTCUSDT&limit=max&precision=scale2')['data']
+            f'?productType=usdt-futures&symbol={A["usdt"]}&limit=max&precision=scale2')['data']
     f = lambda x: (float(x[0]), float(x[1]) * float(x[0]))
     return [f(x) for x in d['bids']], [f(x) for x in d['asks']]
 
 
-def book_htx():
-    t = get('https://api.hbdm.com/linear-swap-ex/market/depth?contract_code=BTC-USDT&type=step0')['tick']
-    f = lambda x: (x[0], x[1] * 0.001 * x[0])
+def book_htx(A):
+    t = get(f'https://api.hbdm.com/linear-swap-ex/market/depth?contract_code={A["htx"]}&type=step0')['tick']
+    f = lambda x: (x[0], x[1] * A['htx_ct'] * x[0])
     return [f(x) for x in t['bids']], [f(x) for x in t['asks']]
 
 
-def book_mexc():
-    d = get('https://contract.mexc.com/api/v1/contract/depth/BTC_USDT?limit=2000')['data']
-    f = lambda x: (x[0], x[1] * 0.0001 * x[0])
+def book_mexc(A):
+    d = get(f'https://contract.mexc.com/api/v1/contract/depth/{A["mexc"]}?limit=2000')['data']
+    f = lambda x: (x[0], x[1] * A['mexc_ct'] * x[0])
     return [f(x) for x in d['bids']], [f(x) for x in d['asks']]
 
 
-def book_bitmex():
-    j = get('https://www.bitmex.com/api/v1/orderBook/L2?symbol=XBTUSD&depth=0')
+def book_bitmex(A):
+    j = get(f'https://www.bitmex.com/api/v1/orderBook/L2?symbol={A["bitmex"]}&depth=0')
     f = lambda x: (x['price'], x['size'])  # XBTUSD contracts are $1 each
     return [f(x) for x in j if x['side'] == 'Buy'], [f(x) for x in j if x['side'] == 'Sell']
 
 
-def book_kraken():
-    b = get('https://futures.kraken.com/derivatives/api/v3/orderbook?symbol=PF_XBTUSD')['orderBook']
+def book_kraken(A):
+    b = get(f'https://futures.kraken.com/derivatives/api/v3/orderbook?symbol={A["kraken"]}')['orderBook']
     f = lambda x: (x[0], x[1] * x[0])
     return [f(x) for x in b['bids']], [f(x) for x in b['asks']]
 
 
-def book_cryptocom():
-    d = get('https://api.crypto.com/exchange/v1/public/get-book?instrument_name=BTCUSD-PERP&depth=150')['result']['data'][0]
+def book_cryptocom(A):
+    d = get(f'https://api.crypto.com/exchange/v1/public/get-book?instrument_name={A["cdc"]}&depth=150')['result']['data'][0]
     f = lambda x: (float(x[0]), float(x[1]) * float(x[0]))
     return [f(x) for x in d['bids']], [f(x) for x in d['asks']]
 
 
-def book_dydx():
-    j = get('https://indexer.dydx.trade/v4/orderbooks/perpetualMarket/BTC-USD')
+def book_dydx(A):
+    j = get(f'https://indexer.dydx.trade/v4/orderbooks/perpetualMarket/{A["dydx"]}')
     f = lambda x: (float(x['price']), float(x['size']) * float(x['price']))
     return [f(x) for x in j['bids']], [f(x) for x in j['asks']]
 
 
-def book_bitfinex():
-    rows = get('https://api-pub.bitfinex.com/v2/book/tBTCF0:USTF0/P0?len=250')
+def book_bitfinex(A):
+    rows = get(f'https://api-pub.bitfinex.com/v2/book/{A["bfx"]}/P0?len=250')
     return ([(r[0], r[2] * r[0]) for r in rows if r[2] > 0],
             [(r[0], -r[2] * r[0]) for r in rows if r[2] < 0])
 
@@ -143,84 +162,85 @@ BOOKS = [('binance', book_binance), ('okx', book_okx), ('bybit', book_bybit), ('
 
 # ---------- open interest (USD), 24h volume (USD), funding per 8h ----------
 
-def mk_okx():
-    oi = get('https://www.okx.com/api/v5/public/open-interest?instType=SWAP&instId=BTC-USDT-SWAP')['data'][0]
-    t = get('https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT-SWAP')['data'][0]
-    f = get('https://www.okx.com/api/v5/public/funding-rate?instId=BTC-USDT-SWAP')['data'][0]
+def mk_okx(A):
+    oi = get(f'https://www.okx.com/api/v5/public/open-interest?instType=SWAP&instId={A["okx"]}')['data'][0]
+    t = get(f'https://www.okx.com/api/v5/market/ticker?instId={A["okx"]}')['data'][0]
+    f = get(f'https://www.okx.com/api/v5/public/funding-rate?instId={A["okx"]}')['data'][0]
     return {'oi': float(oi['oiUsd']), 'vol': float(t['volCcy24h']) * float(t['last']), 'fund': float(f['fundingRate'])}
 
 
-def mk_gate():
-    t = get('https://api.gateio.ws/api/v4/futures/usdt/tickers?contract=BTC_USDT')[0]
-    return {'oi': float(t['total_size']) * 1e-4 * float(t['mark_price']), 'vol': float(t['volume_24h_quote']),
+def mk_gate(A):
+    t = get(f'https://api.gateio.ws/api/v4/futures/usdt/tickers?contract={A["gate"]}')[0]
+    return {'oi': float(t['total_size']) * A['gate_mul'] * float(t['mark_price']), 'vol': float(t['volume_24h_quote']),
             'fund': float(t['funding_rate'])}
 
 
-def mk_bitget():
-    t = get('https://api.bitget.com/api/v2/mix/market/ticker?symbol=BTCUSDT&productType=usdt-futures')['data'][0]
+def mk_bitget(A):
+    t = get(f'https://api.bitget.com/api/v2/mix/market/ticker?symbol={A["usdt"]}&productType=usdt-futures')['data'][0]
     return {'oi': float(t['holdingAmount']) * float(t['lastPr']), 'vol': float(t['usdtVolume']), 'fund': float(t['fundingRate'])}
 
 
-def mk_htx():
+def mk_htx(A):
     oi = get('https://api.hbdm.com/linear-swap-api/v1/swap_his_open_interest'
-             '?contract_code=BTC-USDT&period=60min&amount_type=1&size=1')['data']['tick'][0]['value']
-    t = get('https://api.hbdm.com/linear-swap-ex/market/detail/merged?contract_code=BTC-USDT')['tick']
+             f'?contract_code={A["htx"]}&period=60min&amount_type=1&size=1')['data']['tick'][0]['value']
+    t = get(f'https://api.hbdm.com/linear-swap-ex/market/detail/merged?contract_code={A["htx"]}')['tick']
     return {'oi': float(oi), 'vol': float(t['trade_turnover'])}
 
 
-def mk_mexc():
-    t = get('https://contract.mexc.com/api/v1/contract/ticker?symbol=BTC_USDT')['data']
-    return {'oi': t['holdVol'] * 1e-4 * t['lastPrice'], 'vol': t['amount24'], 'fund': t['fundingRate']}
+def mk_mexc(A):
+    t = get(f'https://contract.mexc.com/api/v1/contract/ticker?symbol={A["mexc"]}')['data']
+    return {'oi': t['holdVol'] * A['mexc_ct'] * t['lastPrice'], 'vol': t['amount24'], 'fund': t['fundingRate']}
 
 
-def mk_deribit():
-    r = get('https://www.deribit.com/api/v2/public/get_book_summary_by_instrument?instrument_name=BTC-PERPETUAL')['result'][0]
-    return {'oi': r['open_interest'], 'vol': r['volume_usd'], 'fund': r['funding_8h']}
+def mk_deribit(A):
+    r = get(f'https://www.deribit.com/api/v2/public/get_book_summary_by_instrument?instrument_name={A["deribit"]}')['result'][0]
+    oi = r['open_interest'] if A['deribit_usd'] else r['open_interest'] * r['mark_price']
+    return {'oi': oi, 'vol': r['volume_usd'], 'fund': r.get('funding_8h') or 0}
 
 
-def mk_kraken():
-    t = get('https://futures.kraken.com/derivatives/api/v3/tickers/PF_XBTUSD')['ticker']
+def mk_kraken(A):
+    t = get(f'https://futures.kraken.com/derivatives/api/v3/tickers/{A["kraken"]}')['ticker']
     return {'oi': t['openInterest'] * t['last'], 'vol': t['volumeQuote']}
 
 
-def mk_cryptocom():
-    t = get('https://api.crypto.com/exchange/v1/public/get-tickers?instrument_name=BTCUSD-PERP')['result']['data'][0]
+def mk_cryptocom(A):
+    t = get(f'https://api.crypto.com/exchange/v1/public/get-tickers?instrument_name={A["cdc"]}')['result']['data'][0]
     return {'oi': float(t['oi']) * float(t['a']), 'vol': float(t['vv'])}
 
 
-def mk_hyperliquid():
+def mk_hyperliquid(A):
     meta, ctx = get('https://api.hyperliquid.xyz/info', {'type': 'metaAndAssetCtxs'})
-    x = ctx[[u['name'] for u in meta['universe']].index('BTC')]
+    x = ctx[[u['name'] for u in meta['universe']].index(A['hl'])]
     return {'oi': float(x['openInterest']) * float(x['markPx']), 'vol': float(x['dayNtlVlm']), 'fund': float(x['funding']) * 8}
 
 
-def mk_dydx():
-    x = get('https://indexer.dydx.trade/v4/perpetualMarkets?ticker=BTC-USD')['markets']['BTC-USD']
+def mk_dydx(A):
+    x = get(f'https://indexer.dydx.trade/v4/perpetualMarkets?ticker={A["dydx"]}')['markets'][A['dydx']]
     return {'oi': float(x['openInterest']) * float(x['oraclePrice']), 'vol': float(x['volume24H']),
             'fund': float(x['nextFundingRate']) * 8}
 
 
-def mk_bitfinex():
-    s = get('https://api-pub.bitfinex.com/v2/status/deriv?keys=tBTCF0:USTF0')[0]
-    t = get('https://api-pub.bitfinex.com/v2/ticker/tBTCF0:USTF0')
+def mk_bitfinex(A):
+    s = get(f'https://api-pub.bitfinex.com/v2/status/deriv?keys={A["bfx"]}')[0]
+    t = get(f'https://api-pub.bitfinex.com/v2/ticker/{A["bfx"]}')
     return {'oi': s[18] * s[15], 'vol': t[7] * t[6], 'fund': s[12]}
 
 
-def mk_binance():
-    oi = get('https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT')
-    t = get('https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=BTCUSDT')
-    f = get('https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT')
+def mk_binance(A):
+    oi = get(f'https://fapi.binance.com/fapi/v1/openInterest?symbol={A["usdt"]}')
+    t = get(f'https://fapi.binance.com/fapi/v1/ticker/24hr?symbol={A["usdt"]}')
+    f = get(f'https://fapi.binance.com/fapi/v1/premiumIndex?symbol={A["usdt"]}')
     return {'oi': float(oi['openInterest']) * float(f['markPrice']), 'vol': float(t['quoteVolume']),
             'fund': float(f['lastFundingRate'])}
 
 
-def mk_bybit():
-    t = get('https://api.bybit.com/v5/market/tickers?category=linear&symbol=BTCUSDT')['result']['list'][0]
+def mk_bybit(A):
+    t = get(f'https://api.bybit.com/v5/market/tickers?category=linear&symbol={A["usdt"]}')['result']['list'][0]
     return {'oi': float(t['openInterestValue']), 'vol': float(t['turnover24h']), 'fund': float(t['fundingRate'])}
 
 
-def mk_bitmex():
-    x = get('https://www.bitmex.com/api/v1/instrument?symbol=XBTUSD')[0]
+def mk_bitmex(A):
+    x = get(f'https://www.bitmex.com/api/v1/instrument?symbol={A["bitmex"]}')[0]
     return {'oi': x['openInterest'], 'vol': x.get('foreignNotional24h') or 0, 'fund': x['fundingRate']}
 
 
@@ -229,11 +249,11 @@ MARKET = [('binance', mk_binance), ('okx', mk_okx), ('bybit', mk_bybit), ('bitge
           ('cryptocom', mk_cryptocom), ('hyperliquid', mk_hyperliquid), ('dydx', mk_dydx), ('bitfinex', mk_bitfinex)]
 
 
-def okx_candles(bar, pages):
+def okx_candles(A, bar, pages):
     base = 'https://www.okx.com/api/v5/market/'
-    rows = get(base + f'candles?instId=BTC-USDT-SWAP&bar={bar}&limit=300')['data']
+    rows = get(base + f'candles?instId={A["okx"]}&bar={bar}&limit=300')['data']
     for _ in range(pages - 1):
-        rows += get(base + f'history-candles?instId=BTC-USDT-SWAP&bar={bar}&limit=100&after={rows[-1][0]}')['data']
+        rows += get(base + f'history-candles?instId={A["okx"]}&bar={bar}&limit=100&after={rows[-1][0]}')['data']
     return sorted([int(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[4]), round(float(r[7]))] for r in rows)
 
 
@@ -247,7 +267,7 @@ def volume_weights(books, market, price):
             for k in depth}
 
 
-def book_hist_entry(books, weights, price, ts):
+def book_hist_entry(books, weights, price, ts, step):
     lo, hi = price * 0.94, price * 1.06
     m = {}
     for ex, v in books.items():
@@ -255,50 +275,60 @@ def book_hist_entry(books, weights, price, ts):
         for side, i in (('b', 0), ('a', 1)):
             for p, u in v[side]:
                 if lo <= p <= hi:
-                    k = math.floor(p / HIST_BIN) * HIST_BIN
+                    k = round(math.floor(p / step + 1e-9) * step, 8)
                     m.setdefault(k, [0, 0])[i] += u * w
     return {'t': ts // 3600000 * 3600000, 'b': [[k, round(a), round(b)] for k, (a, b) in sorted(m.items()) if a + b > 0]}
 
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1].startswith('--'):
-        raise SystemExit('usage: glasssphere_snapshot.py DIR [--prev URL ...]')
+        raise SystemExit('usage: glasssphere_snapshot.py DIR [--asset btc|eth|sol] [--prev URL ...]')
     out_dir = sys.argv[1]
+    key = sys.argv[sys.argv.index('--asset') + 1] if '--asset' in sys.argv else 'btc'
+    A = ASSETS[key]
     prev_urls = [sys.argv[i + 1] for i, a in enumerate(sys.argv[:-1]) if a == '--prev']
+
+    candles = okx_candles(A, '1H', 2)[-400:]
+    candles15 = okx_candles(A, '15m', 1)
+    candles4h = okx_candles(A, '4H', 1)
+    price = candles[-1][4]
+    step, hist_step = A['bin'], A['hist_bin']
+
     books = {}
     for name, fn in BOOKS:
+        if A.get(name, True) is None:
+            continue
         try:
-            bids, asks = fn()
-            books[name] = {'b': bin_levels(bids, 'b'), 'a': bin_levels(asks, 'a')}
+            bids, asks = fn(A)
+            books[name] = {'b': bin_levels(bids, 'b', step), 'a': bin_levels(asks, 'a', step)}
             print(f'book   {name:12s} {len(bids):5d} bids {len(asks):5d} asks')
         except Exception as e:
             print(f'book   {name:12s} skipped: {e}')
     market = {}
     for name, fn in MARKET:
+        if A.get(name, True) is None:
+            continue
         try:
-            market[name] = {k: round(v, 8 if k == 'fund' else 0) for k, v in fn().items()}
+            market[name] = {k: round(v, 8 if k == 'fund' else 0) for k, v in fn(A).items()}
         except Exception as e:
             print(f'market {name:12s} skipped: {e}')
     print('market', ', '.join(f'{k} OI ${v.get("oi", 0) / 1e9:.2f}B' for k, v in market.items()))
 
-    candles = okx_candles('1H', 2)[-400:]
-    candles15 = okx_candles('15m', 1)
-    candles4h = okx_candles('4H', 1)
     st = get('https://api.gateio.ws/api/v4/futures/usdt/contract_stats'
-             f'?contract=BTC_USDT&interval=1h&from={candles[0][0] // 1000}&limit=1000')
+             f'?contract={A["gate"]}&interval=1h&from={candles[0][0] // 1000}&limit=1000')
     oi = [[r['time'] * 1000, round(r['open_interest_usd'])] for r in st]
     taker = [[r['time'] * 1000, round(r['lsr_taker'] / (1 + r['lsr_taker']), 4)] for r in st]
     liq_real = [[r['time'] * 1000, round(r['long_liq_usd']), round(r['short_liq_usd'])] for r in st]
 
-    price = candles[-1][4]
-    for v in books.values():  # keep the snapshot small: ±15% is more than the page ever shows
+    for v in books.values():  # keep the file small: ±15% is more than the page ever shows
         v['b'] = [r for r in v['b'] if r[0] >= price * 0.85]
         v['a'] = [r for r in v['a'] if r[0] <= price * 1.15]
     ts = int(time.time() * 1000)
-    entry = book_hist_entry(books, volume_weights(books, market, price), price, ts)
-    snap = {'ts': ts, 'price': price, 'books': books, 'candles': candles, 'candles15': candles15,
-            'candles4h': candles4h, 'oi': oi, 'taker': taker, 'liqReal': liq_real, 'market': market}
-    print(f'{len(candles)} 1H candles, {len(oi)} Gate stat hours, price {price}')
+    entry = book_hist_entry(books, volume_weights(books, market, price), price, ts, hist_step)
+    snap = {'ts': ts, 'asset': A['name'], 'bin': step, 'histBin': hist_step, 'price': price, 'books': books,
+            'candles': candles, 'candles15': candles15, 'candles4h': candles4h, 'oi': oi, 'taker': taker,
+            'liqReal': liq_real, 'market': market}
+    print(f'{A["name"]}: {len(candles)} 1H candles, {len(oi)} Gate stat hours, price {price}, bins {step} / {hist_step}')
 
     prev = []
     for url in prev_urls:  # carry the book history of the live site forward, one entry per hour, last 48
@@ -311,9 +341,10 @@ def main():
     hist[entry['t']] = entry
     snap['bookHist'] = [hist[k] for k in sorted(hist)][-48:]
     os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, 'glasssphere-data.json')
+    path = os.path.join(out_dir, A['file'])
     json.dump(snap, open(path, 'w'), separators=(',', ':'))
     print(f'wrote {path} ({os.path.getsize(path) // 1024} KB, {len(snap["bookHist"])} hours of book history)')
+
 
 if __name__ == '__main__':
     main()

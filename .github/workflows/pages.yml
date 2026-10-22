@@ -1,5 +1,6 @@
-# Publishes GlassSphere (index.html, installable on the iOS home screen) to GitHub Pages, with
-# glasssphere-data.json refreshed every hour, and sends alerts to ntfy.
+# Publishes GlassSphere (index.html, installable on the iOS home screen) to GitHub Pages, with the data files
+# (glasssphere-data.json for BTC, glasssphere-eth.json, glasssphere-sol.json) refreshed every hour, and sends BTC
+# alerts to ntfy.
 # One-time setup: Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
 # Alerts: add the repository secret NTFY_TOPIC and subscribe to that topic in the ntfy app (no secret, no alerts).
 name: GlassSphere
@@ -34,10 +35,12 @@ jobs:
         run: |
           mkdir -p _site
           cp *.html manifest.webmanifest _site/ && cp -r icons _site/
-          # data for index.html; the book history of the live site is carried forward
-          # (liquidity-data.json is the file's name before the rename to GlassSphere)
-          python3 scripts/glasssphere_snapshot.py _site --prev "${{ steps.pages.outputs.base_url }}/glasssphere-data.json" \
-            --prev "${{ steps.pages.outputs.base_url }}/liquidity-data.json"
+          # data for index.html, one file per asset; the book history of the live site is carried forward
+          # (liquidity-data.json is the BTC file's name before the rename to GlassSphere)
+          base="${{ steps.pages.outputs.base_url }}"
+          python3 scripts/glasssphere_snapshot.py _site --asset btc --prev "$base/glasssphere-data.json" --prev "$base/liquidity-data.json"
+          python3 scripts/glasssphere_snapshot.py _site --asset eth --prev "$base/glasssphere-eth.json"
+          python3 scripts/glasssphere_snapshot.py _site --asset sol --prev "$base/glasssphere-sol.json"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
