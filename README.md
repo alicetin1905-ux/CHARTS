@@ -31,6 +31,25 @@ SoSoValue's public API.
   `scripts/etf_flows.py` for btc, eth and sol and saves the results to the page's `etf/btc`, `etf/eth` and
   `etf/sol` database documents. SoSoValue has no data for other coins' ETFs (XRP, DOGE, LTC, ...).
 
+## Liquidity Map (`liquidity-map.html`)
+
+Where open orders sit around the BTC perpetual price: 1H candles with three side profiles on one price axis.
+
+- **Limit orders** (real): the visible order books of OKX, Binance, Deribit, Gate and Hyperliquid BTC perps,
+  in USD per price bucket, stacked per exchange. Each book only reaches as far as the exchange returns
+  (OKX ±0.8%, Hyperliquid ±2.4% in $100 blocks, Gate ±3.5%, Binance 1000 levels, Deribit the full book).
+- **Stops** (estimate): no exchange publishes stop orders. Placed just above unswept swing highs (buy stops) and
+  below unswept swing lows (sell stops), weighted by volume around the swing and recency (half-life 1 week), plus a
+  small weight on round $1000 levels. Shown as a 0–100 score.
+- **Liquidations** (estimate): hourly OKX open-interest increases opened at that hour's average price, split
+  long/short by where the candle closed, at 10× / 25× / 50× / 100× (35 / 30 / 20 / 15%). Levels price already hit are
+  removed; falling OI scales everything down. Amounts are OKX only.
+- Range ±1.5–12%, bucket $25–$500, exchanges can be switched off. Hover a level for the per-exchange breakdown.
+  A table lists the 4 largest levels of each kind above and below the price.
+
+Opened as a file it refreshes the books every 15 seconds. The hosted claude.ai page cannot reach the exchanges and
+shows the snapshot embedded by `scripts/liquidity_snapshot.py` (run it again to refresh the snapshot).
+
 ## Delta Volume indicator (`indicators/delta_volume.pine`)
 
 TradingView indicator for BTCUSDT.P (works on any symbol): buy volume − sell volume per bar, and the
