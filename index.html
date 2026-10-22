@@ -217,7 +217,8 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
   font:inherit;color:var(--txt);background:var(--glass),rgba(14,20,18,.72);border:1px solid var(--edge);border-radius:14px;
   box-shadow:inset 0 1px 0 var(--edge-hi),0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   will-change:transform,opacity;opacity:0;transition:border-color .2s,box-shadow .2s}
-#intro .ct b{font-family:var(--mono);font-size:14px;font-weight:600;letter-spacing:.05em}
+#intro .ct b{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:14px;font-weight:600;letter-spacing:.05em}
+#intro .ct b img{width:18px;height:18px;border-radius:50%;box-shadow:0 0 8px rgba(255,255,255,.12)}
 #intro .ct span{font-family:var(--mono);font-size:10px;color:var(--dim);white-space:nowrap}
 #intro .ct i{font-style:normal;font-family:var(--mono);font-size:10px;white-space:nowrap}
 #intro .ct i.nt{color:var(--nt)}
@@ -232,7 +233,8 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
 .back:hover,.back:focus-visible{border-color:rgba(53,255,176,.75);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 22px rgba(53,255,176,.35)}
 @media (max-width:760px){
   #intro .ct{width:80px;padding:6px 3px;border-radius:12px}
-  #intro .ct b{font-size:12.5px}
+  #intro .ct b{font-size:12.5px;gap:4px}
+  #intro .ct b img{width:15px;height:15px}
   #intro .ct span,#intro .ct i{font-size:9px}
 }
 .pcol{display:none}
@@ -1330,7 +1332,7 @@ const intro = (() => {
   const keys = Object.keys(ASSETS), n = keys.length;
   const tiles = keys.map((k, i) => {
     const b = document.createElement('button');
-    b.className = 'ct'; b.dataset.a = k; b.innerHTML = `<b>${ASSETS[k].name}</b><span>—</span><i></i>`;
+    b.className = 'ct'; b.dataset.a = k; b.innerHTML = `<b><img src="icons/coins/${k}.png" alt="" width="18" height="18">${ASSETS[k].name}</b><span>—</span><i></i>`;
     wrap.appendChild(b);
     return { k, i, b, x: 0, y: 0, s: 1, o: 0 };
   });
