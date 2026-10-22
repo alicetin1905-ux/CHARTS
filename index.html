@@ -246,12 +246,6 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
 @keyframes chg{0%{opacity:.9;transform:scale(.97)}100%{opacity:0;transform:scale(1.2)}}
 #intro .ct .new{position:absolute;top:-8px;right:-7px;font:700 8.5px var(--mono);letter-spacing:.04em;color:#06100c;background:var(--nt);
   border-radius:6px;padding:1px 4px;box-shadow:0 0 10px rgba(255,200,87,.5)}
-/* horizon for the whole start page */
-#intro .hzs{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 56px);display:flex;justify-content:center}
-#intro .hzs div{display:flex;gap:2px;padding:2px;border:1px solid var(--edge);border-radius:999px;background:rgba(14,20,18,.55);
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-#intro .hzs button{font:inherit;font-size:11px;color:var(--dim);background:none;border:0;border-radius:999px;padding:4px 10px;cursor:pointer}
-#intro .hzs button.on{color:var(--txt);background:rgba(53,255,176,.13);box-shadow:inset 0 0 0 1px rgba(53,255,176,.4)}
 /* glass cards: a coin's preview (hold a tile) and the market overview (tap the sphere) */
 #intro .card2{position:absolute;z-index:3;width:228px;padding:12px 14px;border-radius:16px;border:1px solid var(--edge);
   background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02)),rgba(10,16,14,.86);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
@@ -307,7 +301,6 @@ body.swap header.top .px{opacity:.25}
   #intro .ct b{font-size:11px}
   #intro .ct b img{width:13px;height:13px}
   #intro .ct span,#intro .ct i{font-size:8px}
-  #intro .hzs button{padding:4px 7px;font-size:10.5px}
   #intro .ct b{font-size:12.5px;gap:4px}
   #intro .ct b img{width:15px;height:15px}
   #intro .ct span,#intro .ct i{font-size:9px}
@@ -349,9 +342,6 @@ body.swap header.top .px{opacity:.25}
   <canvas id="intro-cv" aria-hidden="true"></canvas>
   <div class="ttl"><h2>GlassSphere</h2></div>
   <nav id="intro-coins" aria-label="Kies een munt"></nav>
-  <div class="hzs"><div id="intro-hz" role="group" aria-label="Termijn">
-    <button data-v="0" class="on" title="Per munt: 3 dagen voor BTC, ETH, SOL en BNB, 1 dag voor de rest">Standaard</button>
-    <button data-v="1">1 dag</button><button data-v="3">3 dagen</button><button data-v="7">1 week</button></div></div>
   <div class="card2" id="intro-card" hidden></div>
   <div class="card2" id="intro-sum" hidden></div>
   <div class="hint" id="intro-hint">Kies een munt</div>
@@ -465,7 +455,7 @@ body.swap header.top .px{opacity:.25}
       <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van de perp op tot 14 beurzen (niet elke munt staat op elke beurs; BitMEX heeft alleen BTC), in USD per blok. Waar een beurs PEPE per 1000 noteert (Binance, Bybit, Hyperliquid, Deribit) is de prijs teruggerekend naar 1 PEPE. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is de balk onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2%, dYdX ±1,5%, Hyperliquid ±2,4% (grove blokken), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json en glasssphere-&lt;munt&gt;.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de kaarsen toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke nepmuren) opvallen.</p>
       <p><b>Stops</b> (stop-loss, koopstop, verkoopstop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke top die nog niet is geraakt (koopstops van shorts en uitbraakkopers), net onder elke ongeraakte bodem (verkoopstops van longs), gewogen naar het volume rond die top of bodem en hoe recent die is, plus een kleine bijdrage op ronde $1000-niveaus. Score 0–100, geen bedrag.</p>
       <p><b>Liquidaties</b> zijn geschat uit de groei van de openstaande posities (open interest) per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de kaars sloot en voor de helft naar het aandeel kopende marktorders, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar de openstaande posities van alle beurzen samen. Onderin de grafiek staan de echte liquidaties van Gate per kaars.</p>
-      <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week; standaard 3 dagen voor BTC, ETH, SOL en BNB en 1 dag voor de andere munten) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddeld dagbereik × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, openstaande posities, financiering (funding), CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
+      <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week; standaard 3 dagen voor BTC, ETH, SOL, BNB, XRP en DOGE en 1 dag voor de andere munten) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddeld dagbereik × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, openstaande posities, financiering (funding), CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
     </div>
   </footer>
 </main>
@@ -647,9 +637,9 @@ const BTS = {
 };
 const HZ_MIN = 0.3;                   // targets at least 0.3 x the expected range away, so they are worth a trade
 const hzLabel = d => d === 1 ? '1 dag' : d === 7 ? '1 week' : d + ' dagen';
-// standard horizon per coin: 3 days for BTC, ETH, SOL and BNB; 1 day for the others, whose 3-day targets lie too far
-// away (4 to 8% against 2.6 to 5.5% in a day). A horizon chosen on a coin's page is kept for that coin only.
-const hzDefault = k => ({ btc: 3, eth: 3, sol: 3, bnb: 3 })[k] || 1;
+// standard horizon per coin: 3 days for BTC, ETH, SOL, BNB, XRP and DOGE; 1 day for the others, whose 3-day targets lie
+// too far away. A horizon chosen on a coin's page is kept for that coin only.
+const hzDefault = k => ({ btc: 3, eth: 3, sol: 3, bnb: 3, xrp: 3, doge: 3 })[k] || 1;
 const horizons = {};      // chosen horizon per asset, where it differs from the standard
 const hzOf = k => horizons[k] || hzDefault(k);
 
@@ -667,7 +657,7 @@ let A = ASSETS[state.asset], BT = BTS[state.asset];
 state.bucket = A.buckets.includes(buckets[state.asset]) ? buckets[state.asset] : 0;
 state.horizon = hzOf(state.asset);
 const savePrefs = () => { buckets[state.asset] = state.bucket;
-  if (!state.hzTemp) { if (state.horizon === hzDefault(state.asset)) delete horizons[state.asset]; else horizons[state.asset] = state.horizon; } try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ asset: state.asset, range: state.range, bks: buckets, tf: state.tf, hzs: horizons, pcol: state.pcol, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
+  if (state.horizon === hzDefault(state.asset)) delete horizons[state.asset]; else horizons[state.asset] = state.horizon; try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ asset: state.asset, range: state.range, bks: buckets, tf: state.tf, hzs: horizons, pcol: state.pcol, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
 
 /* ---------- fetching ---------- */
 async function getJSON(url, opts = {}) {
@@ -1326,8 +1316,7 @@ function seg(id, key) {
   el.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === state[key]));
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    state[key] = +b.dataset.v; if (key === 'horizon') state.hzTemp = false;
-    el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); savePrefs(); refresh();
+    state[key] = +b.dataset.v; el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); savePrefs(); refresh();
   });
 }
 function renderBuckets() {
@@ -1422,10 +1411,10 @@ async function start() {
   if (await loadLive()) { if (g === gen) timer = setInterval(loadLive, 15e3); return; }
   if (g === gen && !site) { $('src').textContent = `geen data: beurzen en ${A.file} niet bereikbaar`; document.body.classList.remove('swap'); }
 }
-function selectAsset(a, hz = 0) {
+function selectAsset(a) {
   state.asset = a; A = ASSETS[a]; BT = BTS[a];
   state.bucket = A.buckets.includes(buckets[a]) ? buckets[a] : 0;
-  state.horizon = hz || hzOf(a); state.hzTemp = !!hz && hz !== hzOf(a);   // from the start page's horizon: not saved
+  state.horizon = hzOf(a);
   savePrefs(); start();
 }
 $('asset').addEventListener('click', e => {
@@ -1459,9 +1448,7 @@ const intro = (() => {
     return { k, i, b, x: 0, y: 0, s: 1, o: 0, fr, ph, hs: 1, vc: TEAL, last: null, str: 0, strE: 0, wave: null, chg: null };
   });
   let W = 0, H = 0, raf = 0, t0 = 0, hover = -1, pick = null;
-  // the start page's horizon: 0 = each coin its standard; kept between visits
-  let viewHz = 0; try { viewHz = +localStorage.getItem('glasssphere-introhz') || 0; } catch (e) {}
-  const hzView = k => viewHz || hzOf(k);
+  const hzView = hzOf;                                       // each coin on its own standard (or chosen) horizon
   // each coin's verdict at the last visit, to mark the ones that changed since
   let seenPrev = {}; try { seenPrev = JSON.parse(localStorage.getItem('glasssphere-seen') || '{}'); } catch (e) {}
   let orbAt = { x: 0, y: 0, R: 0 };
@@ -1474,8 +1461,7 @@ const intro = (() => {
   function geo() {
     // the tiles' real size (as the CSS lays them out), plus a little room for their drift and tilt
     const R = Math.max(56, Math.min(140, Math.min(W, H) * 0.16)), tw = (tiles[0].b.offsetWidth || 82) + 6, th = (tiles[0].b.offsetHeight || 52) + 6;
-    // room above for the title and the horizon chips, less below for the count line
-    const rx = Math.min(W / 2 - tw / 2 - 10, R * 3.4), ry = Math.min(H / 2 - th / 2 - 89, R * 4);
+    const rx = Math.min(W / 2 - tw / 2 - 10, R * 3.4), ry = Math.min(H / 2 - th / 2 - 72, R * 4);
     // points spaced evenly along the ellipse in tile sizes (how far apart in widths or in heights, whichever is more),
     // so neighbouring tiles keep the same room everywhere, also where the ring bends most
     if (!arc || arc.rx !== rx || arc.ry !== ry || arc.tw !== tw) {
@@ -1485,7 +1471,7 @@ const intro = (() => {
       arc = { rx, ry, tw, at: f => { let lo = 0, hi = N; const v = (((f % 1) + 1) % 1) * L;     // f: 0..1 of the length -> angle
         while (hi - lo > 1) { const m = (lo + hi) >> 1; len[m] < v ? lo = m : hi = m; } return lo / N * 2 * Math.PI; } };
     }
-    return { cx: W / 2, cy: H / 2 + 15, R, tw, th, rx, ry };
+    return { cx: W / 2, cy: H / 2 + 6, R, tw, th, rx, ry };
   }
   let arc = null;
   // the orb: dark glass with order-book bands inside (asks red above, bids green below) and the price line
@@ -1694,7 +1680,7 @@ const intro = (() => {
     const up = best('up'), dn = best('down'), n = v => rows.filter(r => r.h.v === v).length;
     const waves = tiles.filter(T => T.wave).map(T => ASSETS[T.k].name);
     const at = new Date(summary.ts).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-    showCard(sumEl, `<h4>Markt nu<small>${viewHz ? hzLabel(viewHz) : 'standaard per munt'}</small></h4>` +
+    showCard(sumEl, `<h4>Markt nu<small>standaard per munt</small></h4>` +
       `<div class="row"><span class="up">Eerst omhoog</span><b>${n('up')}</b></div>` +
       `<div class="row"><span class="dn">Eerst omlaag</span><b>${n('down')}</b></div>` +
       `<div class="row"><span class="nt">Neutraal</span><b>${n('neutral')}</b></div>` +
@@ -1702,12 +1688,6 @@ const intro = (() => {
       `${dn ? `Sterkst omlaag: <b class="dn">${ASSETS[dn.T.k].name} ${Math.round(dn.h.prob * 100)}%</b><br>` : ''}` +
       `${waves.length ? `<span class="liq">Liquidatiegolf: ${waves.join(', ')}</span><br>` : ''}Oordelen ververst om ${at}</div>`);
   }
-  $('intro-hz').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === viewHz));
-  $('intro-hz').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    viewHz = +b.dataset.v; try { localStorage.setItem('glasssphere-introhz', String(viewHz)); } catch (e2) {}
-    $('intro-hz').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); verdicts(); hideCard(sumEl);
-  });
   let lpTimer = 0, lpDone = false, hoverTimer = 0;
   el.addEventListener('pointerdown', e => {
     hideCard(cardEl); if (!e.target.closest('#intro-sum')) hideCard(sumEl);
@@ -1717,7 +1697,7 @@ const intro = (() => {
   ['pointerup', 'pointercancel'].forEach(ev => el.addEventListener(ev, () => clearTimeout(lpTimer)));
   wrap.addEventListener('contextmenu', e => e.preventDefault());
   el.addEventListener('click', e => {
-    if (e.target.closest('.ct, #intro-hz, #intro-tilt, #intro-sum')) return;
+    if (e.target.closest('.ct, #intro-tilt, #intro-sum')) return;
     if (Math.hypot(e.clientX - orbAt.x, e.clientY - orbAt.y) < orbAt.R * 1.1) overview();
   });
   function finish() {
@@ -1737,7 +1717,7 @@ const intro = (() => {
     const T = tiles.find(x => x.b === b);
     hideCard(cardEl); hideCard(sumEl);
     pick = { i: T.i, at: performance.now() - (still ? 1600 : 0) };
-    selectAsset(T.k, viewHz);                                  // load while the sphere pulls the coin in
+    selectAsset(T.k);                                          // load while the sphere pulls the coin in
   });
   function onTilt(e) {
     if (e.gamma == null) return;
