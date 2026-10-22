@@ -39,6 +39,20 @@ def verdict(candles, oi, taker, days=3):
     return price, up, dn, p_up
 
 
+def liq_wave(snap, asset):
+    """Gate's real liquidations in the last hour, when over LIQ_MIN and 3x the hourly average of the day before."""
+    liq = snap.get('liqReal') or []
+    if len(liq) <= 25:
+        return None
+    prev = [r[1] + r[2] for r in liq[-25:-1]]
+    lu, su = liq[-1][1], liq[-1][2]
+    avg = sum(prev) / len(prev)
+    if lu + su > LIQ_MIN.get(asset, 1e6) and lu + su > 3 * avg:
+        return {'usd': round(lu + su), 'side': 'longs' if lu > su else 'shorts', 'x': round((lu + su) / max(avg, 1)),
+                't': liq[-1][0]}
+    return None
+
+
 def label(p_up):
     if p_up is None:
         return 'Geen doelen'
@@ -81,15 +95,10 @@ def main():
         print(f'MELDING: cluster onder {fmt(dn0[0])} geraakt in het laatste uur (laag {fmt(last[3])})')
     if lab in ('Eerst omhoog', 'Eerst omlaag') and lab0 in ('Eerst omhoog', 'Eerst omlaag') and lab != lab0:
         print(f'MELDING: eerste doel wisselde van kant: {lab0} → {lab}')
-    liq = snap.get('liqReal') or []
-    if len(liq) > 25:
-        prev = [r[1] + r[2] for r in liq[-25:-1]]
-        lu, su = liq[-1][1], liq[-1][2]
-        avg = sum(prev) / len(prev)
-        if lu + su > LIQ_MIN.get(asset, 1e6) and lu + su > 3 * avg:
-            side = 'longs' if lu > su else 'shorts'
-            print(f'MELDING: liquidatiegolf op Gate: ${(lu + su) / 1e6:.1f}M in het laatste uur, vooral {side} '
-                  f'({(lu + su) / max(avg, 1):.0f}× het uurgemiddelde)')
+    w = liq_wave(snap, asset)
+    if w:
+        print(f'MELDING: liquidatiegolf op Gate: ${w["usd"] / 1e6:.1f}M in het laatste uur, vooral {w["side"]} '
+              f'({w["x"]}× het uurgemiddelde)')
 
 
 if __name__ == '__main__':

@@ -229,7 +229,7 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
 #intro .ttl h2{font-size:22px;font-weight:600;letter-spacing:.06em;text-shadow:0 0 22px rgba(53,255,176,.35)}
 #intro .hint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);text-align:center;font-family:var(--mono);font-size:11px;
   color:var(--faint);letter-spacing:.08em;pointer-events:none}
-#intro .ct{position:absolute;left:0;top:0;width:92px;padding:8px 6px 7px;display:grid;gap:2px;justify-items:center;cursor:pointer;
+#intro .ct{position:absolute;left:0;top:0;width:110px;padding:8px 6px 7px;display:grid;gap:2px;justify-items:center;cursor:pointer;
   font:inherit;color:var(--txt);background:var(--glass),rgba(14,20,18,.72);border:1px solid var(--edge);border-radius:14px;
   box-shadow:inset 0 1px 0 var(--edge-hi),0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   will-change:transform,opacity;opacity:0;transition:border-color .2s,box-shadow .2s}
@@ -237,10 +237,42 @@ footer .note{background:var(--glass),var(--panel);border:1px solid var(--edge);b
 #intro .ct b img{width:18px;height:18px;border-radius:50%;box-shadow:0 0 8px rgba(255,255,255,.12)}
 #intro .ct span{font-family:var(--mono);font-size:10px;color:var(--dim);white-space:nowrap}
 #intro .ct i{font-style:normal;font-family:var(--mono);font-size:10px;white-space:nowrap}
+#intro .ct i em{font-style:normal;opacity:.75;margin-left:3px}
+#intro .ct i small{font-size:inherit}
+#intro .ct i .sh{display:none}
+/* verdict changed since the last visit: a ring pulses out and a small label */
+#intro .ct.chg::after{content:"";position:absolute;inset:-5px;border-radius:17px;border:1.5px solid rgba(255,255,255,.75);pointer-events:none;
+  animation:chg 1.8s ease-out infinite}
+@keyframes chg{0%{opacity:.9;transform:scale(.97)}100%{opacity:0;transform:scale(1.2)}}
+#intro .ct .new{position:absolute;top:-8px;right:-7px;font:700 8.5px var(--mono);letter-spacing:.04em;color:#06100c;background:var(--nt);
+  border-radius:6px;padding:1px 4px;box-shadow:0 0 10px rgba(255,200,87,.5)}
+/* horizon for the whole start page */
+#intro .hzs{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 56px);display:flex;justify-content:center}
+#intro .hzs div{display:flex;gap:2px;padding:2px;border:1px solid var(--edge);border-radius:999px;background:rgba(14,20,18,.55);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#intro .hzs button{font:inherit;font-size:11px;color:var(--dim);background:none;border:0;border-radius:999px;padding:4px 10px;cursor:pointer}
+#intro .hzs button.on{color:var(--txt);background:rgba(53,255,176,.13);box-shadow:inset 0 0 0 1px rgba(53,255,176,.4)}
+/* glass cards: a coin's preview (hold a tile) and the market overview (tap the sphere) */
+#intro .card2{position:absolute;z-index:3;width:228px;padding:12px 14px;border-radius:16px;border:1px solid var(--edge);
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02)),rgba(10,16,14,.86);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:inset 0 1px 0 var(--edge-hi),0 18px 40px rgba(0,0,0,.5);font-size:12px;line-height:1.5;pointer-events:none;
+  opacity:0;transform:scale(.94);transition:opacity .18s,transform .18s}
+#intro .card2.show{opacity:1;transform:none}
+#intro .card2[hidden]{display:none}
+#intro .card2 h4{display:flex;align-items:center;gap:7px;font-size:14px;font-family:var(--mono);margin-bottom:6px}
+#intro .card2 h4 img{width:20px;height:20px;border-radius:50%}
+#intro .card2 h4 small{margin-left:auto;font-size:10px;color:var(--dim);font-weight:400}
+#intro .card2 .row{display:flex;justify-content:space-between;gap:10px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+#intro .card2 .row b{color:var(--txt);font-weight:500}
+#intro .card2 .big{font-size:15px;font-weight:600;margin-bottom:4px}
+#intro .card2 .note{margin-top:7px;padding-top:7px;border-top:1px solid var(--edge);font-size:11px;color:var(--dim)}
+#intro .card2 .liq{color:#c9a7ff}
+#intro #intro-sum{left:50%;top:50%;width:250px;margin-left:-125px;margin-top:-90px;pointer-events:auto}
 #intro .ct i.nt{color:var(--nt)}
 /* the tile's edge glows in the colour of its verdict */
-#intro .ct.v-up{border-color:rgba(53,255,176,.45);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 18px rgba(53,255,176,.2),0 8px 24px rgba(0,0,0,.35)}
-#intro .ct.v-dn{border-color:rgba(255,77,106,.5);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 18px rgba(255,77,106,.22),0 8px 24px rgba(0,0,0,.35)}
+#intro .ct{--str:0;-webkit-touch-callout:none}
+#intro .ct.v-up{border-color:rgba(53,255,176,calc(.4 + .4 * var(--str)));box-shadow:inset 0 1px 0 var(--edge-hi),0 0 calc(14px + 22px * var(--str)) rgba(53,255,176,calc(.16 + .3 * var(--str))),0 8px 24px rgba(0,0,0,.35)}
+#intro .ct.v-dn{border-color:rgba(255,77,106,calc(.45 + .4 * var(--str)));box-shadow:inset 0 1px 0 var(--edge-hi),0 0 calc(14px + 22px * var(--str)) rgba(255,77,106,calc(.18 + .3 * var(--str))),0 8px 24px rgba(0,0,0,.35)}
 #intro .ct.v-nt{border-color:rgba(255,200,87,.28);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 14px rgba(255,200,87,.1),0 8px 24px rgba(0,0,0,.35)}
 /* a price that just moved lights up green or red for a moment */
 @keyframes flash-up{0%{color:var(--up);text-shadow:0 0 14px rgba(53,255,176,.9)}100%{}}
@@ -265,7 +297,17 @@ body.swap header.top .px{opacity:.25}
 .back span{font-size:20px;line-height:0;margin-top:-2px;color:var(--up)}
 .back:hover,.back:focus-visible{border-color:rgba(53,255,176,.75);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 22px rgba(53,255,176,.35)}
 @media (max-width:760px){
-  #intro .ct{width:80px;padding:6px 3px;border-radius:12px}
+  #intro .ct{width:82px;padding:5px 3px 4px;gap:1px;border-radius:12px}
+  #intro .ct i em{margin-left:2px}
+  #intro .ct i .lg{display:none}
+  #intro .ct i .sh{display:inline}
+}
+@media (max-width:359px){            /* the smallest iPhones */
+  #intro .ct{width:70px;padding:4px 2px 3px}
+  #intro .ct b{font-size:11px}
+  #intro .ct b img{width:13px;height:13px}
+  #intro .ct span,#intro .ct i{font-size:8px}
+  #intro .hzs button{padding:4px 7px;font-size:10.5px}
   #intro .ct b{font-size:12.5px;gap:4px}
   #intro .ct b img{width:15px;height:15px}
   #intro .ct span,#intro .ct i{font-size:9px}
@@ -307,6 +349,11 @@ body.swap header.top .px{opacity:.25}
   <canvas id="intro-cv" aria-hidden="true"></canvas>
   <div class="ttl"><h2>GlassSphere</h2></div>
   <nav id="intro-coins" aria-label="Kies een munt"></nav>
+  <div class="hzs"><div id="intro-hz" role="group" aria-label="Termijn">
+    <button data-v="0" class="on" title="Per munt: 3 dagen voor BTC, ETH, SOL en BNB, 1 dag voor de rest">Standaard</button>
+    <button data-v="1">1 dag</button><button data-v="3">3 dagen</button><button data-v="7">1 week</button></div></div>
+  <div class="card2" id="intro-card" hidden></div>
+  <div class="card2" id="intro-sum" hidden></div>
   <div class="hint" id="intro-hint">Kies een munt</div>
   <button class="tilt" id="intro-tilt" type="button" hidden>✦ Kantel-effect</button>
 </div>
@@ -620,7 +667,7 @@ let A = ASSETS[state.asset], BT = BTS[state.asset];
 state.bucket = A.buckets.includes(buckets[state.asset]) ? buckets[state.asset] : 0;
 state.horizon = hzOf(state.asset);
 const savePrefs = () => { buckets[state.asset] = state.bucket;
-  if (state.horizon === hzDefault(state.asset)) delete horizons[state.asset]; else horizons[state.asset] = state.horizon; try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ asset: state.asset, range: state.range, bks: buckets, tf: state.tf, hzs: horizons, pcol: state.pcol, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
+  if (!state.hzTemp) { if (state.horizon === hzDefault(state.asset)) delete horizons[state.asset]; else horizons[state.asset] = state.horizon; } try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ asset: state.asset, range: state.range, bks: buckets, tf: state.tf, hzs: horizons, pcol: state.pcol, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
 
 /* ---------- fetching ---------- */
 async function getJSON(url, opts = {}) {
@@ -1279,7 +1326,8 @@ function seg(id, key) {
   el.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === state[key]));
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    state[key] = +b.dataset.v; el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); savePrefs(); refresh();
+    state[key] = +b.dataset.v; if (key === 'horizon') state.hzTemp = false;
+    el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); savePrefs(); refresh();
   });
 }
 function renderBuckets() {
@@ -1374,10 +1422,10 @@ async function start() {
   if (await loadLive()) { if (g === gen) timer = setInterval(loadLive, 15e3); return; }
   if (g === gen && !site) { $('src').textContent = `geen data: beurzen en ${A.file} niet bereikbaar`; document.body.classList.remove('swap'); }
 }
-function selectAsset(a) {
+function selectAsset(a, hz = 0) {
   state.asset = a; A = ASSETS[a]; BT = BTS[a];
   state.bucket = A.buckets.includes(buckets[a]) ? buckets[a] : 0;
-  state.horizon = hzOf(a);
+  state.horizon = hz || hzOf(a); state.hzTemp = !!hz && hz !== hzOf(a);   // from the start page's horizon: not saved
   savePrefs(); start();
 }
 $('asset').addEventListener('click', e => {
@@ -1392,7 +1440,7 @@ const intro = (() => {
   const el = $('intro'), cv = $('intro-cv'), g = cv.getContext('2d'), wrap = $('intro-coins');
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const keys = Object.keys(ASSETS), n = keys.length;
-  const TEAL = [130, 210, 255], VC = { up: [53, 255, 176], down: [255, 77, 106], neutral: [255, 200, 87] };
+  const TEAL = [130, 210, 255], VC = { up: [53, 255, 176], down: [255, 77, 106], neutral: [255, 200, 87] }, LIQC = [190, 150, 255];
   const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`, mixc = (a, b, k) => a.map((v, j) => v + (b[j] - v) * k);
   // the market's mood over all coins (-1 all down .. +1 all up), eased so colour changes glide
   let mood = 0, moodTo = 0;
@@ -1408,9 +1456,15 @@ const intro = (() => {
     // each coin its own drift: frequencies and phases from a fixed hash, so the motion never repeats in step
     const h = j => { const v = Math.sin((i + 1) * 12.9898 + j * 78.233) * 43758.5453; return v - Math.floor(v); };
     const fr = [0, 1, 2, 3, 4, 5].map(j => 0.6 + 0.8 * h(j)), ph = [0, 1, 2, 3, 4, 5].map(j => h(j + 10) * Math.PI * 2);
-    return { k, i, b, x: 0, y: 0, s: 1, o: 0, fr, ph, hs: 1, vc: TEAL, last: null };
+    return { k, i, b, x: 0, y: 0, s: 1, o: 0, fr, ph, hs: 1, vc: TEAL, last: null, str: 0, strE: 0, wave: null, chg: null };
   });
   let W = 0, H = 0, raf = 0, t0 = 0, hover = -1, pick = null;
+  // the start page's horizon: 0 = each coin its standard; kept between visits
+  let viewHz = 0; try { viewHz = +localStorage.getItem('glasssphere-introhz') || 0; } catch (e) {}
+  const hzView = k => viewHz || hzOf(k);
+  // each coin's verdict at the last visit, to mark the ones that changed since
+  let seenPrev = {}; try { seenPrev = JSON.parse(localStorage.getItem('glasssphere-seen') || '{}'); } catch (e) {}
+  let orbAt = { x: 0, y: 0, R: 0 };
   let instant = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;   // first open of the app   // pick: { i, at } while a coin is being pulled in
   const ease = x => x * x * (3 - 2 * x), clamp = x => Math.max(0, Math.min(1, x));
   function size() {
@@ -1418,17 +1472,20 @@ const intro = (() => {
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); g.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   function geo() {
-    const R = Math.max(56, Math.min(140, Math.min(W, H) * 0.16)), tw = W < 640 ? 80 : 92, th = W < 640 ? 46 : 54;
-    const rx = Math.min(W / 2 - tw / 2 - 10, R * 3.4), ry = Math.min(H / 2 - th / 2 - 78, R * 4);
-    // points spaced evenly along the ellipse (not by angle, which bunches the coins where it is flattest)
-    if (!arc || arc.rx !== rx || arc.ry !== ry) {
+    // the tiles' real size (as the CSS lays them out), plus a little room for their drift and tilt
+    const R = Math.max(56, Math.min(140, Math.min(W, H) * 0.16)), tw = (tiles[0].b.offsetWidth || 82) + 6, th = (tiles[0].b.offsetHeight || 52) + 6;
+    // room above for the title and the horizon chips, less below for the count line
+    const rx = Math.min(W / 2 - tw / 2 - 10, R * 3.4), ry = Math.min(H / 2 - th / 2 - 89, R * 4);
+    // points spaced evenly along the ellipse in tile sizes (how far apart in widths or in heights, whichever is more),
+    // so neighbouring tiles keep the same room everywhere, also where the ring bends most
+    if (!arc || arc.rx !== rx || arc.ry !== ry || arc.tw !== tw) {
       const N = 720, len = [0]; let L = 0;
       for (let k = 1; k <= N; k++) { const a0 = (k - 1) / N * 2 * Math.PI, a1 = k / N * 2 * Math.PI;
-        L += Math.hypot(rx * (Math.cos(a1) - Math.cos(a0)), ry * (Math.sin(a1) - Math.sin(a0))); len.push(L); }
-      arc = { rx, ry, at: f => { let lo = 0, hi = N; const v = (((f % 1) + 1) % 1) * L;     // f: 0..1 of the length -> angle
+        L += Math.max(Math.abs(rx * (Math.cos(a1) - Math.cos(a0))) / tw, Math.abs(ry * (Math.sin(a1) - Math.sin(a0))) / th); len.push(L); }
+      arc = { rx, ry, tw, at: f => { let lo = 0, hi = N; const v = (((f % 1) + 1) % 1) * L;     // f: 0..1 of the length -> angle
         while (hi - lo > 1) { const m = (lo + hi) >> 1; len[m] < v ? lo = m : hi = m; } return lo / N * 2 * Math.PI; } };
     }
-    return { cx: W / 2, cy: H / 2 + 4, R, tw, th, rx, ry };
+    return { cx: W / 2, cy: H / 2 + 15, R, tw, th, rx, ry };
   }
   let arc = null;
   // the orb: dark glass with order-book bands inside (asks red above, bids green below) and the price line
@@ -1489,19 +1546,21 @@ const intro = (() => {
     const ox = tilt.x * R * 0.07, oy = tilt.y * R * 0.07, tx = tilt.x * R * 0.2, ty = tilt.y * R * 0.2;
     const ocx = cx + ox, ocy = cy + oy;
     const bob = still ? 0 : Math.sin(t * 0.9) * R * 0.03;
-    const amp = Math.max(7, R * 0.07);                  // how far a coin drifts from its place
+    const amp = W < 640 ? 4 : Math.max(7, R * 0.07);    // how far a coin drifts from its place
     for (const T of tiles) {
       const { fr: f, ph: p } = T;
       // its place on the ring, wandering a little along it, plus a slow drift in both directions made of two
       // sines each (a different tempo per coin), a slight tilt and a soft breathing
       const wob = still ? 0 : 0.012 * Math.sin(t * 0.13 * f[0] + p[0]);
       const ang = arc.at(0.75 + T.i / n + wob);          // 0.75 of the length = the top
-      let x = cx + Math.cos(ang) * G.rx, y = cy + Math.sin(ang) * G.ry;
+      T.strE += (T.str - T.strE) * 0.04;
+      const near = 1 - (W < 640 ? 0 : 0.12) * T.strE;      // a stronger verdict floats closer to the sphere (not on a phone: no room)
+      let x = cx + Math.cos(ang) * G.rx * near, y = cy + Math.sin(ang) * G.ry * near;
       if (!still) {
         x += amp * (0.65 * Math.sin(t * 0.31 * f[1] + p[1]) + 0.35 * Math.sin(t * 0.73 * f[2] + p[2]));
         y += amp * (0.65 * Math.sin(t * 0.27 * f[3] + p[3]) + 0.35 * Math.sin(t * 0.61 * f[4] + p[4]));
       }
-      T.rot = still ? 0 : 2.2 * Math.sin(t * 0.23 * f[5] + p[5]);
+      T.rot = still ? 0 : (W < 640 ? 1.2 : 2.2) * Math.sin(t * 0.23 * f[5] + p[5]);
       T.hs += ((T.i === hover && !pick ? 1.07 : 1) - T.hs) * 0.15;            // grows smoothly under the pointer
       const breath = still ? 1 : 1 + 0.015 * Math.sin(t * 0.5 * f[0] + p[3]);
       // opening: out of the sphere on a spring, overshooting a little before it settles
@@ -1530,8 +1589,19 @@ const intro = (() => {
         const mx = (sx + x) / 2 - uy * sw, my = (sy + y) / 2 + ux * sw;
         const hot = T.i === hover || (pick && T.i === pick.i);
         const lg = g.createLinearGradient(sx, sy, x, y);
-        lg.addColorStop(0, rgba(T.vc, (hot ? 0.8 : 0.5) * T.o)); lg.addColorStop(1, rgba(T.vc, (hot ? 0.5 : 0.16) * T.o));
+        lg.addColorStop(0, rgba(T.vc, (hot ? 0.8 : 0.45 + 0.35 * T.strE) * T.o)); lg.addColorStop(1, rgba(T.vc, (hot ? 0.5 : 0.14 + 0.2 * T.strE) * T.o));
         g.strokeStyle = lg; g.lineWidth = hot ? 1.8 : 1.1; g.beginPath(); g.moveTo(sx, sy); g.quadraticCurveTo(mx, my, x, y); g.stroke();
+        if (T.wave && !still && !pick) {                // liquidation wave: rings out of the tile, violet light into the sphere
+          for (const off of [0, 0.5]) {
+            const w = ((t / 2.4 + T.i * 0.13 + off) % 1), rr = G.th * 0.6 + w * R * (W < 640 ? 0.55 : 0.9);
+            g.strokeStyle = rgba(LIQC, 0.55 * (1 - w) * T.o); g.lineWidth = 2 * (1 - w) + 0.5;
+            g.beginPath(); g.arc(x, y, rr, 0, 7); g.stroke();
+          }
+          const f = 1 - ((t * 0.7 + T.i * 0.37) % 1), q = f;
+          const px = (1 - q) * (1 - q) * sx + 2 * (1 - q) * q * mx + q * q * x, py2 = (1 - q) * (1 - q) * sy + 2 * (1 - q) * q * my + q * q * y;
+          const pg = g.createRadialGradient(px, py2, 0, px, py2, 10); pg.addColorStop(0, rgba(LIQC, 0.9 * T.o)); pg.addColorStop(1, rgba(LIQC, 0));
+          g.fillStyle = pg; g.beginPath(); g.arc(px, py2, 10, 0, 7); g.fill();
+        }
         if (!still) {
           const f = 1 - ((t * 0.32 + T.i * 0.37) % 1), q = f;           // a pulse travelling from the coin into the sphere
           const px = (1 - q) * (1 - q) * sx + 2 * (1 - q) * q * mx + q * q * x, py2 = (1 - q) * (1 - q) * sy + 2 * (1 - q) * q * my + q * q * y;
@@ -1546,6 +1616,7 @@ const intro = (() => {
     }
     g.globalAlpha = open;
     orb(ocx, ocy + bob, R * (0.85 + 0.15 * ease(open)) * (1 + zoom * (Math.hypot(W, H) / R)), t, boost, mood, tilt.x, tilt.y);
+    orbAt = { x: ocx, y: ocy + bob, R };
     g.globalAlpha = 1;
   }
   // each tile: the live price (OKX, every 15 s while the sphere is open) and the GlassSphere verdict for the chosen
@@ -1554,10 +1625,21 @@ const intro = (() => {
   const VERDICT = { up: ['Eerst omhoog', 'up'], down: ['Eerst omlaag', 'dn'], neutral: ['Neutraal', 'nt'] };
   let summary = null, ptimer = 0;
   function verdicts() {
-    const cnt = { up: 0, down: 0, neutral: 0 };
+    const cnt = { up: 0, down: 0, neutral: 0 }, seenNow = {};
     for (const T of tiles) {
-      const H = hzOf(T.k), h = summary?.assets?.[T.k]?.hz?.[H], [txt, cls] = VERDICT[h?.v] || ['—', ''];
-      T.b.children[2].textContent = txt; T.b.children[2].className = cls;
+      const H = hzView(T.k), h = summary?.assets?.[T.k]?.hz?.[H], [txt, cls] = VERDICT[h?.v] || ['—', ''];
+      const short = { up: 'Omhoog', down: 'Omlaag', neutral: 'Neutraal' }[h?.v] || txt;      // phone: shorter, so the % fits
+      T.b.children[2].innerHTML = h?.prob ? `<small class="lg">${txt}</small><small class="sh">${short}</small><em>${Math.round(h.prob * 100)}%</em>` : txt;
+      T.b.children[2].className = cls;
+      // strength 0..1: from 60% (a verdict at all) to 80%; neutral has none
+      T.str = h?.v === 'up' || h?.v === 'down' ? clamp((h.prob - 0.6) / 0.2) : 0; T.b.style.setProperty('--str', T.str.toFixed(2));
+      T.wave = summary?.assets?.[T.k]?.wave || null;
+      const key = T.k + ':' + H, was = seenPrev[key];
+      T.chg = h?.v && was && was !== h.v ? was : null;
+      if (h?.v) seenNow[key] = h.v;
+      T.b.classList.toggle('chg', !!T.chg);
+      let tag = T.b.querySelector('.new'); if (T.chg && !tag) { tag = document.createElement('span'); tag.className = 'new'; tag.textContent = 'nieuw'; T.b.appendChild(tag); }
+      if (!T.chg && tag) tag.remove();
       T.b.classList.remove('v-up', 'v-dn', 'v-nt'); if (cls) T.b.classList.add('v-' + cls);
       T.vc = VC[h?.v] || TEAL; if (h?.v) cnt[h.v]++;
       T.b.title = h?.prob ? `${txt} · ${Math.round(h.prob * 100)}% · ${hzLabel(H)}` : '';
@@ -1565,6 +1647,7 @@ const intro = (() => {
     }
     const tot = cnt.up + cnt.down + cnt.neutral;
     moodTo = tot ? (cnt.up - cnt.down) / tot : 0;
+    if (summary) try { localStorage.setItem('glasssphere-seen', JSON.stringify({ ...seenPrev, ...seenNow })); } catch (e) {}
     $('intro-hint').textContent = tot ? `Kies een munt · ${cnt.up} omhoog · ${cnt.down} omlaag · ${cnt.neutral} neutraal` : 'Kies een munt';
   }
   async function prices() {
@@ -1579,22 +1662,82 @@ const intro = (() => {
     if (!/^https?:$/.test(location.protocol)) return;
     try { const r = await fetch('glasssphere-summary.json', { cache: 'no-store' }); if (r.ok) { summary = await r.json(); verdicts(); } } catch (e) {}
   }
+  const cardEl = $('intro-card'), sumEl = $('intro-sum');
+  const showCard = (el2, html) => { el2.innerHTML = html; el2.hidden = false; requestAnimationFrame(() => el2.classList.add('show')); };
+  const hideCard = el2 => { el2.classList.remove('show'); el2.hidden = true; };
+  const VWORD = { up: 'Eerst omhoog', down: 'Eerst omlaag', neutral: 'Neutraal' };
+  const pcs = (p, P) => { const d = (p / P - 1) * 100; return (d > 0 ? '+' : '') + fx(d, 1) + '%'; };
+  const waveTxt = w => `Liquidatiegolf het laatste uur: ${fmtUsd(w.usd)}, vooral ${w.side} (${w.x}× normaal)`;
+  // a coin's preview: hold the tile (phone) or rest the mouse on it
+  function preview(T) {
+    const a = summary?.assets?.[T.k], hz = hzView(T.k), h = a?.hz?.[hz]; if (!a) return;
+    const P = T.last || a.price;
+    let html = `<h4><img src="icons/coins/${T.k}.png" alt="">${ASSETS[T.k].name}<small>${hzLabel(hz)}</small></h4>`;
+    if (h?.v) {
+      html += `<div class="big ${VERDICT[h.v][1]}">${VWORD[h.v]} · ${Math.round(h.prob * 100)}%</div>` +
+        `<div class="row"><span>Eerst</span><b>${fmt(T.k, h.first)} (${pcs(h.first, P)})</b></div>` +
+        `<div class="row"><span>Daarna</span><b>${fmt(T.k, h.other)} (${pcs(h.other, P)})</b></div>`;
+    } else html += `<div class="big">Geen doelen</div>`;
+    html += `<div class="row"><span>Prijs</span><b>${fmt(T.k, P)}</b></div>`;
+    if (T.chg) html += `<div class="note">Gewijzigd sinds je vorige bezoek: was ${VWORD[T.chg]}.</div>`;
+    if (T.wave) html += `<div class="note liq">${waveTxt(T.wave)}.</div>`;
+    showCard(cardEl, html);
+    const G = geo(), w = 228, below = T.y < H / 2;
+    cardEl.style.left = Math.max(8, Math.min(W - w - 8, T.x - w / 2)) + 'px';
+    cardEl.style.top = (below ? T.y + G.th / 2 + 10 : Math.max(8, T.y - G.th / 2 - 10 - cardEl.offsetHeight)) + 'px';
+  }
+  // the market overview: tap the sphere
+  function overview() {
+    if (!summary) return;
+    const rows = tiles.map(T => ({ T, h: summary.assets?.[T.k]?.hz?.[hzView(T.k)] })).filter(r => r.h?.v);
+    const best = v => rows.filter(r => r.h.v === v).sort((a, b) => b.h.prob - a.h.prob)[0];
+    const up = best('up'), dn = best('down'), n = v => rows.filter(r => r.h.v === v).length;
+    const waves = tiles.filter(T => T.wave).map(T => ASSETS[T.k].name);
+    const at = new Date(summary.ts).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+    showCard(sumEl, `<h4>Markt nu<small>${viewHz ? hzLabel(viewHz) : 'standaard per munt'}</small></h4>` +
+      `<div class="row"><span class="up">Eerst omhoog</span><b>${n('up')}</b></div>` +
+      `<div class="row"><span class="dn">Eerst omlaag</span><b>${n('down')}</b></div>` +
+      `<div class="row"><span class="nt">Neutraal</span><b>${n('neutral')}</b></div>` +
+      `<div class="note">${up ? `Sterkst omhoog: <b class="up">${ASSETS[up.T.k].name} ${Math.round(up.h.prob * 100)}%</b><br>` : ''}` +
+      `${dn ? `Sterkst omlaag: <b class="dn">${ASSETS[dn.T.k].name} ${Math.round(dn.h.prob * 100)}%</b><br>` : ''}` +
+      `${waves.length ? `<span class="liq">Liquidatiegolf: ${waves.join(', ')}</span><br>` : ''}Oordelen ververst om ${at}</div>`);
+  }
+  $('intro-hz').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === viewHz));
+  $('intro-hz').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    viewHz = +b.dataset.v; try { localStorage.setItem('glasssphere-introhz', String(viewHz)); } catch (e2) {}
+    $('intro-hz').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); verdicts(); hideCard(sumEl);
+  });
+  let lpTimer = 0, lpDone = false, hoverTimer = 0;
+  el.addEventListener('pointerdown', e => {
+    hideCard(cardEl); if (!e.target.closest('#intro-sum')) hideCard(sumEl);
+    const b = e.target.closest('.ct'); lpDone = false; clearTimeout(lpTimer);
+    if (b && e.pointerType !== 'mouse') lpTimer = setTimeout(() => { lpDone = true; preview(tiles.find(x => x.b === b)); }, 420);
+  });
+  ['pointerup', 'pointercancel'].forEach(ev => el.addEventListener(ev, () => clearTimeout(lpTimer)));
+  wrap.addEventListener('contextmenu', e => e.preventDefault());
+  el.addEventListener('click', e => {
+    if (e.target.closest('.ct, #intro-hz, #intro-tilt, #intro-sum')) return;
+    if (Math.hypot(e.clientX - orbAt.x, e.clientY - orbAt.y) < orbAt.R * 1.1) overview();
+  });
   function finish() {
     cancelAnimationFrame(raf); raf = 0; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); instant = false;
     const a = tiles[pick.i].k; pick = null;
     if (location.hash !== '#' + a) location.hash = a;       // a history entry, so Back returns to the sphere
   }
   function show() {
-    el.hidden = false; el.style.opacity = 1; document.body.style.overflow = 'hidden'; pick = null; hover = -1;
+    el.hidden = false; el.style.opacity = 1; document.body.style.overflow = 'hidden'; pick = null; hover = -1; hideCard(cardEl); hideCard(sumEl);
     size(); t0 = performance.now(); if (!raf) raf = requestAnimationFrame(frame);
     verdicts(); loadSummary(); prices(); clearInterval(ptimer); ptimer = setInterval(prices, 15e3);
   }
   function hide() { if (el.hidden) return; cancelAnimationFrame(raf); raf = 0; pick = null; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); instant = false; }
   wrap.addEventListener('click', e => {
     const b = e.target.closest('.ct'); if (!b || pick) return;
+    if (lpDone) { lpDone = false; return; }                    // that was a long press: the preview stays
     const T = tiles.find(x => x.b === b);
+    hideCard(cardEl); hideCard(sumEl);
     pick = { i: T.i, at: performance.now() - (still ? 1600 : 0) };
-    selectAsset(T.k);                                          // load while the sphere pulls the coin in
+    selectAsset(T.k, viewHz);                                  // load while the sphere pulls the coin in
   });
   function onTilt(e) {
     if (e.gamma == null) return;
@@ -1619,8 +1762,11 @@ const intro = (() => {
     }
   }
   if (!still && !touch) el.addEventListener('pointermove', e => { tilt.tx = clamp1((e.clientX / W - 0.5) * 2); tilt.ty = clamp1((e.clientY / H - 0.5) * 2); });
-  wrap.addEventListener('pointerover', e => { const b = e.target.closest('.ct'); hover = b ? tiles.findIndex(x => x.b === b) : -1; });
-  wrap.addEventListener('pointerout', () => { hover = -1; });
+  wrap.addEventListener('pointerover', e => {
+    const b = e.target.closest('.ct'); hover = b ? tiles.findIndex(x => x.b === b) : -1;
+    clearTimeout(hoverTimer); if (b && e.pointerType === 'mouse' && !pick) hoverTimer = setTimeout(() => preview(tiles[hover] || tiles.find(x => x.b === b)), 350);
+  });
+  wrap.addEventListener('pointerout', e => { hover = -1; clearTimeout(hoverTimer); if (e.pointerType === 'mouse') hideCard(cardEl); });
   addEventListener('resize', () => { if (!el.hidden) size(); });
   return { show, hide, get open() { return !el.hidden; } };
 })();
