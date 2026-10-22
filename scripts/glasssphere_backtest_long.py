@@ -1,14 +1,14 @@
-"""Longer backtest of the liquidity map reading on Binance BTCUSDT perpetual, 1H, Jan 2022 - Sep 2026.
+"""Longer backtest of the GlassSphere reading on Binance BTCUSDT perpetual, 1H, Jan 2022 - Sep 2026.
 
-Same evaluation as liquidity_backtest.py (stops, liquidations from hourly OI growth, signals, first touch of the
+Same evaluation as glasssphere_backtest.py (stops, liquidations from hourly OI growth, signals, first touch of the
 largest pool above / below), on the free Binance archive at data.binance.vision:
   klines   1H candles with taker buy volume (monthly files)
   metrics  open interest every 5 minutes (daily files, from Dec 2021)
   funding  funding rate (monthly files)
 The archive has no liquidations, so the liquidation model cannot be calibrated here (that is done on Gate).
 
-    python3 scripts/liquidity_backtest_long.py [cache_dir]      (default data/)
-Appends a section to backtests/liquidity_map.md (replacing an earlier one).
+    python3 scripts/glasssphere_backtest_long.py [cache_dir]      (default data/)
+Appends a section to backtests/glasssphere.md (replacing an earlier one).
 """
 import csv
 import io
@@ -21,12 +21,12 @@ import zipfile
 from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import liquidity_backtest as BT  # noqa: E402
-import liquidity_model as M  # noqa: E402
+import glasssphere_backtest as BT  # noqa: E402
+import glasssphere_model as M  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'data'), 'binance_btc_archive')
-OUT = os.path.join(ROOT, 'backtests', 'liquidity_map.md')
+OUT = os.path.join(ROOT, 'backtests', 'glasssphere.md')
 ARCHIVE = 'https://data.binance.vision/data/futures/um/'
 FIRST, LAST = (2022, 1), (2026, 9)
 STEP = 6          # evaluate every 6 hours

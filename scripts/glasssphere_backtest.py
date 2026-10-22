@@ -12,8 +12,8 @@ Tests:
      is the one on the pull side hit first more often than the closer one?
   4. Weights: IC-based weights fitted on train, scored on test, against the page's old fixed weights.
 
-    python3 scripts/liquidity_backtest.py [cache_dir]      (default data/)
-Writes backtests/liquidity_map.md.
+    python3 scripts/glasssphere_backtest.py [cache_dir]      (default data/)
+Writes backtests/glasssphere.md.
 """
 import json
 import math
@@ -23,11 +23,11 @@ import time
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import liquidity_model as M  # noqa: E402
+import glasssphere_model as M  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'data'), 'gate_btc_1h')
-OUT = os.path.join(ROOT, 'backtests', 'liquidity_map.md')
+OUT = os.path.join(ROOT, 'backtests', 'glasssphere.md')
 API = 'https://api.gateio.ws/api/v4/futures/usdt/'
 DAYS = 179
 STEP = 4          # evaluate every 4 hours
@@ -220,7 +220,7 @@ def main():
     def score(rs, w):
         return [sum(w[k] * r[k] for k in keys) for r in rs]
 
-    lines = ['# Liquidity map reading — backtest', '',
+    lines = ['# GlassSphere reading — backtest', '',
              f'Gate BTC_USDT perpetual, 1H, {len(rows) * STEP // 24} days evaluated every {STEP}h after a '
              f'{M.WINDOW}-bar warm-up ({rows[0]["t"] and time.strftime("%Y-%m-%d", time.gmtime(rows[0]["t"] / 1000))} → '
              f'{time.strftime("%Y-%m-%d", time.gmtime(rows[-1]["t"] / 1000))}). Train = first {TRAIN_DAYS} days of data, '

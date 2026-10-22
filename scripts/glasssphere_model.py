@@ -1,6 +1,6 @@
 """Stop / liquidation estimates and reading signals of index.html, in Python.
 
-Mirrors the page's JavaScript so scripts/liquidity_backtest.py tests the same logic. Keep both in step.
+Mirrors the page's JavaScript so scripts/glasssphere_backtest.py tests the same logic. Keep both in step.
 
 candles: [[open_ms, open, high, low, close, volume_usd], ...] 1H, oldest first
 oi:      {open_ms: open_interest_usd} 1H

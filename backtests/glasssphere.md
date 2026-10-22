@@ -1,4 +1,4 @@
-# Liquidity map reading — backtest
+# GlassSphere reading — backtest
 
 Gate BTC_USDT perpetual, 1H, 161 days evaluated every 4h after a 400-bar warm-up (2026-05-13 → 2026-10-21). Train = first 120 days of data, test = the rest (620 / 348 points). Forward return over 24h. Overlapping windows: the t-stat uses n / 6 effective points.
 

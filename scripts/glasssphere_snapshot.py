@@ -1,7 +1,7 @@
-"""Fetch the data behind index.html into liquidity-data.json.
+"""Fetch the data behind index.html into glasssphere-data.json.
 
 index.html fetches the same data live in the browser where the exchanges allow it. On GitHub Pages it first reads
-liquidity-data.json next to it, written every hour by .github/workflows/pages.yml, for the exchanges a browser
+glasssphere-data.json next to it, written every hour by .github/workflows/pages.yml, for the exchanges a browser
 cannot reach and the book history of past hours.
 
 Data shape:
@@ -15,8 +15,8 @@ Data shape:
   market    {exchange: {oi, vol, fund}} open interest (USD), 24h volume (USD), funding per 8h
   bookHist  [{t, b: [[price, bid_usd, ask_usd], ...]}] hourly combined books, $100 bins within ±6%, last 48 hours
 
-    python3 scripts/liquidity_snapshot.py DIR [--prev URL]
-        writes DIR/liquidity-data.json, carrying the book history of the file at URL forward
+    python3 scripts/glasssphere_snapshot.py DIR [--prev URL ...]
+        writes DIR/glasssphere-data.json, carrying the book history of the first --prev URL that answers forward
 """
 import json
 import math
@@ -262,9 +262,9 @@ def book_hist_entry(books, weights, price, ts):
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1].startswith('--'):
-        raise SystemExit('usage: liquidity_snapshot.py DIR [--prev URL]')
+        raise SystemExit('usage: glasssphere_snapshot.py DIR [--prev URL ...]')
     out_dir = sys.argv[1]
-    prev_url = sys.argv[sys.argv.index('--prev') + 1] if '--prev' in sys.argv else None
+    prev_urls = [sys.argv[i + 1] for i, a in enumerate(sys.argv[:-1]) if a == '--prev']
     books = {}
     for name, fn in BOOKS:
         try:
@@ -301,16 +301,17 @@ def main():
     print(f'{len(candles)} 1H candles, {len(oi)} Gate stat hours, price {price}')
 
     prev = []
-    if prev_url:  # carry the book history of the live site forward, one entry per hour, last 48
+    for url in prev_urls:  # carry the book history of the live site forward, one entry per hour, last 48
         try:
-            prev = get(prev_url).get('bookHist', [])
+            prev = get(url).get('bookHist', [])
+            break
         except Exception as e:
-            print(f'no previous data at {prev_url}: {e}')
+            print(f'no previous data at {url}: {e}')
     hist = {e['t']: e for e in prev}
     hist[entry['t']] = entry
     snap['bookHist'] = [hist[k] for k in sorted(hist)][-48:]
     os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, 'liquidity-data.json')
+    path = os.path.join(out_dir, 'glasssphere-data.json')
     json.dump(snap, open(path, 'w'), separators=(',', ':'))
     print(f'wrote {path} ({os.path.getsize(path) // 1024} KB, {len(snap["bookHist"])} hours of book history)')
 

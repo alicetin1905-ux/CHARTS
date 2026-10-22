@@ -1,20 +1,20 @@
-"""Hourly check for the liquidity map: the 1-day first-target verdict (the default of the page) now and an hour ago, and alerts.
+"""Hourly check for GlassSphere: the 1-day first-target verdict (the default of the page) now and an hour ago, and alerts.
 
-Reads the liquidity-data.json written by `liquidity_snapshot.py DIR` and prints one status line, then one
+Reads the glasssphere-data.json written by `glasssphere_snapshot.py DIR` and prints one status line, then one
 line per alert starting with "MELDING:". .github/workflows/pages.yml sends the alerts to ntfy. Alerts:
   - the price is within 0.3% of the cluster it is most likely to reach first
   - a cluster from an hour ago was hit in the last hour
   - the most likely first target switched side since an hour ago
   - Gate's real liquidations in the last hour were over $1M and 3x the hourly average of the day before
 
-    python3 scripts/liquidity_alert.py DIR/liquidity-data.json
+    python3 scripts/glasssphere_alert.py DIR/glasssphere-data.json
 """
 import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import liquidity_model as M  # noqa: E402
+import glasssphere_model as M  # noqa: E402
 
 
 def verdict(candles, oi, taker):

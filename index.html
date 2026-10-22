@@ -3,15 +3,22 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-</head>
-<body>
-<title>BTC Liquidity Map</title>
+<title>GlassSphere</title>
 <meta name="theme-color" content="#070a09">
+<!-- installable as a home screen app: Safari -> Share -> Add to Home Screen -->
+<meta name="application-name" content="GlassSphere">
+<meta name="apple-mobile-web-app-title" content="GlassSphere">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <style>
-/* Same ATLAS Suite palette as flow-radar.html. Single dark look by design.
+/* ATLAS Suite palette. Single dark look by design.
    Layout: one canvas = 1H candles with order bands, then three side profiles
    (resting limit orders, estimated stops, estimated liquidations) on a shared price axis. */
 :root{
@@ -26,7 +33,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--bg);color:var(--txt);font-family:var(--sans);-webkit-font-smoothing:antialiased}
-body{font-size:13px;line-height:1.4;padding-bottom:env(safe-area-inset-bottom);min-height:100%}
+body{font-size:13px;line-height:1.4;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom);min-height:100%}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
 .up{color:var(--up)} .dn{color:var(--dn)} .nt{color:var(--nt)}
 b,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
@@ -36,7 +43,9 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center}
 .mark{display:flex;align-items:baseline;gap:9px}
-.mark h1{font-size:15px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+.mark{align-items:center}
+.mark img{width:22px;height:22px;border-radius:6px}
+.mark h1{font-size:16px;font-weight:600;letter-spacing:.04em}
 .mark span{font-size:11px;color:var(--faint);font-family:var(--mono)}
 .px{display:flex;align-items:baseline;gap:10px;margin-right:auto}
 .px b{font-size:30px;font-weight:600;letter-spacing:-.02em}
@@ -133,10 +142,13 @@ footer .dot.snap{background:var(--nt)}
   .verdict{border-right:0;border-bottom:1px solid var(--line)}
 }
 </style>
+</head>
+<body>
 
 <header class="top">
   <div class="mark">
-    <h1>Liquidity Map</h1>
+    <img src="icons/icon-192.png" alt="" width="22" height="22">
+    <h1>GlassSphere</h1>
     <span>BTC perpetual · 1H</span>
   </div>
   <div class="px"><b id="price">—</b><span id="upd">—</span></div>
@@ -222,10 +234,10 @@ footer .dot.snap{background:var(--nt)}
   <footer>
     <span class="status"><i class="dot" id="dot"></i><span id="src">laden…</span></span>
     <div class="note">
-      <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van BTC-perps op 14 beurzen, in USD per bucket. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is de balk onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2% (in blokken van $10), dYdX ±1,5%, Hyperliquid ±2,4% (blokken van $100), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (liquidity-data.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de candles toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke spoofing) opvallen.</p>
+      <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van BTC-perps op 14 beurzen, in USD per bucket. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is de balk onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2% (in blokken van $10), dYdX ±1,5%, Hyperliquid ±2,4% (blokken van $100), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De achtergrond van de candles toont het boek per uur in het verleden; de kolom Stabiel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke spoofing) opvallen.</p>
       <p><b>Stops</b> (stop-loss, buy-stop, sell-stop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke swing-high die nog niet is geraakt (buy-stops van shorts en breakout-kopers), net onder elke ongeraakte swing-low (sell-stops van longs), gewogen naar het volume rond de swing en hoe recent hij is, plus een kleine bijdrage op ronde $1000-niveaus. Score 0–100, geen bedrag.</p>
       <p><b>Liquidaties</b> zijn geschat uit de groei van open interest per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de candle sloot en voor de helft naar de taker-koopratio, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar het open interest van alle beurzen samen. Onderin de chart staan de echte liquidaties van Gate per candle.</p>
-      <p><b>Eerste doel</b> in de Lezing: voor de gekozen termijn (1 dag, 3 dagen of 1 week) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddelde dagrange × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/liquidity_map.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, open interest, funding, CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
+      <p><b>Eerste doel</b> in de Lezing: voor de gekozen termijn (1 dag, 3 dagen of 1 week) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddelde dagrange × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, open interest, funding, CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
     </div>
   </footer>
 </main>
@@ -255,7 +267,7 @@ const MAINT = 0.004;                  // maintenance margin used for the liquida
 const HALF_LIFE_H = 168;              // stop weight halves every week
 const AUTO_BUCKET = { 0.015: 50, 0.03: 100, 0.06: 250, 0.12: 500 };   // range -> bucket in auto mode
 const bucketSize = () => state.bucket || AUTO_BUCKET[state.range] || 100;
-// From backtests/liquidity_map.md: liquidation fit on Gate (161 days to 2026-10-21); calibration and IC on
+// From backtests/glasssphere.md: liquidation fit on Gate (161 days to 2026-10-21); calibration and IC on
 // Binance BTCUSDT 1H, Jan 2022 – Sep 2026 (3858 first touches). ic: [IC over all years, years with a positive IC of 5]
 const BT = {
   liqCorr: 0.78, neither: 0.44,
@@ -273,11 +285,11 @@ const hzLabel = d => d === 1 ? '1 dag' : d === 7 ? '1 week' : d + ' dagen';
 const $ = id => document.getElementById(id);
 const state = { data: null, live: false, src: '', range: 0.03, bucket: 0, tf: 60, horizon: 1, weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
 try {
-  const s = JSON.parse(localStorage.getItem('lm-prefs-v2') || '{}');
+  const s = JSON.parse(localStorage.getItem('glasssphere-prefs') || '{}');
   if (s.range) state.range = s.range; if (s.bucket) state.bucket = s.bucket; if (s.tf) state.tf = s.tf; if (s.hz) state.horizon = s.hz;
   if (s.weighted === false) state.weighted = false; (s.off || []).forEach(x => state.off.add(x));
 } catch (e) {}
-const savePrefs = () => { try { localStorage.setItem('lm-prefs-v2', JSON.stringify({ range: state.range, bucket: state.bucket, tf: state.tf, hz: state.horizon, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
+const savePrefs = () => { try { localStorage.setItem('glasssphere-prefs', JSON.stringify({ range: state.range, bucket: state.bucket, tf: state.tf, hz: state.horizon, weighted: state.weighted, off: [...state.off] })); } catch (e) {} };
 
 /* ---------- fetching ---------- */
 async function getJSON(url, opts = {}) {
@@ -372,7 +384,7 @@ async function fetchSeries() {
     liqReal: st.map(r => [r.time * 1000, Math.round(r.long_liq_usd), Math.round(r.short_liq_usd)]) };
 }
 
-/* ---------- estimates (mirrored in scripts/liquidity_model.py) ---------- */
+/* ---------- estimates (mirrored in scripts/glasssphere_model.py) ---------- */
 // Stops: just beyond swing highs / lows that price has not traded through since.
 function estimateStops(candles, price, lo, hi) {
   const out = [], n = candles.length, now = candles[n - 1][0];
@@ -854,7 +866,7 @@ function refresh() {
 }
 new ResizeObserver(() => draw()).observe(cv);
 
-/* ---------- loading: liquidity-data.json, then live exchange data ---------- */
+/* ---------- loading: glasssphere-data.json, then live exchange data ---------- */
 let liveHist = [];       // one book snapshot per hour while the page is open live
 function setData(raw, mode) {
   const price = raw.price, lo = price * 0.85, hi = price * 1.15;
@@ -881,11 +893,11 @@ function setData(raw, mode) {
     : `${n} orderboeken`;
   refresh();
 }
-// On GitHub Pages: liquidity-data.json next to the page, refreshed every hour by .github/workflows/pages.yml
+// On GitHub Pages: glasssphere-data.json next to the page, refreshed every hour by .github/workflows/pages.yml
 let site = null;
 async function loadSite() {
   if (!/^https?:$/.test(location.protocol)) return null;
-  try { const r = await fetch('liquidity-data.json', { cache: 'no-store' }); return r.ok ? await r.json() : null; } catch (e) { return null; }
+  try { const r = await fetch('glasssphere-data.json', { cache: 'no-store' }); return r.ok ? await r.json() : null; } catch (e) { return null; }
 }
 let series = null, seriesAt = 0, market = null;
 async function loadLive() {
@@ -908,7 +920,7 @@ async function loadLive() {
   site = await loadSite();
   if (site) setData(site, 'site');
   if (await loadLive()) { setInterval(loadLive, 15e3); return; }
-  if (!site) $('src').textContent = 'geen data: beurzen en liquidity-data.json niet bereikbaar';
+  if (!site) $('src').textContent = 'geen data: beurzen en glasssphere-data.json niet bereikbaar';
 })();
 </script>
 </body>

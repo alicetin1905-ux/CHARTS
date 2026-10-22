@@ -1,0 +1,16 @@
+{
+  "name": "GlassSphere",
+  "short_name": "GlassSphere",
+  "description": "BTC-perp liquiditeit: orderboeken van 14 beurzen, geschatte stops en liquidaties, en de kans op het eerste doel.",
+  "lang": "nl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#070a09",
+  "theme_color": "#070a09",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

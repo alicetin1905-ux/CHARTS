@@ -1,7 +1,8 @@
-# Publishes index.html to GitHub Pages with liquidity-data.json refreshed every hour, and sends alerts to ntfy.
+# Publishes GlassSphere (index.html, installable on the iOS home screen) to GitHub Pages, with
+# glasssphere-data.json refreshed every hour, and sends alerts to ntfy.
 # One-time setup: Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
 # Alerts: add the repository secret NTFY_TOPIC and subscribe to that topic in the ntfy app (no secret, no alerts).
-name: Pages
+name: GlassSphere
 
 on:
   push:
@@ -32,9 +33,11 @@ jobs:
       - name: Build site
         run: |
           mkdir -p _site
-          cp *.html _site/
+          cp *.html manifest.webmanifest _site/ && cp -r icons _site/
           # data for index.html; the book history of the live site is carried forward
-          python3 scripts/liquidity_snapshot.py _site --prev "${{ steps.pages.outputs.base_url }}/liquidity-data.json"
+          # (liquidity-data.json is the file's name before the rename to GlassSphere)
+          python3 scripts/glasssphere_snapshot.py _site --prev "${{ steps.pages.outputs.base_url }}/glasssphere-data.json" \
+            --prev "${{ steps.pages.outputs.base_url }}/liquidity-data.json"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
@@ -47,8 +50,8 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          python3 scripts/liquidity_alert.py _site/liquidity-data.json | tee alert.txt
+          python3 scripts/glasssphere_alert.py _site/glasssphere-data.json | tee alert.txt
           if [ -n "$NTFY_TOPIC" ] && grep -q '^MELDING:' alert.txt; then
-            curl -sS --fail -H "Title: BTC Liquidity Map" -H "Click: ${{ steps.pages.outputs.base_url }}/" \
+            curl -sS --fail -H "Title: GlassSphere" -H "Click: ${{ steps.pages.outputs.base_url }}/" \
               --data-binary @alert.txt "https://ntfy.sh/$NTFY_TOPIC"
           fi
