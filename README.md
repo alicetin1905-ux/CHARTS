@@ -109,6 +109,21 @@ With 1H intrabars on 2H – 1D charts (indicator: Auto lower timeframe off, Lowe
 - With 1H intrabars TradingView has intrabar data for the whole chart history, so the indicator's past signals on 4H
   match this backtest (with 1m intrabars only the last few weeks do).
 
+Bybit check ([`backtests/cvd_divergence_bybit.md`](backtests/cvd_divergence_bybit.md), `scripts/cvd_divergence_bybit.py`,
+Bybit 15m candles from `scripts/bybit_data.py`, stops checked on 15m):
+
+| Data | Chart | Exit | Trades / yr | PF | Net (6 yr) | Max DD | Train PF | Test PF |
+|---|---|---|---|---|---|---|---|---|
+| Binance | 4H | no target | 15 | 1.74 | +274% | 39% | 2.04 | 1.21 |
+| **Bybit** | **4H** | **no target** | **13** | **1.91** | **+326%** | **47%** | **2.20** | **1.41** |
+| Bybit | 4H | 2R | 17 | 1.33 | +82% | 46% | 1.49 | 1.06 |
+| Bybit | 2H / 6H | either | 9 – 32 | 0.70 – 1.19 | −63% to +11% | 53 – 80% | | |
+
+- 4H holds on Bybit; 2H and 6H do not (2H made +115% on Binance, −54% on Bybit). Bybit 4H by year: +35% (2021),
+  +220% (2022), −24%, +42%, −10%, −6% (2026): most of the gain is again 2022.
+- TradingView version: [`strategies/cvd_divergence_4h.pine`](strategies/cvd_divergence_4h.pine) (delta from 1H
+  intrabars, stop at the pivot, opposite signal reverses, 0.075% commission per side, trades from Oct 2020).
+
 ## EMA Ribbon flip backtest (`scripts/ribbon_backtest.py`)
 
 Backtest of trading BTCUSDT.P on the flips of the **EMA Ribbon [Krypt]** (EMAs 20–55): long when all 8 EMAs
