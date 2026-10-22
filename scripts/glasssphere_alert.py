@@ -2,8 +2,8 @@
 hour ago, and alerts.
 
 Reads a data file written by `glasssphere_snapshot.py DIR --asset ...` (BTC, ETH, SOL, ..., WLD) and prints one status line,
-then one line per alert starting with "MELDING:". .github/workflows/pages.yml sends the alerts to ntfy, one message
-per asset. Alerts:
+then one line per alert starting with "MELDING:". glasssphere_notify.py sends them to ntfy (check() here gives them as
+data). Alerts:
   - the price is within 0.3% of the cluster it is most likely to reach first
   - a cluster from an hour ago was hit in the last hour
   - the most likely first target switched side since an hour ago
@@ -67,9 +67,10 @@ def fmt(p):
     return f'{p:,.{DEC}f}'.replace(',', ' ').replace('.', ',').replace(' ', '.')
 
 
-def main():
+def check(snap):
+    """The status line and the alerts of one data file: {asset, price, verdict ('up' / 'down' / 'neutral' / None),
+    status, alerts: [(kind, text)]} with kind near / hit / switch / wave."""
     global DEC
-    snap = json.load(open(sys.argv[1]))
     asset = snap.get('asset', 'BTC')   # files from before ETH / SOL have no asset field: BTC
     DEC = DECIMALS.get(asset, 2)
     candles = snap['candles']
@@ -79,26 +80,35 @@ def main():
     price, up, dn, p_up = verdict(candles, oi, taker, days)
     _, up0, dn0, p_up0 = verdict(candles[:-1], oi, taker, days)
     lab, lab0 = label(p_up), label(p_up0)
+    alerts = []
     if p_up is None:
-        print(f'{lab} · prijs {fmt(price)}')
+        status = f'{lab} · prijs {fmt(price)}'
     else:
         first, other = (up, dn) if p_up >= 0.5 else (dn, up)
-        print(f'{lab} {round(max(p_up, 1 - p_up) * 100)}% ({"1 dag" if days == 1 else f"{days} dagen"}): '
-              f'{fmt(first[0])} vóór {fmt(other[0])} · prijs {fmt(price)}')
+        status = (f'{lab} {round(max(p_up, 1 - p_up) * 100)}% ({"1 dag" if days == 1 else f"{days} dagen"}): '
+                  f'{fmt(first[0])} vóór {fmt(other[0])} · prijs {fmt(price)}')
         if abs(first[0] / price - 1) <= 0.003:
-            print(f'MELDING: prijs {fmt(price)} zit binnen 0,3% van het eerste doel {fmt(first[0])}')
+            alerts.append(('near', f'prijs {fmt(price)} zit binnen 0,3% van het eerste doel {fmt(first[0])}'))
     last = candles[-1]
     if up0 and last[2] >= up0[0]:
-        print(f'MELDING: cluster boven {fmt(up0[0])} geraakt in het laatste uur (hoog {fmt(last[2])})')
+        alerts.append(('hit', f'cluster boven {fmt(up0[0])} geraakt in het laatste uur (hoog {fmt(last[2])})'))
     if dn0 and last[3] <= dn0[0]:
-        print(f'MELDING: cluster onder {fmt(dn0[0])} geraakt in het laatste uur (laag {fmt(last[3])})')
+        alerts.append(('hit', f'cluster onder {fmt(dn0[0])} geraakt in het laatste uur (laag {fmt(last[3])})'))
     if lab in ('Eerst omhoog', 'Eerst omlaag') and lab0 in ('Eerst omhoog', 'Eerst omlaag') and lab != lab0:
-        print(f'MELDING: eerste doel wisselde van kant: {lab0} → {lab}')
+        alerts.append(('switch', f'eerste doel wisselde van kant: {lab0} → {lab}'))
     w = liq_wave(snap, asset)
     if w:
-        print(f'MELDING: liquidatiegolf op Gate: ${w["usd"] / 1e6:.1f}M in het laatste uur, vooral {w["side"]} '
-              f'({w["x"]}× het uurgemiddelde)')
+        alerts.append(('wave', f'liquidatiegolf op Gate: ${w["usd"] / 1e6:.1f}M in het laatste uur, vooral {w["side"]} '
+                               f'({w["x"]}× het uurgemiddelde)'))
+    v = {'Eerst omhoog': 'up', 'Eerst omlaag': 'down', 'Neutraal': 'neutral'}.get(lab)
+    return {'asset': asset, 'price': price, 'verdict': v, 'status': status, 'alerts': alerts}
 
+
+def main():
+    r = check(json.load(open(sys.argv[1])))
+    print(r['status'])
+    for _, text in r['alerts']:
+        print('MELDING: ' + text)
 
 if __name__ == '__main__':
     main()

@@ -169,6 +169,13 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 #rd > summary:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
 .chev{width:7px;height:7px;border-right:2px solid var(--dim);border-bottom:2px solid var(--dim);transform:rotate(-45deg);transition:transform .15s}
 #rd[open] .chev{transform:rotate(45deg)}
+/* "Alle niveaus": the tiles and the table, folded away below the chart */
+#lvls > summary{list-style:none;cursor:pointer;user-select:none}
+#lvls > summary::-webkit-details-marker{display:none}
+#lvls > summary h2{text-transform:none;letter-spacing:.02em;font-size:13px;color:var(--txt)}
+#lvls:not([open]) > summary{border-bottom:0}
+#lvls[open] .chev{transform:rotate(45deg)}
+.lv-ro{padding:12px}
 .chip{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;padding:1px 9px;border-radius:20px;border:1px solid var(--line2)}
 @media (prefers-reduced-motion:reduce){.chev{transition:none}}
 
@@ -439,15 +446,6 @@ body.swap header.top .px{opacity:.25}
     </div>
   </details>
 
-  <section class="readouts">
-    <div class="ro"><div class="k">Grootste koopmuur</div><div class="v up" id="r-bid">—</div><div class="s" id="r-bid-s">—</div></div>
-    <div class="ro"><div class="k">Grootste verkoopmuur</div><div class="v dn" id="r-ask">—</div><div class="s" id="r-ask-s">—</div></div>
-    <div class="ro"><div class="k">Koopstops boven</div><div class="v nt" id="r-bs">—</div><div class="s" id="r-bs-s">—</div></div>
-    <div class="ro"><div class="k">Verkoopstops onder</div><div class="v nt" id="r-ss">—</div><div class="s" id="r-ss-s">—</div></div>
-    <div class="ro"><div class="k">Short-liquidaties boven</div><div class="v" style="color:var(--liq)" id="r-sl">—</div><div class="s" id="r-sl-s">—</div></div>
-    <div class="ro"><div class="k">Long-liquidaties onder</div><div class="v" style="color:var(--liq)" id="r-ll">—</div><div class="s" id="r-ll-s">—</div></div>
-  </section>
-
   <section class="card">
     <div class="bar">
       <h2>Orders per prijsniveau</h2>
@@ -464,13 +462,21 @@ body.swap header.top .px{opacity:.25}
     <div class="stage"><canvas id="cv"></canvas><div id="tip" hidden></div></div>
   </section>
 
-  <section class="card">
-    <div class="bar"><h2>Belangrijkste niveaus</h2><div class="legend"><span>Per soort de 4 grootste boven en onder de prijs, binnen het bereik</span></div></div>
+  <details class="card" id="lvls">
+    <summary class="bar"><span class="chev" aria-hidden="true"></span><h2>Alle niveaus</h2><div class="legend"><span>muren, stops en liquidaties binnen het bereik</span></div></summary>
+    <section class="readouts lv-ro">
+      <div class="ro"><div class="k">Grootste koopmuur</div><div class="v up" id="r-bid">—</div><div class="s" id="r-bid-s">—</div></div>
+      <div class="ro"><div class="k">Grootste verkoopmuur</div><div class="v dn" id="r-ask">—</div><div class="s" id="r-ask-s">—</div></div>
+      <div class="ro"><div class="k">Koopstops boven</div><div class="v nt" id="r-bs">—</div><div class="s" id="r-bs-s">—</div></div>
+      <div class="ro"><div class="k">Verkoopstops onder</div><div class="v nt" id="r-ss">—</div><div class="s" id="r-ss-s">—</div></div>
+      <div class="ro"><div class="k">Short-liquidaties boven</div><div class="v" style="color:var(--liq)" id="r-sl">—</div><div class="s" id="r-sl-s">—</div></div>
+      <div class="ro"><div class="k">Long-liquidaties onder</div><div class="v" style="color:var(--liq)" id="r-ll">—</div><div class="s" id="r-ll-s">—</div></div>
+    </section>
     <div class="levels"><table>
       <thead><tr><th>Prijs</th><th>Afstand</th><th>Soort</th><th>Grootte</th><th>Sterkte</th><th title="In hoeveel van de laatste 6 uur deze muur er al stond (minstens half zo groot)">Stabiel</th></tr></thead>
       <tbody id="lv"></tbody>
     </table></div>
-  </section>
+  </details>
 
   <footer>
     <span class="status"><i class="dot" id="dot"></i><span id="src">laden…</span></span>

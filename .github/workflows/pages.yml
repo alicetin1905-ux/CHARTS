@@ -55,14 +55,5 @@ jobs:
         continue-on-error: true
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: |
-          # one message per asset, titled with the asset and opening its tab
-          for a in btc eth sol bnb xrp doge sui ena gala pepe wld near; do
-            f=glasssphere-$a.json; hash="#$a"; [ $a = btc ] && f=glasssphere-data.json && hash=""
-            name=$(echo $a | tr a-z A-Z)
-            echo "== $name"; python3 scripts/glasssphere_alert.py "_site/$f" | tee alert.txt || continue
-            if [ -n "$NTFY_TOPIC" ] && grep -q '^MELDING:' alert.txt; then
-              curl -sS --fail -H "Title: GlassSphere $name" -H "Click: ${{ steps.pages.outputs.base_url }}/$hash" \
-                --data-binary @alert.txt "https://ntfy.sh/$NTFY_TOPIC" || true
-            fi
-          done
+        # per coin on / off and the quiet hours are in alerts.json
+        run: python3 scripts/glasssphere_notify.py _site "${{ steps.pages.outputs.base_url }}"

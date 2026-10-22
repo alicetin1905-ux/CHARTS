@@ -1,0 +1,12 @@
+{
+  "munten": {
+    "btc": true, "eth": true, "sol": true, "bnb": true, "xrp": true, "doge": true,
+    "sui": true, "ena": true, "gala": true, "pepe": true, "wld": true, "near": true
+  },
+  "stil": {
+    "van": "23:00",
+    "tot": "07:00",
+    "tijdzone": "Europe/Amsterdam",
+    "behalve_liquidatiegolf": true
+  }
+}
