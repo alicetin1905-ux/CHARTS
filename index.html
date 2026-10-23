@@ -97,6 +97,10 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 
 .stage{position:relative;height:620px;background:radial-gradient(130% 55% at 45% 50%,rgba(53,255,176,.07),transparent 65%),linear-gradient(180deg,rgba(110,200,255,.04),transparent 40%)}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+#fxc{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+/* a level the live price just reached flashes in its colour */
+.levels tr.hit td{animation:lv-hit 1.6s ease-out}
+@keyframes lv-hit{0%{background-color:color-mix(in srgb,var(--hc) 40%,transparent);color:#fff}100%{}}
 #tip{position:absolute;pointer-events:none;z-index:5;background:rgba(14,20,18,.96);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;
   font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;color:var(--txt);min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 #tip .h{font-weight:700;margin-bottom:4px}
@@ -471,7 +475,7 @@ body.swap header.top .px{opacity:.25}
         <span><i class="sw" style="background:var(--liq)"></i>Liquidaties (stippellijn, schatting)</span>
       </div>
     </div>
-    <div class="stage"><canvas id="cv"></canvas><div id="tip" hidden></div></div>
+    <div class="stage"><canvas id="cv"></canvas><canvas id="fxc" aria-hidden="true"></canvas><div id="tip" hidden></div></div>
   </section>
 
   <details class="card" id="lvls" open>
@@ -823,7 +827,8 @@ function buildModel() {
     return { t: e.t, b, a };
   });
   const mx = a => { let m = 1e-9; for (const v of a) if (v > m) m = v; return m; };
-  model = { price, B, i0, N, lo: i0 * B, hi: (i1 + 1) * B, bid, ask, stop, liq, per, wtot, hist,
+  // ref: the price the levels are picked against; the live price (model.price) moves on until the next refresh
+  model = { price, ref: price, B, i0, N, lo: i0 * B, hi: (i1 + 1) * B, bid, ask, stop, liq, per, wtot, hist,
     max: { book: mx([...bid, ...ask]), stop: mx(stop), liq: mx(liq) } };
   // presence: in how many of the last 6 hours (before this one) the level held at least half its weighted size now
   const prev = hist.filter(h => h.t < Math.floor(D.ts / 3.6e6) * 3.6e6).slice(-6);
@@ -935,13 +940,19 @@ function draw() {
       for (const [j, v] of pick) {
         const p = model.lo + (j + .5) * model.B;
         const name = kind === 'stop' ? (above ? 'Koopstops' : 'Verkoopstops') : (above ? 'Short-liq.' : 'Long-liq.');
-        lines.push({ p, v: v / model.max[kind], col, txt: `${name} ${fmtP(p)}${kind === 'liq' ? ' · ' + fmtUsd(v) : ''}` });
+        lines.push({ p, v: v / model.max[kind], col, kind, txt: `${name} ${fmtP(p)}${kind === 'liq' ? ' · ' + fmtUsd(v) : ''}` });
       }
+    }
+    // the largest buy wall below and sell wall above: thin solid lines (they are in the book, not estimated)
+    for (const [arr, above, col, kind, name] of [[model.ask, true, C.dn, 'ask', 'Verkoopmuur'], [model.bid, false, C.up, 'bid', 'Koopmuur']]) {
+      const w = topBuckets(arr, above, 1)[0]; if (!w) continue;
+      const p = model.lo + (w[0] + .5) * model.B;
+      if (!tagYs.some(b => Math.abs(b - y(p)) < 6)) lines.push({ p, v: 0.5, col, kind, txt: `${name} ${fmtP(p)} · ${fmtUsd(w[1])}` });   // also right by the price
     }
     ctx.font = `${fs}px ` + css('--mono'); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     for (const L of lines.sort((a, b) => b.v - a.v)) {
-      const yy = Math.round(y(L.p)) + .5;
-      ctx.strokeStyle = alpha(L.col, .85); ctx.lineWidth = 1.3; ctx.setLineDash([2, 4]);
+      const yy = Math.round(y(L.p)) + .5, wall = L.kind === 'bid' || L.kind === 'ask';
+      ctx.strokeStyle = alpha(L.col, wall ? .55 : .85); ctx.lineWidth = wall ? 1 : 1.3; ctx.setLineDash(wall ? [] : [2, 4]);
       ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W - axisW, yy); ctx.stroke(); ctx.setLineDash([]);
       if (busy.concat(used).some(b => Math.abs(b - yy) < 15)) continue;  // no room for its label
       used.push(yy);
@@ -950,6 +961,7 @@ function draw() {
       ctx.fillStyle = L.col; ctx.fillText(L.txt, 12, yy);
     }
     ctx.textAlign = 'left';
+    geo.levels = lines.map(L => ({ p: L.p, kind: L.kind, col: L.col }));
   }
   // GlassSphere targets (the reading's horizon): solid glowing lines, the first one bolder, each with its price on the
   // axis and a label at the left; a target outside the range gets an arrow at the edge instead
@@ -966,6 +978,7 @@ function draw() {
       continue;
     }
     const yy = Math.round(y(p)) + .5;
+    geo.levels.push({ p, kind: 'target', col: c0 });
     ctx.strokeStyle = alpha(c0, isFirst ? .95 : .7); ctx.lineWidth = isFirst ? 2.5 : 1.6;
     ctx.shadowColor = alpha(c0, .9); ctx.shadowBlur = isFirst ? 12 : 6;
     ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W - axisW, yy); ctx.stroke(); ctx.shadowBlur = 0;
@@ -1015,7 +1028,143 @@ function draw() {
   }
   if (state.zoom !== 1) { ctx.font = '10px ' + css('--mono'); ctx.fillStyle = C.faint; ctx.textBaseline = 'top';
     ctx.fillText(`zoom ${fx(state.zoom, 1)}× · dubbeltik = terug`, 8, 6); }
+  lvFx.kick();
 }
+
+/* ---------- level effects: on a layer over the chart, so the candles are not redrawn every frame ----------
+   A level near the price breathes. When the live price reaches one, it reacts after its kind:
+   liquidations  a shock front runs out along the line and sparks fly the way the price went
+   stops         the dotted line runs like a lit fuse
+   a wall        touched: it rings like a plucked string; broken through: it shatters
+   a target      a flash of light over the chart
+   The rows of Alle niveaus flash too, and the price's row moves between them. */
+const lvFx = (() => {
+  const fc = $('fxc'), g = fc.getContext('2d'), list = [], cool = new Map();
+  const DUR = { liq: 1700, stop: 1400, bounce: 1500, break: 1600, target: 2300 };
+  const SAY = { liq: 'Liquidaties!', stop: 'Stops geraakt', bounce: 'Muur houdt', break: 'Muur doorbroken', target: 'Doel geraakt' };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  let raf = 0;
+  const rnd = (seed, i) => { const x = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453; return x - Math.floor(x); };
+  const eo = t => 1 - Math.pow(1 - t, 3);
+  function kick() { if (!raf) raf = requestAnimationFrame(frame); }
+  function check(prev, p) {
+    if (!geo?.levels || !model || !(prev > 0) || prev === p) return;
+    const now = performance.now(), tol = model.B * 0.6;
+    for (const L of geo.levels) {
+      const crossed = (prev - L.p) * (p - L.p) <= 0;
+      const touched = !crossed && Math.abs(p - L.p) <= tol && Math.abs(prev - L.p) > tol;
+      if (!crossed && !(touched && L.kind !== 'stop' && L.kind !== 'liq')) continue;
+      const type = L.kind === 'bid' || L.kind === 'ask' ? (crossed ? 'break' : 'bounce') : L.kind;
+      const key = type + ':' + L.p; if (now - (cool.get(key) ?? -1e9) < 20e3) continue; cool.set(key, now);   // once per 20 s
+      if (!reduce.matches) list.push({ type, p: L.p, col: L.col, t0: now, dir: p > prev ? 1 : -1, seed: Math.random() * 100 });
+    }
+    rows(prev, p);
+    kick();
+  }
+  // Alle niveaus: the % column and the price's row follow the price; a row the price passes flashes
+  function rows(prev, p) {
+    const tb = $('lv'), now = tb.querySelector('tr.now'); if (!now) return;
+    now.cells[0].textContent = fmtP(p);
+    let after = null;
+    for (const tr of tb.querySelectorAll('tr[data-p]')) {
+      const q = +tr.dataset.p; tr.cells[1].textContent = pct(q);
+      if ((prev - q) * (p - q) <= 0) { tr.classList.remove('hit'); void tr.offsetWidth; tr.classList.add('hit'); }
+      if (q > p) after = tr;
+    }
+    const want = after ? after.nextSibling : tb.firstChild;
+    if (want !== now) tb.insertBefore(now, want);
+  }
+  function line(y, x1, col, a, blur, w) {
+    g.strokeStyle = alpha(col, Math.max(0, Math.min(1, a))); g.lineWidth = w; g.shadowColor = alpha(col, .9); g.shadowBlur = blur;
+    g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke(); g.shadowBlur = 0;
+  }
+  function pill(txt, x, y, col, a, taken) {
+    g.font = `700 11px ${css('--mono')}`; g.textBaseline = 'middle'; g.textAlign = 'left';
+    while (taken.some(t => Math.abs(t - y) < 25)) y -= 26;       // above an effect that is still showing
+    taken.push(y);
+    const w = g.measureText(txt).width + 16, x0 = Math.max(4, x - w - 8);
+    g.globalAlpha = a; g.fillStyle = alpha(css('--bg'), .92); g.strokeStyle = col; g.lineWidth = 1.2;
+    g.beginPath(); g.roundRect ? g.roundRect(x0, y - 22 - 11, w, 22, 11) : g.rect(x0, y - 33, w, 22); g.fill(); g.stroke();
+    g.fillStyle = col; g.fillText(txt, x0 + 8, y - 22); g.globalAlpha = 1;
+  }
+  function frame(now) {
+    raf = 0;
+    const dpr = window.devicePixelRatio || 1, W = fc.clientWidth, H = fc.clientHeight;
+    if (fc.width !== Math.round(W * dpr) || fc.height !== Math.round(H * dpr)) { fc.width = Math.round(W * dpr); fc.height = Math.round(H * dpr); }
+    g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    if (!geo?.levels || !model || document.getElementById('intro').hidden === false || document.hidden) { list.length = 0; return; }
+    const { y, axisW, barW, nBars } = geo, xr = W - axisW, xp = Math.min(xr - 4, 4 + (nBars - 0.5) * barW);   // xp: the newest candle
+    // breathing: brighter and faster the closer the price is
+    let near = false;
+    if (!reduce.matches) for (const L of geo.levels) {
+      const d = Math.abs(L.p - model.price) / (model.hi - model.lo); if (d > 0.04 || L.p < model.lo || L.p > model.hi) continue;
+      near = true; const k = 1 - d / 0.04;
+      line(Math.round(y(L.p)) + .5, xr, L.col, (0.12 + 0.3 * k) * (0.55 + 0.45 * Math.sin(now / (380 - 200 * k))), 6 + 10 * k, 1.5 + 1.5 * k);
+    }
+    const taken = [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      const e = list[i], t = (now - e.t0) / DUR[e.type]; if (t >= 1) { list.splice(i, 1); continue; }
+      const yy = Math.round(y(e.p)) + .5, col = e.col, f = 1 - t;
+      if (e.type === 'liq') {
+        line(yy, xr, col, f, 16, 2 + 2 * f);
+        const xf = xp * (1 - eo(t)), gr = g.createLinearGradient(xf - 70, 0, xf + 70, 0);          // the shock front
+        gr.addColorStop(0, alpha(col, 0)); gr.addColorStop(.5, alpha('#ffffff', .9 * f)); gr.addColorStop(1, alpha(col, 0));
+        g.fillStyle = gr; g.fillRect(xf - 70, yy - 4, 140, 8);
+        const ts = t * DUR.liq / 1000;                                                                // sparks, falling the way the price went
+        for (let k = 0; k < 44; k++) {
+          const a = rnd(e.seed, k) * Math.PI * 2, v = 50 + 220 * rnd(e.seed, k + 50), x0 = xp - rnd(e.seed, k + 120) * xp * eo(t) * 0.8;
+          const sx = x0 + Math.cos(a) * v * 0.7 * ts, sy = yy + Math.sin(a) * v * 0.5 * ts - e.dir * 220 * ts * ts;
+          g.fillStyle = alpha(k % 3 ? col : '#ffffff', f * (0.55 + 0.45 * rnd(e.seed, k + 9)));
+          g.shadowColor = col; g.shadowBlur = 6; g.beginPath(); g.arc(sx, sy, 1.4 + 2.4 * rnd(e.seed, k + 3) * f, 0, 7); g.fill();
+        }
+        g.shadowBlur = 0; g.lineWidth = 1.5;                                                          // the cascade: streaks running off the line
+        for (let k = 0; k < 14; k++) {
+          const sx = xp - rnd(e.seed, k + 200) * xp * 0.9, d0 = (rnd(e.seed, k + 230) * 0.4 + eo(t)) * 90, len = 14 + 26 * rnd(e.seed, k + 260);
+          const gr2 = g.createLinearGradient(0, yy - e.dir * d0, 0, yy - e.dir * (d0 + len));
+          gr2.addColorStop(0, alpha(col, 0)); gr2.addColorStop(1, alpha('#ffffff', .8 * f));
+          g.strokeStyle = gr2; g.beginPath(); g.moveTo(sx, yy - e.dir * d0); g.lineTo(sx, yy - e.dir * (d0 + len)); g.stroke();
+        }
+      } else if (e.type === 'stop') {
+        g.save(); g.setLineDash([3, 5]); g.lineDashOffset = -(now - e.t0) / 6;                       // a lit fuse
+        line(yy, xr, col, f, 12, 2.4); g.restore();
+        const xh = xp * (1 - eo(t));
+        const gr = g.createLinearGradient(xh, 0, Math.min(xp, xh + 160), 0);
+        gr.addColorStop(0, alpha('#ffffff', .95 * f)); gr.addColorStop(.15, alpha(col, .8 * f)); gr.addColorStop(1, alpha(col, 0));
+        g.fillStyle = gr; g.fillRect(xh, yy - 2, Math.min(xp, xh + 160) - xh, 4);
+        g.fillStyle = alpha('#ffffff', f); g.shadowColor = col; g.shadowBlur = 14; g.beginPath(); g.arc(xh, yy, 3.2, 0, 7); g.fill(); g.shadowBlur = 0;
+      } else if (e.type === 'bounce') {
+        const A = 7 * Math.exp(-3 * t);                                                              // a plucked string
+        g.strokeStyle = alpha(col, .9 * f + .1); g.lineWidth = 2; g.shadowColor = alpha(col, .9); g.shadowBlur = 10; g.beginPath();
+        for (let x = 0; x <= xr; x += 4) { const yv = yy + A * Math.sin(x / 16 - (now - e.t0) / 45) * Math.sin(Math.PI * x / xr); x ? g.lineTo(x, yv) : g.moveTo(x, yv); }
+        g.stroke(); g.shadowBlur = 0;
+        for (let r = 0; r < 2; r++) { const tr = Math.max(0, t - r * 0.18); if (!tr) continue;      // ripples where the price hit it
+          g.strokeStyle = alpha(col, (1 - tr) * .8); g.lineWidth = 1.5; g.beginPath(); g.ellipse(xp, yy, 6 + 60 * eo(tr), 3 + 18 * eo(tr), 0, 0, 7); g.stroke(); }
+      } else if (e.type === 'break') {
+        const n = Math.ceil(xr / 26), ts = t * DUR.break / 1000;                                     // the wall shatters
+        g.strokeStyle = alpha(col, f); g.lineWidth = 2; g.shadowColor = alpha(col, .8); g.shadowBlur = 8;
+        for (let k = 0; k < n; k++) {
+          const x0 = k * 26, cx = x0 + 11, near1 = 1 - Math.min(1, Math.abs(cx - xp) / xr);
+          const dy = (rnd(e.seed, k) - 0.5) * 50 * ts + e.dir * 90 * near1 * ts, dx = (rnd(e.seed, k + 40) - 0.5) * 30 * ts, rot = (rnd(e.seed, k + 80) - 0.5) * 2 * ts;
+          g.save(); g.translate(cx + dx, yy + dy); g.rotate(rot); g.beginPath(); g.moveTo(-11, 0); g.lineTo(11, 0); g.stroke(); g.restore();
+        }
+        g.shadowBlur = 0;
+        const fl = g.createRadialGradient(xp, yy, 0, xp, yy, 50 + 40 * t); fl.addColorStop(0, alpha('#ffffff', .7 * f)); fl.addColorStop(1, alpha(col, 0));
+        g.fillStyle = fl; g.fillRect(xp - 100, yy - 100, 200, 200);
+      } else if (e.type === 'target') {
+        const band = 6 + 70 * eo(t), gb = g.createLinearGradient(0, yy - band, 0, yy + band);         // light spreading from the line
+        gb.addColorStop(0, alpha(col, 0)); gb.addColorStop(.5, alpha(col, .35 * f)); gb.addColorStop(1, alpha(col, 0));
+        g.fillStyle = gb; g.fillRect(0, yy - band, xr, 2 * band);
+        line(yy, xr, col, f, 22, 3);
+        const xs = xr * eo(Math.min(1, t * 1.6)), gs = g.createLinearGradient(xs - 120, 0, xs, 0);  // a shine running across
+        gs.addColorStop(0, alpha('#ffffff', 0)); gs.addColorStop(1, alpha('#ffffff', .85 * f));
+        g.fillStyle = gs; g.fillRect(xs - 120, yy - 3, 120, 6);
+      }
+      pill(SAY[e.type], xp, yy, col, Math.min(1, f * 2.5), taken);
+    }
+    if (list.length || near) raf = requestAnimationFrame(frame);
+  }
+  return { kick, check };
+})();
 
 /* ---------- tooltip ---------- */
 function showTip(e) {
@@ -1073,7 +1222,7 @@ document.addEventListener('pointerdown', e => { if (e.target !== cv) hideTip(); 
 /* ---------- readouts + table ---------- */
 function topBuckets(arr, above, k) {
   const out = [];
-  for (let j = 0; j < model.N; j++) { const mid = model.lo + (j + .5) * model.B; if ((mid > model.price) === above && arr[j] > 0) out.push([j, arr[j]]); }
+  for (let j = 0; j < model.N; j++) { const mid = model.lo + (j + .5) * model.B; if ((mid > model.ref) === above && arr[j] > 0) out.push([j, arr[j]]); }
   return out.sort((a, b) => b[1] - a[1]).slice(0, k);
 }
 function setRO(id, arr, above, fmt) {
@@ -1102,7 +1251,7 @@ function renderLevels() {
     : `<span class="${ps[0] >= ps[1] - 1 ? 'up' : ps[0] <= 1 ? 'nt' : ''}">${ps[0]}/${ps[1]} u</span>`;
   $('lv').innerHTML = rows.map(r => r.now
     ? `<tr class="now"><td>${fmtP(r.p)}</td><td>0,00%</td><td>Huidige prijs</td><td></td><td></td><td></td></tr>`
-    : `<tr><td>${fmtP(r.p)}</td><td>${pct(r.p)}</td><td><span class="pill" style="color:${r.col};border-color:${alpha(r.col, .45)}">${r.name}</span></td><td>${r.fmt(r.v)}</td>` +
+    : `<tr data-p="${r.p}" style="--hc:${r.col}"><td>${fmtP(r.p)}</td><td>${pct(r.p)}</td><td><span class="pill" style="color:${r.col};border-color:${alpha(r.col, .45)}">${r.name}</span></td><td>${r.fmt(r.v)}</td>` +
       `<td><span class="meter"><i style="width:${Math.max(3, r.rel * 100).toFixed(0)}%;background:${r.col}"></i></span></td><td>${stab(r.ps)}</td></tr>`).join('');
 }
 
@@ -1356,7 +1505,7 @@ const live = (() => {
     const D = state.data; if (!D || !model) return;
     for (const [k, ms] of DUR) { const cs = D[k], c = cs?.[cs.length - 1];       // only a candle that is still open
       if (c && at < c[0] + ms) { c[4] = p; if (p > c[2]) c[2] = p; if (p < c[3]) c[3] = p; } }
-    model.price = p;
+    const prev = model.price; model.price = p; lvFx.check(prev, p);
     if (at - shownAt >= 1000) paint(); else if (!drawT) drawT = setTimeout(paint, 1000 - (at - shownAt));
   }
   async function pollOnce() {
