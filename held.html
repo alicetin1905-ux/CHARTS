@@ -356,6 +356,17 @@ function textSprite(lines, color, h, mid) {
   const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, fog: false }));
   m.scale.set(h * c.width / c.height, h, 1); m.center.set(0, 0); m.userData = { w0: m.scale.x, h0: m.scale.y }; return m;
 }
+function frontLabel(lines, color, len) {
+  const c = document.createElement('canvas'), x = c.getContext('2d'), fs = 48, pad = 12;
+  const font = i => i ? `600 ${fs * .78}px ${FM}` : `800 ${fs}px ${FD}`;
+  const w = Math.max(...lines.map((l, i) => { x.font = font(i); return x.measureText(l).width; })) + pad * 2;
+  c.width = Math.ceil(w); c.height = Math.ceil(fs * 1.2 * lines.length + pad * 2);
+  lines.forEach((l, i) => { x.font = font(i); x.fillStyle = i ? 'rgba(240,246,243,.95)' : color; x.textBaseline = 'top'; x.textAlign = 'center';
+    x.shadowColor = 'rgba(0,0,0,.6)'; x.shadowBlur = 6; x.fillText(l, c.width / 2, pad + i * fs * 1.2); });
+  const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 8;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(len, len * c.height / c.width), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, fog: false }));
+  m.rotation.z = Math.PI / 2; return m;            // turned a quarter: the text reads from the floor up
+}
 const dispose = o => o.traverse(n => { n.geometry?.dispose(); if (n.material) { n.material.map?.dispose(); n.material.dispose(); } });
 
 // glass walls: a panel with a glowing frame, rippling where a fist lands
@@ -391,14 +402,14 @@ const THICK = L => { const r = Math.min(1, L.rel), room = (D?.B ?? 100) * U * .6
 function buildLevel(L) {
   const o = { L, group: new THREE.Group(), fade: 0, gone: false }; o.group.position.x = WX(L.p); scene.add(o.group);
   if (isWall(L)) {
-    const h = 1.3, depth = 2.6, th = THICK(L);      // low, about his height; the bigger the wall, the thicker the glass
+    const h = 1.9, depth = 2.6, th = THICK(L);      // taller than him; the bigger the wall, the thicker the glass
     o.mat = new THREE.ShaderMaterial({ vertexShader: wallVS, fragmentShader: wallFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       uniforms: { uCol: { value: col3(kindCol(L.k)) }, uA: { value: 1 }, uEdge: { value: 1 }, uT: { value: 0 }, uRipT: { value: -9 }, uRipY: { value: 0 }, uRipA: { value: 1 }, uH: { value: h } } });
     o.panel = new THREE.Mesh(new THREE.BoxGeometry(depth, h, th, 26, 44, 1), o.mat); o.panel.rotation.y = Math.PI / 2; o.panel.position.y = h / 2; o.group.add(o.panel);
     o.glow = new THREE.Mesh(new THREE.PlaneGeometry(th + .4, depth), new THREE.MeshBasicMaterial({ color: col3(kindCol(L.k)), opacity: .08, ...addBlend }));
     o.glow.rotation.x = -Math.PI / 2; o.glow.position.y = .01; o.group.add(o.glow); o.h = h;
   } else if (L.k === 'stop') {
-    const n = 9, h = 1.5, g = new THREE.BufferGeometry(), pos = new Float32Array(n * 3);
+    const n = 12, h = 2.1, g = new THREE.BufferGeometry(), pos = new Float32Array(n * 3);
     for (let j = 0; j < n; j++) pos[j * 3 + 1] = .12 + j * (h - .12) / (n - 1);
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     o.mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexShader: stopVS, fragmentShader: stopFS,
@@ -408,7 +419,7 @@ function buildLevel(L) {
     o.line = new THREE.Mesh(new THREE.BoxGeometry(th, h, th), new THREE.MeshBasicMaterial({ color: col3('stop'), opacity: .18, ...addBlend }));
     o.line.position.y = h / 2; o.group.add(o.line); o.h = h;
   } else {
-    const h = 1.5, depth = 3.0, th = THICK(L);      // the more is liquidated there, the thicker the curtain
+    const h = 2.0, depth = 3.0, th = THICK(L);      // the more is liquidated there, the thicker the curtain
     o.mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, vertexShader: uvVS, fragmentShader: liqFS,
       uniforms: { uCol: { value: col3('liq') }, uT: { value: 0 }, uT0: { value: -9 }, uY: { value: 0 }, uSpent: { value: 0 }, uS: { value: Math.min(1, L.rel) }, uH: { value: h }, uFade: { value: 0 } } });
     o.panel = new THREE.Mesh(new THREE.BoxGeometry(depth, h, th), o.mat); o.panel.rotation.y = Math.PI / 2; o.panel.position.y = h / 2; o.group.add(o.panel);
@@ -554,9 +565,11 @@ function onLevels() {
     const title = ls.map(l => nameOf(l.k, l.above)).join(' + ').toUpperCase(), sub = ls.map(l => l.v).join(' · '), lines = [title, sub, fmtP(p)];
     const old = labels.get(p); if (old && old.userData.txt === lines.join('|')) continue;
     if (old) { scene.remove(old); dispose(old); }
-    const top = ls.slice().sort((a, b) => b.rel - a.rel)[0], sp = textSprite(lines, CSS[kindCol(top.k)], .5, true);
-    const h = Math.max(...ls.map(l => objs.get(l.key)?.h ?? 1.3));
-    sp.userData.txt = lines.join('|'); sp.userData.y = h * .5; sp.center.set(.5, .5); sp.position.set(WX(p), h * .5, -.5); scene.add(sp); labels.set(p, sp);
+    // on the front of the level (the face toward the camera), the text running up: kind, then size and price
+    const top = ls.slice().sort((a, b) => b.rel - a.rel)[0], h = Math.max(...ls.map(l => objs.get(l.key)?.h ?? 1.9));
+    const front = Math.max(...ls.map(l => isWall(l) ? 1.3 : l.k === 'liq' ? 1.5 : .12)) + .012;
+    const sp = frontLabel([title, sub + '  ·  ' + fmtP(p)], CSS[kindCol(top.k)], h * .86);
+    sp.userData.txt = lines.join('|'); sp.userData.y = h * .5; sp.userData.z = front; sp.position.set(WX(p), h * .5, front); scene.add(sp); labels.set(p, sp);
   }
   // the magnets glide to the new targets
   for (const [k, up] of [['up', true], ['dn', false]]) {
@@ -735,7 +748,7 @@ function render3d(dt) {
   const span = camS * U, dist = span / (2 * Math.tan(THREE.MathUtils.degToRad(17)) * aspect) * (1 - .05 * FX.kick);
   const cx = WX(camC), yaw = 0, sh = FX.shake;     // straight on: the price runs left to right, thickness reads at a glance
   camera.position.set(cx + Math.sin(yaw) * dist + (Math.sin(t * 91) + Math.sin(t * 57)) * sh * .5, .9 + dist * .07 + (Math.cos(t * 83) + Math.sin(t * 41)) * sh * .5, Math.cos(yaw) * dist);
-  camera.lookAt(cx, .8 + dist * .03, 0);
+  camera.lookAt(cx, .95 + dist * .03, 0);
   scene.fog.near = dist * .7; scene.fog.far = dist * 2.6;
   floorMat.uniforms.uFocus.value.set(cx, 0); floorMat.uniforms.uFar.value = Math.max(12, dist * 1.4);
   const wide = Math.min(1, Math.max(0, (dist - 14) / 14));
@@ -765,8 +778,8 @@ function render3d(dt) {
   }
   cand.sort((a, b) => b.w - a.w);
   for (const c of cand) {
-    const k = Math.min(1.6, Math.max(1, dist / 7)); c.sp.scale.set(c.sp.userData.w0 * k, c.sp.userData.h0 * k, 1); c.sp.position.set(WX(c.p), c.sp.userData.y * c.f, -.5);
-    tmpV.copy(c.sp.position).project(camera); const wpx = c.sp.userData.w0 * k / span * W * 1.05, sx = (tmpV.x * .5 + .5) * W - wpx / 2;
+    c.sp.scale.set(.02 + .98 * c.f, 1, 1); c.sp.position.set(WX(c.p), c.sp.userData.y * (.02 + .98 * c.f), c.sp.userData.z);
+    tmpV.copy(c.sp.position).project(camera); const wpx = c.sp.geometry.parameters.height / span * W * 1.1, sx = (tmpV.x * .5 + .5) * W - wpx / 2;
     const free = !shown.some(o => sx < o[1] + 22 && sx + wpx > o[0] - 22);
     if (free) c.sp.material.opacity += (c.a - c.sp.material.opacity) * Math.min(1, dt * 8); else c.sp.material.opacity = 0;   // a label in the way of a more important one goes at once
     c.sp.visible = c.sp.material.opacity > .01; if (free && c.a > .05) shown.push([sx, sx + wpx]);
