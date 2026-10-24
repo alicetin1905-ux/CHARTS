@@ -597,7 +597,7 @@ header.top .px{transform-origin:left center;transform:scale(calc(1 - var(--sh,0)
         <span><i class="sw" style="background:linear-gradient(90deg,var(--up),var(--dn))"></i>Doelen GlassSphere</span>
         <span><i class="sw" style="background:var(--stop)"></i>Stops (stippellijn, schatting)</span>
         <span><i class="sw" style="background:var(--liq)"></i>Liquidaties (stippellijn, schatting)</span>
-        <span><i class="sw" style="background:linear-gradient(90deg,var(--up) 50%,var(--dn) 50%)"></i>Buy / Sell: 3 dagen ≥ 65%</span>
+        <span><i class="sw" style="background:linear-gradient(90deg,var(--up) 50%,var(--dn) 50%)"></i>Buy / Sell: 3 dagen ≥ 70%</span>
       </div>
     </div>
     <div class="stage"><canvas id="cv"></canvas><canvas id="fxc" aria-hidden="true"></canvas><div id="tip" hidden></div></div>
@@ -1606,10 +1606,10 @@ function targetsOf(cs, pools, P, days) {
   return { range24, rH, minD, tUp, tDn, pUp: tUp && tDn ? (P - tDn.p) / (tUp.p - tDn.p) : null };
 }
 /* ---------- buy / sell signals ----------
-   The 3-day reading at 65% or more: Buy when "eerst omhoog", Sell when "eerst omlaag", marked on the candle where it
+   The 3-day reading at 70% or more: Buy when "eerst omhoog", Sell when "eerst omlaag", marked on the candle where it
    began, over the last 7 days. Each closed hour is worked out from the data as it was then (the same calculation as
    the reading), the current hour from the data now. Cached per coin and hour. */
-const SIG = { days: 3, min: 65, hours: 168 };
+const SIG = { days: 3, min: 70, hours: 168 };
 // How often the 3-day reading came true by the chance shown: the more likely target reached first, of the times one
 // was reached within 3 days. 17 coins on the Binance archive, 2022 - Sep 2026 (scripts/glasssphere_threshold_test.py,
 // backtests/glasssphere.md section 5). With the stop as far as the target it won half the time: the chance comes from
@@ -1631,8 +1631,8 @@ function signals() {
     sigCache.set(key, hist); if (sigCache.size > 30) sigCache.delete(sigCache.keys().next().value);
   }
   const all = [...hist, { t: cs[n - 1][0], pUp: targetsOf(cs, poolsOf(D.stops, D.liqs, D.price), D.price, SIG.days).pUp }];
-  // a signal starts at 65% and runs until the chance drops under 60% (neutral) or the other signal starts, so a reading
-  // wavering around 65% does not repeat it
+  // a signal starts at 70% and runs until the chance drops under 60% (neutral) or the other signal starts, so a reading
+  // wavering around 70% does not repeat it
   const pct = (h, sd) => h.pUp == null ? 0 : Math.round((sd === 'buy' ? h.pUp : 1 - h.pUp) * 100);
   const step = (cur, h) => {
     if (cur && pct(h, cur) < 60) cur = null;
