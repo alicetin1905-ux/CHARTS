@@ -896,7 +896,7 @@ function drawHud() {
   // status, bottom right
   const ago = Math.max(0, Math.round((Date.now() - updAt) / 1000));
   txt(mode === 'live' ? `${nBooks} orderboeken · ververst ${ago} s geleden` : `uurdata van GlassSphere · ${nBooks} orderboeken`, LW - gx, LH - 30, `500 9px ${FM}`, 'rgba(233,241,238,.45)', 'right');
-  txt(`vandaag: ${stats.walls} muren · ${stats.stops} stops · ${fmtUsd(stats.liq)} liq. · ${stats.targets} doelen`, LW - gx, LH - 16, `500 9px ${FM}`, 'rgba(233,241,238,.3)', 'right');
+  txt(`sinds openen: ${stats.walls} muren · ${stats.stops} stops · ${fmtUsd(stats.liq)} liq. · ${stats.targets} doelen`, LW - gx, LH - 16, `500 9px ${FM}`, 'rgba(233,241,238,.3)', 'right');
 }
 
 let last = 0;
