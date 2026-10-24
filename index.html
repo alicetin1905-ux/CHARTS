@@ -64,6 +64,12 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .px{display:flex;align-items:baseline;gap:10px;margin-right:auto}
 .px .clogo{width:30px;height:30px;border-radius:50%;align-self:center;transition:box-shadow .6s}
 .px b{font-size:30px;font-weight:600;letter-spacing:-.02em}
+#price{display:inline-block;line-height:1.15;white-space:nowrap;filter:drop-shadow(0 0 10px currentColor)}
+#price,#price *{text-shadow:none!important}   /* a glow per digit strip would be cut off in boxes: one glow over the whole price */
+#price>span{display:inline-block;vertical-align:top;height:1.15em;line-height:1.15em;font:inherit;color:inherit}
+#price .od{overflow:hidden}
+#price .od i{display:block;font-style:normal;transition:transform .55s cubic-bezier(.2,.8,.2,1)}
+#price.noanim .od i{transition:none}
 .px span{font-family:var(--mono);font-size:12px;color:var(--dim)}
 .ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0;max-width:100%}
 .ctl .grp{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%}
@@ -307,7 +313,7 @@ footer .note summary::-webkit-details-marker{display:none}
 footer .note summary::before{content:"› ";color:var(--faint)}
 footer .note[open] summary{margin-bottom:6px}
 footer .note p+p{margin-top:6px}
-.tabs{display:flex;gap:4px;padding:3px;border:1px solid var(--edge);border-radius:12px;background:rgba(255,255,255,.03)}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:3px;border:1px solid var(--edge);border-radius:12px;background:rgba(255,255,255,.03)}
 .tabs button{font:inherit;font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--dim);background:none;border:0;
   border-radius:9px;padding:6px 14px;cursor:pointer}
 .tabs button:hover{color:var(--txt)}
@@ -324,7 +330,27 @@ footer .note p+p{margin-top:6px}
 #intro .ttl{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 22px);text-align:center;pointer-events:none}
 #intro .ttl h2{font-size:22px;font-weight:600;letter-spacing:.06em;text-shadow:0 0 22px rgba(53,255,176,.35)}
 #intro .hint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);text-align:center;font-family:var(--mono);font-size:11px;
-  color:var(--faint);letter-spacing:.08em;pointer-events:none}
+  color:var(--faint);letter-spacing:.08em;pointer-events:none;overflow:hidden;white-space:nowrap;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+/* the ticker: two copies side by side, sliding left by one copy, so it loops without a seam */
+#intro .tk{display:inline-flex;animation:tk var(--tkd,60s) linear infinite}
+#intro .tc{display:inline-flex;align-items:baseline;gap:22px;padding-right:22px}
+#intro .ti{display:inline-flex;align-items:baseline;gap:6px;letter-spacing:.04em}
+#intro .ti b{color:var(--dim);font-weight:600}
+#intro .ti em{font-style:normal;color:var(--txt)}
+#intro .ti i{font-style:normal}
+#intro .ti i.up{color:var(--up)}
+#intro .ti i.dn{color:var(--dn)}
+#intro .tk-cnt{color:var(--faint)}
+@keyframes tk{to{transform:translateX(-50%)}}
+/* the 24 hours behind each tile */
+#intro .ct .spk{position:absolute;left:5px;bottom:3px;width:calc(100% - 10px);height:40%;z-index:-1;pointer-events:none;opacity:.32;color:var(--faint)}
+#intro .ct .spk .l{fill:none;stroke:currentColor;stroke-width:1.4;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+#intro .ct .spk .a{fill:currentColor;opacity:.18}
+#intro .ct.v-up .spk{color:var(--up)}
+#intro .ct.v-dn .spk{color:var(--dn)}
+#intro .ct.v-nt .spk{color:var(--nt)}
+@media (prefers-reduced-motion:reduce){#intro .tk{animation:none}}
 #intro .ct{position:absolute;left:0;top:0;width:110px;padding:8px 6px 7px;display:grid;gap:2px;justify-items:center;cursor:pointer;
   font:inherit;color:var(--txt);background:var(--glass),rgba(14,20,18,.72);border:1px solid var(--edge);border-radius:14px;
   box-shadow:inset 0 1px 0 var(--edge-hi),0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
@@ -373,12 +399,22 @@ footer .note p+p{margin-top:6px}
   color:var(--dim);background:rgba(14,20,18,.6);border:1px solid var(--edge);border-radius:999px;padding:5px 10px;cursor:pointer}
 #intro .tilt[hidden]{display:none}
 /* switching coins: the page fades over to the new coin */
-main,header.top .px{transition:opacity .28s ease,transform .28s ease}
+main{transition:opacity .28s ease,transform .28s ease}
 body.swap main{opacity:.12;transform:translateY(8px)}
 body.swap header.top .px{opacity:.25}
 @media (prefers-reduced-motion:reduce){main,header.top .px{transition:none}}
 #intro .ct:hover,#intro .ct:focus-visible{border-color:rgba(53,255,176,.55);box-shadow:inset 0 1px 0 var(--edge-hi),0 0 22px rgba(53,255,176,.25)}
 .mark{cursor:pointer}
+/* the coin to come, peeking in at the edge while the page is swiped */
+.peek{position:fixed;top:50%;z-index:40;display:flex;align-items:center;gap:8px;padding:9px 14px 9px 10px;border-radius:999px;pointer-events:none;
+  font:700 14px var(--mono);color:var(--txt);background:rgba(14,20,18,.88);border:1px solid var(--edge);box-shadow:0 0 22px rgba(53,255,176,.18);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);opacity:var(--k,0);transition:opacity .2s}
+.peek img{width:24px;height:24px;border-radius:50%}
+.peek.r{right:12px;transform:translate(calc((1 - var(--k,0)) * 70px),-50%)}
+.peek.l{left:12px;transform:translate(calc((var(--k,0) - 1) * 70px),-50%)}
+.peek[hidden]{display:none}
+/* scrolling down, the price block shrinks and fades (var --sh: 0 at the top .. 1 scrolled past) */
+header.top .px{transform-origin:left center;transform:scale(calc(1 - var(--sh,0) * .22));opacity:calc(1 - var(--sh,0) * .5);transition:opacity .28s ease}
 /* phone: a slim glass bar with the coin, price and verdict once the header has scrolled away */
 .mini{display:none}
 @media (max-width:760px){
@@ -386,7 +422,8 @@ body.swap header.top .px{opacity:.25}
     padding:calc(env(safe-area-inset-top,0px) + 7px) 16px 8px;background:rgba(7,10,9,.78);backdrop-filter:blur(16px) saturate(1.2);
     -webkit-backdrop-filter:blur(16px) saturate(1.2);border-bottom:1px solid var(--edge);font-family:var(--mono);font-size:13px;
     transform:translateY(-110%);transition:transform .25s ease}
-  .mini.show{transform:none}
+  .mini{transform:translateY(calc((1 - var(--sh,0)) * -110%));transition:none}
+  .mini:not(.show){visibility:hidden}
   .mini[hidden]{display:none}
   .mini img{width:20px;height:20px;border-radius:50%}
   .mini #mini-v{margin-left:auto;font-size:12px}
@@ -432,8 +469,10 @@ body.swap header.top .px{opacity:.25}
   .back,.mark{order:-2}
   .back{padding:6px 12px 6px 8px;font-size:12.5px}
   .tabs{order:-1;width:100%}
-  .tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
-  .tabs button{padding:8px 0;font-size:12px;letter-spacing:0;gap:3px}
+  .tabs{display:flex;flex-wrap:nowrap;gap:2px;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;padding-inline:28px;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent);mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent)}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{flex:none;padding:8px 10px;font-size:12px;letter-spacing:0;gap:4px;scroll-snap-align:center}
   .tabs button img{width:13px;height:13px}
   .stage{height:max(480px,68vh)}
   .exd{width:100%}
@@ -465,7 +504,7 @@ body.swap header.top .px{opacity:.25}
   <nav id="intro-coins" aria-label="Kies een munt"></nav>
   <div class="card2" id="intro-card" hidden></div>
   <div class="card2" id="intro-sum" hidden></div>
-  <div class="hint" id="intro-hint">Kies een munt</div>
+  <div class="hint" id="intro-hint"><span class="tk" id="tk"></span></div>
   <button class="tilt" id="intro-tilt" type="button" hidden>✦ Kantel-effect</button>
 </div>
 
@@ -515,6 +554,7 @@ body.swap header.top .px{opacity:.25}
     <div class="seg" id="bk"></div></span>
   </div>
 </header>
+<div class="peek" id="peek" hidden aria-hidden="true"></div>
 <div class="mini" id="mini" hidden role="button" tabindex="0" title="Naar boven">
   <img id="mini-logo" src="icons/coins/btc.png" alt="" width="20" height="20"><b id="mini-name">BTC</b><span id="mini-price">—</span><span id="mini-v">—</span>
 </div>
@@ -927,20 +967,23 @@ const fx = (x, d) => x.toFixed(d).replace('.', ',');
 // a price that moved lights up green or red for a moment
 function flash(el, up) { el.classList.remove('flash-up', 'flash-dn'); void el.offsetWidth; el.classList.add(up ? 'flash-up' : 'flash-dn'); }
 // the price in the header counts to its new value instead of jumping
-let shown = { a: null, p: null }, priceTween = 0;
+let shown = { a: null, p: null };
+// the price in the header rolls to its new value digit by digit, like a counter: each digit is a strip 0-9 that slides
+function odometer(el, txt) {
+  const ch = [...txt], isD = c => c >= '0' && c <= '9';
+  if (el.children.length !== ch.length || ch.some((c, i) => isD(c) !== el.children[i].classList.contains('od')))
+    el.innerHTML = ch.map(c => isD(c) ? '<span class="od"><i>0<br>1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9</i></span>' : '<span></span>').join('');
+  ch.forEach((c, i) => { const s = el.children[i]; if (isD(c)) s.firstChild.style.transform = `translateY(${-c * 10}%)`; else s.textContent = c; });
+  el.setAttribute('aria-label', txt); for (const s of el.children) s.setAttribute('aria-hidden', 'true');
+}
 function showPrice(p) {
-  const el = $('price');
-  cancelAnimationFrame(priceTween);
-  if (shown.a !== state.asset || shown.p == null || matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    el.textContent = $('mini-price').textContent = fmtP(p); shown = { a: state.asset, p }; return;
-  }
-  const from = shown.p; shown.p = p;
-  if (from === p) { el.textContent = fmtP(p); return; }
-  flash(el, p > from);
-  const t0 = performance.now();
-  const step = now => { const k = Math.min(1, (now - t0) / 450), e = 1 - Math.pow(1 - k, 3);
-    el.textContent = $('mini-price').textContent = fmtP(from + (p - from) * e); if (k < 1) priceTween = requestAnimationFrame(step); };
-  priceTween = requestAnimationFrame(step);
+  const el = $('price'), first = shown.a !== state.asset || shown.p == null, from = shown.p;
+  shown = { a: state.asset, p }; $('mini-price').textContent = fmtP(p);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = fmtP(p); return; }
+  if (first) el.classList.add('noanim');
+  odometer(el, fmtP(p));
+  if (first) requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('noanim')));
+  else if (from !== p) flash(el, p > from);
 }
 const fmtP = p => p.toLocaleString('nl-NL', { minimumFractionDigits: A.dec, maximumFractionDigits: A.dec });
 const fmtUsd = v => v >= 1e9 ? '$' + fx(v / 1e9, 2) + ' mld' : v >= 1e6 ? '$' + fx(v / 1e6, 1) + ' mln' : v >= 1e3 ? '$' + fx(v / 1e3, 0) + 'K' : '$' + fx(v, 0);
@@ -1209,6 +1252,23 @@ const lvFx = (() => {
     if (sp == null || Math.abs(sp - P) > (model.hi - model.lo) * 0.15) sp = P; else sp += (P - sp) * Math.min(1, dt * 9);
     const i = shown.length - 1, c = shown[i], x = 4 + i * barW, o = c[1], hi = Math.max(c[2], sp), lo = Math.min(c[3], sp);
     const k = Math.max(-1, Math.min(1, (sp - o) / (model.B * 0.6))), col = mixHex(Cc.dn, Cc.up, (k + 1) / 2), pulse = 0.5 + 0.5 * Math.sin(now / 420);
+    // the tunnel to the first target: brighter the closer the price comes, with chevrons flowing toward it
+    const T = state.targets;
+    if (T?.first != null && T.first >= model.lo && T.first <= model.hi) {
+      const other = T.first === T.up ? T.dn : T.up, d0 = other != null ? Math.abs(T.first - other) : Math.abs(T.first - P) * 2;
+      const close = Math.max(0, Math.min(1, 1 - Math.abs(T.first - sp) / Math.max(d0 * 0.6, 1e-12)));
+      const yf = y(T.first), ys = y(sp), cF = T.first > sp ? Cc.up : Cc.dn, xr = W - axisW, span = Math.abs(yf - ys);
+      const gr = g.createLinearGradient(0, ys, 0, yf);
+      gr.addColorStop(0, alpha(cF, 0.02)); gr.addColorStop(1, alpha(cF, 0.07 + 0.2 * close * (0.75 + 0.25 * Math.sin(now / 300))));
+      g.fillStyle = gr; g.fillRect(0, Math.min(ys, yf), xr, span);
+      const xc = Math.min(xr - 10, x + barW + 12), dy = yf < ys ? -1 : 1, n = Math.max(1, Math.floor(span / 26));
+      g.strokeStyle = alpha(cF, .35 + .45 * close); g.lineWidth = 1.6;
+      for (let j = 0; j < n; j++) {
+        const f = ((j + now / 900) % n) / n, yy = ys + dy * f * span; g.globalAlpha = Math.sin(Math.PI * f);
+        g.beginPath(); g.moveTo(xc - 5, yy - dy * 4); g.lineTo(xc, yy); g.lineTo(xc + 5, yy - dy * 4); g.stroke();
+      }
+      g.globalAlpha = 1;
+    }
     g.save(); g.beginPath(); g.rect(0, top, chartR, bot - top); g.clip();
     g.strokeStyle = alpha(col, .8); g.fillStyle = col; g.lineWidth = 1; g.shadowColor = alpha(col, .9); g.shadowBlur = 8 + 10 * pulse;
     g.beginPath(); g.moveTo(x + barW / 2, y(hi)); g.lineTo(x + barW / 2, y(lo)); g.stroke();
@@ -1662,8 +1722,20 @@ new ResizeObserver(() => draw()).observe(cv);
 // phone: the sticky bar slides in once the price in the header has scrolled away; a tap goes back to the top
 $('mini').hidden = false;
 $('mini').addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
-new IntersectionObserver(([en]) => $('mini').classList.toggle('show', !en.isIntersecting && !!state.data))
-  .observe(document.querySelector('header.top .px'));
+// the price block shrinks and fades as it scrolls away while the slim bar slides in (phone); on a wide screen the
+// sticky header's price block gets a little smaller
+(() => {
+  const px = document.querySelector('header.top .px'), mini = $('mini'); let raf = 0;
+  const upd = () => {
+    raf = 0; const phone = innerWidth <= 760;
+    const p = phone ? Math.max(0, Math.min(1, ((mini.offsetHeight || 48) + 60 - px.getBoundingClientRect().bottom) / 60))
+      : Math.max(0, Math.min(1, scrollY / 160));
+    document.body.style.setProperty('--sh', p.toFixed(3));
+    mini.classList.toggle('show', phone && p > 0.01 && !!state.data);
+  };
+  addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(upd); }, { passive: true });
+  addEventListener('resize', upd); upd();
+})();
 
 /* ---------- loading: glasssphere-data.json, then live exchange data ---------- */
 let liveHist = [];       // one book snapshot per hour while the page is open live
@@ -1766,15 +1838,22 @@ const live = (() => {
   return { start, stop, fresh, get on() { return !!inst; } };
 })();
 let loaded = null;        // the asset start() last loaded
+// the tabs scroll on a phone: the chosen coin glides to the middle
+function centerTab() {
+  const nav = $('asset'), b = nav.querySelector('.on'); if (!b || nav.scrollWidth <= nav.clientWidth) return;
+  const nr = nav.getBoundingClientRect(), br = b.getBoundingClientRect();
+  nav.scrollTo({ left: nav.scrollLeft + br.left - nr.left - (nav.clientWidth - br.width) / 2, behavior: loaded ? 'smooth' : 'auto' });
+}
 async function start() {
   const g = ++gen; loaded = state.asset;
   clearInterval(timer); site = null; series = null; market = null; liveHist = []; state.data = null; state.targets = null; model = null;
   document.querySelectorAll('#asset button').forEach(b => { b.classList.toggle('on', b.dataset.a === state.asset); b.setAttribute('aria-current', b.dataset.a === state.asset); });
+  centerTab();
   $('sub').textContent = A.name + '-termijncontract · 1u';
   $('coin-logo').src = $('mini-logo').src = `icons/coins/${state.asset}.png`; $('coin-logo').style.boxShadow = 'none';
   $('mini-name').textContent = A.name; $('mini-price').textContent = '—'; $('mini-v').textContent = '';
   document.title = state.asset === 'btc' ? 'GlassSphere' : 'GlassSphere · ' + A.name;
-  $('price').textContent = '—'; $('upd').textContent = '—'; $('rd-chip').textContent = '—'; $('rd-lab').textContent = '—'; $('rd-sc').textContent = ''; $('rd-story').innerHTML = '';
+  $('price').textContent = '—'; $('price').removeAttribute('aria-label'); $('upd').textContent = '—'; $('rd-chip').textContent = '—'; $('rd-lab').textContent = '—'; $('rd-sc').textContent = ''; $('rd-story').innerHTML = '';
   $('src').textContent = 'laden…'; shown = { a: null, p: null }; document.body.classList.add('swap');
   renderBuckets(); $('hz').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === state.horizon)); refresh();
   live.start();
@@ -1812,7 +1891,9 @@ const intro = (() => {
     return { x: r(1), y: r(2), z: 0.25 + 0.75 * r(3), sp: 0.004 + 0.012 * r(4), sw: r(5) * 6.28, tw: 0.5 + r(6) }; });
   const tiles = keys.map((k, i) => {
     const b = document.createElement('button');
-    b.className = 'ct'; b.dataset.a = k; b.innerHTML = `<b><img src="icons/coins/${k}.png" alt="" width="18" height="18">${ASSETS[k].name}</b><span>—</span><i></i>`;
+    b.className = 'ct'; b.dataset.a = k;
+    b.innerHTML = `<b><img src="icons/coins/${k}.png" alt="" width="18" height="18">${ASSETS[k].name}</b><span>—</span><i></i>` +
+      '<svg class="spk" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path class="a"/><path class="l"/></svg>';
     wrap.appendChild(b);
     // each coin its own drift: frequencies and phases from a fixed hash, so the motion never repeats in step
     const h = j => { const v = Math.sin((i + 1) * 12.9898 + j * 78.233) * 43758.5453; return v - Math.floor(v); };
@@ -1999,7 +2080,13 @@ const intro = (() => {
       T.b.style.opacity = T.o;
     }
     g.globalAlpha = open;
-    orb(ocx, ocy + bob, R * (0.85 + 0.15 * ease(open)) * (1 + zoom * (Math.hypot(W, H) / R)), t, boost, mood, tilt.x, tilt.y);
+    beat *= still ? 0 : 0.955;
+    const bt = (now - beatAt) / 1000, thump = beat * Math.max(0, Math.sin(Math.min(1, bt / 0.35) * Math.PI));   // one beat
+    orb(ocx, ocy + bob, R * (0.85 + 0.15 * ease(open)) * (1 + zoom * (Math.hypot(W, H) / R)) * (1 + 0.04 * thump), t, boost + thump * 0.5, mood, tilt.x, tilt.y);
+    if (bt < 1.2 && beatDir) {                                                   // a ring in the move's colour
+      const k = bt / 1.2; g.strokeStyle = rgba(beatDir > 0 ? VC.up : VC.down, 0.45 * (1 - k) * Math.min(1, beat * 3 + 0.2)); g.lineWidth = 2;
+      g.beginPath(); g.arc(ocx, ocy + bob, R * (1.05 + 0.9 * ease(k)), 0, 7); g.stroke();
+    }
     orbAt = { x: ocx, y: ocy + bob, R };
     g.globalAlpha = 1;
   }
@@ -2007,7 +2094,17 @@ const intro = (() => {
   // horizon, from glasssphere-summary.json (written every hour with the data files)
   const fmt = (k, p) => p.toLocaleString('nl-NL', { minimumFractionDigits: ASSETS[k].dec, maximumFractionDigits: ASSETS[k].dec });
   const VERDICT = { up: ['Eerst omhoog', 'up'], down: ['Eerst omlaag', 'dn'], neutral: ['Neutraal', 'nt'] };
-  let summary = null, ptimer = 0;
+  let summary = null, ptimer = 0, btimer = 0, beat = 0, beatDir = 0, beatAt = 0;
+  // the heartbeat: BTC every 3 s; a move of 0.03% or more makes the sphere pulse, harder for a bigger move, with a ring
+  // in the move's colour
+  async function btcBeat() {
+    const T = tiles.find(x => x.k === 'btc'); if (!T) return;
+    try {
+      const p = +(await getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${ASSETS.btc.okx}`)).data[0].last;
+      if (T.last != null) { const d = p / T.last - 1; if (Math.abs(d) >= 0.0003) { beat = Math.min(1, beat + Math.abs(d) / 0.0015); beatDir = Math.sign(d); beatAt = performance.now(); } }
+      setPrice(T, p);
+    } catch (e) {}
+  }
   function verdicts() {
     const cnt = { up: 0, down: 0, neutral: 0 }, seenNow = {};
     for (const T of tiles) {
@@ -2028,19 +2125,50 @@ const intro = (() => {
       T.vc = VC[h?.v] || TEAL; if (h?.v) cnt[h.v]++;
       T.b.title = h?.prob ? `${txt} · ${Math.round(h.prob * 100)}% · ${hzLabel(H)}` : '';
       if (T.b.children[1].textContent === '—' && summary?.assets?.[T.k]) T.b.children[1].textContent = fmt(T.k, summary.assets[T.k].price);
+      spark(T); tick(T);
     }
     const tot = cnt.up + cnt.down + cnt.neutral;
     moodTo = tot ? (cnt.up - cnt.down) / tot : 0;
     if (summary) try { localStorage.setItem('glasssphere-seen', JSON.stringify({ ...seenPrev, ...seenNow })); } catch (e) {}
-    $('intro-hint').textContent = tot ? `Kies een munt · ${cnt.up} omhoog · ${cnt.down} omlaag · ${cnt.neutral} neutraal` : 'Kies een munt';
+    tick(); for (const c of tkEl.querySelectorAll('.tk-cnt')) c.textContent = tot ? `Kies een munt · ${cnt.up} omhoog · ${cnt.down} omlaag · ${cnt.neutral} neutraal` : 'Kies een munt';
   }
   async function prices() {
     await Promise.all(tiles.map(async T => { try {
-      const x = (await getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${ASSETS[T.k].okx}`)).data[0], p = +x.last;
-      T.b.children[1].textContent = fmt(T.k, p);
-      if (T.last != null && p !== T.last) flash(T.b.children[1], p > T.last);
-      T.last = p;
+      const x = (await getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${ASSETS[T.k].okx}`)).data[0];
+      setPrice(T, +x.last);
     } catch (e) {} }));
+  }
+  function setPrice(T, p) {
+    if (!(p > 0)) return;
+    T.b.children[1].textContent = fmt(T.k, p);
+    if (T.last != null && p !== T.last) flash(T.b.children[1], p > T.last);
+    T.last = p; spark(T); tick(T);
+  }
+  // the last 24 hours as a faint line behind the tile, in the verdict's colour, ending at the live price
+  function spark(T) {
+    const s0 = summary?.assets?.[T.k]?.spark; if (!s0?.length) return;
+    const pts = T.last != null ? [...s0, T.last] : s0, lo = Math.min(...pts), hi = Math.max(...pts), r = hi - lo || 1;
+    const xy = pts.map((v, j) => [(j / (pts.length - 1) * 100).toFixed(1), (28 - (v - lo) / r * 24).toFixed(1)]);
+    const d = 'M' + xy.map(q => q.join(' ')).join('L');
+    T.b.querySelector('.spk .l').setAttribute('d', d); T.b.querySelector('.spk .a').setAttribute('d', d + 'L100 30L0 30Z');
+  }
+  // the ticker at the bottom: how many coins point each way, then every coin's live price and its move over 24 hours
+  const tkEl = $('tk');
+  function tick(T) {
+    if (!tkEl.children.length) {
+      const item = k => `<span class="ti" data-tk="${k}"><b>${ASSETS[k].name}</b><em>—</em><i></i></span>`;
+      const one = `<span class="tc"><span class="ti tk-cnt"></span>${keys.map(item).join('')}</span>`;
+      tkEl.innerHTML = one + one;                                       // twice, so the loop is seamless
+      requestAnimationFrame(() => tkEl.style.setProperty('--tkd', Math.max(30, tkEl.scrollWidth / 2 / 38).toFixed(0) + 's'));
+    }
+    if (!T) return;
+    const s0 = summary?.assets?.[T.k]?.spark, p = T.last ?? summary?.assets?.[T.k]?.price; if (p == null) return;
+    for (const it of tkEl.querySelectorAll(`[data-tk="${T.k}"]`)) {
+      const em = it.children[1], was = em.textContent; em.textContent = fmt(T.k, p);
+      if (was !== '—' && was !== em.textContent) flash(em, p > (T.prevTk ?? p));
+      if (s0?.length) { const d = p / s0[0] - 1; it.children[2].textContent = (d >= 0 ? '▲' : '▼') + fx(Math.abs(d) * 100, 1) + '%'; it.children[2].className = d >= 0 ? 'up' : 'dn'; }
+    }
+    T.prevTk = p;
   }
   async function loadSummary() {
     if (!/^https?:$/.test(location.protocol)) return;
@@ -2099,16 +2227,16 @@ const intro = (() => {
     if (Math.hypot(e.clientX - orbAt.x, e.clientY - orbAt.y) < orbAt.R * 1.1) overview();
   });
   function finish() {
-    cancelAnimationFrame(raf); raf = 0; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); instant = false;
+    cancelAnimationFrame(raf); raf = 0; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); clearInterval(btimer); instant = false;
     const a = tiles[pick.i].k; pick = null;
     if (location.hash !== '#' + a) location.hash = a;       // a history entry, so Back returns to the sphere
   }
   function show() {
     el.hidden = false; el.style.opacity = 1; document.body.style.overflow = 'hidden'; pick = null; hover = -1; hideCard(cardEl); hideCard(sumEl);
     size(); t0 = performance.now(); if (!raf) raf = requestAnimationFrame(frame); live.stop();
-    verdicts(); loadSummary(); prices(); clearInterval(ptimer); ptimer = setInterval(prices, 15e3);
+    verdicts(); loadSummary(); prices(); clearInterval(ptimer); ptimer = setInterval(prices, 15e3); clearInterval(btimer); btimer = setInterval(btcBeat, 3e3);
   }
-  function hide() { if (el.hidden) return; cancelAnimationFrame(raf); raf = 0; pick = null; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); instant = false; }
+  function hide() { if (el.hidden) return; cancelAnimationFrame(raf); raf = 0; pick = null; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); clearInterval(btimer); instant = false; }
   wrap.addEventListener('click', e => {
     const b = e.target.closest('.ct'); if (!b || pick) return;
     if (lpDone) { lpDone = false; return; }                    // that was a long press: the preview stays
@@ -2161,6 +2289,44 @@ addEventListener('hashchange', () => {          // Back / Forward between the sp
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') live.stop(); else if (!intro.open && loaded) live.start();
 });
+// phone: swipe the page left or right for the next or previous coin (as in the tabs); the page follows the finger and
+// the coin to come peeks in at the edge. Not on the chart (crosshair, zoom) or the parts that scroll sideways
+(() => {
+  const main = document.querySelector('main'), keys = Object.keys(ASSETS), peek = $('peek');
+  const skip = '#cv, .levels, .tabs, .seg, .exd, button, summary, a, input';
+  let x0 = null, y0 = 0, dx = 0, on = false, dir = 0;
+  const next = d => keys[(keys.indexOf(state.asset) + d + keys.length) % keys.length];
+  main.addEventListener('touchstart', e => {
+    x0 = null; if (e.touches.length !== 1 || intro.open || e.target.closest(skip)) return;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; on = false;
+  }, { passive: true });
+  main.addEventListener('touchmove', e => {
+    if (x0 == null) return;
+    const t = e.touches[0], dy = t.clientY - y0; dx = t.clientX - x0;
+    if (!on) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { x0 = null; return; }     // scrolling, not swiping
+      if (Math.abs(dx) < 16) return;
+      on = true; main.style.transition = 'none';
+    }
+    dir = dx < 0 ? 1 : -1; const k = next(dir);
+    main.style.transform = `translateX(${dx * 0.55}px)`; main.style.opacity = 1 - Math.min(0.45, Math.abs(dx) / 700);
+    if (peek.dataset.k !== k + dir) { peek.dataset.k = k + dir; peek.innerHTML = `<img src="icons/coins/${k}.png" alt="">${ASSETS[k].name}`; peek.className = 'peek ' + (dir > 0 ? 'r' : 'l'); }
+    peek.hidden = false; peek.style.setProperty('--k', Math.min(1, Math.abs(dx) / 100).toFixed(2));
+  }, { passive: true });
+  const end = () => {
+    if (x0 == null) return; x0 = null; if (!on) return; on = false;
+    main.style.transition = ''; peek.style.setProperty('--k', 0); setTimeout(() => { peek.hidden = true; peek.dataset.k = ''; }, 250);
+    if (Math.abs(dx) < 90) { main.style.transform = main.style.opacity = ''; return; }      // not far enough: back
+    const k = next(dir);
+    main.style.transform = `translateX(${dir > 0 ? -60 : 60}px)`; main.style.opacity = 0;
+    setTimeout(() => {
+      history.replaceState(null, '', '#' + k); selectAsset(k);
+      main.style.transition = 'none'; main.style.transform = `translateX(${dir > 0 ? 60 : -60}px)`;
+      requestAnimationFrame(() => requestAnimationFrame(() => { main.style.transition = ''; main.style.transform = main.style.opacity = ''; }));
+    }, 200);
+  };
+  main.addEventListener('touchend', end); main.addEventListener('touchcancel', end);
+})();
 if (ASSETS[location.hash.slice(1)]) start(); else intro.show();
 
 // a new version: the workflow writes its commit into build.txt and into the meta tag above. When they differ (an old
