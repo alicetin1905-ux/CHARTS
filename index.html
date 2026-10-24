@@ -597,6 +597,7 @@ header.top .px{transform-origin:left center;transform:scale(calc(1 - var(--sh,0)
         <span><i class="sw" style="background:linear-gradient(90deg,var(--up),var(--dn))"></i>Doelen GlassSphere</span>
         <span><i class="sw" style="background:var(--stop)"></i>Stops (stippellijn, schatting)</span>
         <span><i class="sw" style="background:var(--liq)"></i>Liquidaties (stippellijn, schatting)</span>
+        <span><i class="sw" style="background:linear-gradient(90deg,var(--up) 50%,var(--dn) 50%)"></i>Buy / Sell: 3 dagen ≥ 65%</span>
       </div>
     </div>
     <div class="stage"><canvas id="cv"></canvas><canvas id="fxc" aria-hidden="true"></canvas><div id="tip" hidden></div></div>
@@ -881,9 +882,10 @@ function estimateStops(candles, price, lo, hi) {
 }
 // Liquidations: OI added each hour at that hour's average price, split long/short half by where the candle
 // closed and half by the taker buy share, at the leverage mix that best matched real liquidations.
-function estimateLiqs(candles, oi, taker) {
+// onBar(i, positions), if given, sees the open positions after each bar (the signals use it)
+function estimateLiqs(candles, oi, taker, onBar) {
   const oiAt = new Map(oi), tkAt = new Map(taker || []); let pos = [];
-  candles.forEach(([t, o, h, l, c]) => {
+  candles.forEach(([t, o, h, l, c], i) => {
     pos = pos.filter(q => q.side === 'long' ? l > q.p : h < q.p);
     const a = oiAt.get(t), b = oiAt.get(t + 3.6e6), d = a != null && b != null ? b - a : null;
     if (d != null && d < 0) { const r = b / a; pos.forEach(q => q.usd *= r); }
@@ -896,6 +898,7 @@ function estimateLiqs(candles, oi, taker) {
         pos.push({ p: entry * (1 + 1 / L - MAINT), side: 'short', usd: d * (1 - share) * w });
       }
     }
+    if (onBar) onBar(i, pos);
   });
   return pos;
 }
@@ -1044,6 +1047,33 @@ function draw() {
     if (glass) { ctx.beginPath(); rrect(x + 1, Math.min(yo, yc), barW - 2, Math.max(1.5, Math.abs(yo - yc)), 1.5); ctx.fill(); ctx.shadowBlur = 0; }
     else ctx.fillRect(x + 1, Math.min(yo, yc), barW - 2, Math.max(1, Math.abs(yo - yc)));
   });
+  // buy / sell signals: an arrow under the candle for buy, over it for sell, with the chance; the one still running glows
+  // and says "nu". On 15m the hour's last quarter, on 4h the candle holding the hour
+  {
+    const tfMs = state.tf * 6e4, marks = [];
+    for (const sg of state.signals || []) {
+      const te = sg.t + 3.6e6 - 1; let i = -1;
+      for (let k = shown.length - 1; k >= 0; k--) if (shown[k][0] <= te) { i = k; break; }
+      if (i < 0 || shown[i][0] + tfMs <= sg.t) continue;                     // before the first candle in view
+      const c = shown[i], x = 4 + i * barW + barW / 2, buy = sg.side === 'buy', col = buy ? C.up : C.dn, d = buy ? 1 : -1;
+      const yt = Math.max(top + 30, Math.min(bot - 30, buy ? y(c[3]) + 8 : y(c[2]) - 8));      // the arrow's tip, off the wick
+      ctx.fillStyle = col; ctx.shadowColor = alpha(col, .9); ctx.shadowBlur = sg.active ? 14 : 6;
+      ctx.beginPath(); ctx.moveTo(x, yt); ctx.lineTo(x - 6, yt + d * 10); ctx.lineTo(x - 2, yt + d * 10); ctx.lineTo(x - 2, yt + d * 15);
+      ctx.lineTo(x + 2, yt + d * 15); ctx.lineTo(x + 2, yt + d * 10); ctx.lineTo(x + 6, yt + d * 10); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+      marks.push({ sg, x, yt, buy, col, d });
+    }
+    // labels newest first, each only where it does not run into a newer one
+    ctx.font = `700 ${fs - 1}px ` + css('--mono'); const kept = [];
+    for (const m of marks.reverse()) {
+      const txt = `${m.buy ? 'BUY' : 'SELL'} ${Math.round(m.sg.prob * 100)}%${m.sg.active ? ' · nu' : ''}`, tw = ctx.measureText(txt).width + 10, ly = m.yt + m.d * 26;
+      const lx = Math.max(2, Math.min(chartR - tw - 2, m.x - tw / 2));
+      if (kept.some(k => lx < k.r + 4 && lx + tw > k.l - 4 && Math.abs(ly - k.y) < 20)) continue;
+      kept.push({ l: lx, r: lx + tw, y: ly });
+      ctx.fillStyle = alpha(css('--bg'), .9); ctx.strokeStyle = alpha(m.col, m.sg.active ? .95 : .6); ctx.lineWidth = m.sg.active ? 1.4 : 1;
+      ctx.beginPath(); rrect(lx, ly - 8, tw, 16, 8); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = m.col; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(txt, lx + 5, ly);
+    }
+  }
   ctx.restore();
   // date ticks, at least 56px apart
   ctx.fillStyle = C.faint; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.font = '10px ' + css('--mono');
@@ -1574,6 +1604,43 @@ function targetsOf(cs, pools, P, days) {
   const tDn = best(pools.filter(q => P - q.p > minD && P - q.p <= rH));
   return { range24, rH, minD, tUp, tDn, pUp: tUp && tDn ? (P - tDn.p) / (tUp.p - tDn.p) : null };
 }
+/* ---------- buy / sell signals ----------
+   The 3-day reading at 65% or more: Buy when "eerst omhoog", Sell when "eerst omlaag", marked on the candle where it
+   began, over the last 7 days. Each closed hour is worked out from the data as it was then (the same calculation as
+   the reading), the current hour from the data now. Cached per coin and hour. */
+const SIG = { days: 3, min: 65, hours: 168 };
+const sigCache = new Map();
+function signals() {
+  const D = state.data, cs = D.candles, n = cs.length; if (n < 72) return [];
+  const key = `${state.asset}:${cs[n - 1][0]}:${n}`;
+  let hist = sigCache.get(key);
+  if (!hist) {
+    const from = Math.max(48, n - SIG.hours); hist = [];
+    estimateLiqs(cs, D.oi || [], D.taker, (i, pos) => {
+      if (i < from || i >= n - 1) return;
+      const c = cs.slice(0, i + 1), P = cs[i][4];
+      hist.push({ t: cs[i][0], pUp: targetsOf(c, poolsOf(estimateStops(c, P, P * 0.85, P * 1.15), pos, P), P, SIG.days).pUp });
+    });
+    sigCache.set(key, hist); if (sigCache.size > 30) sigCache.delete(sigCache.keys().next().value);
+  }
+  const all = [...hist, { t: cs[n - 1][0], pUp: targetsOf(cs, poolsOf(D.stops, D.liqs, D.price), D.price, SIG.days).pUp }];
+  // a signal starts at 65% and runs until the chance drops under 60% (neutral) or the other signal starts, so a reading
+  // wavering around 65% does not repeat it
+  const pct = (h, sd) => h.pUp == null ? 0 : Math.round((sd === 'buy' ? h.pUp : 1 - h.pUp) * 100);
+  const step = (cur, h) => {
+    if (cur && pct(h, cur) < 60) cur = null;
+    for (const sd of ['buy', 'sell']) if (sd !== cur && pct(h, sd) >= SIG.min) return sd;
+    return cur;
+  };
+  const out = []; let cur = step(null, all[0]);           // one already running at the start of the window is not marked
+  for (const h of all.slice(1)) {
+    const nx = step(cur, h);
+    if (nx && nx !== cur) out.push({ t: h.t, side: nx, prob: pct(h, nx) / 100 });
+    cur = nx;
+  }
+  if (out.length && cur === out[out.length - 1].side) out[out.length - 1].active = true;
+  return out;
+}
 function analyze() {
   const D = state.data, P = D.price, B = nice(P * 0.0012), cs = D.candles, n = cs.length;
   const pools = poolsOf(D.stops, D.liqs, P);
@@ -1715,6 +1782,7 @@ function refresh() {
   }
   buildModel(); renderExchanges();
   if (state.data) renderReading();     // first: the levels table lists the targets
+  state.signals = state.data ? signals() : [];
   renderLevels();
   draw();
 }
