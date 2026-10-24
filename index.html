@@ -343,13 +343,6 @@ footer .note p+p{margin-top:6px}
 #intro .ti i.dn{color:var(--dn)}
 #intro .tk-cnt{color:var(--faint)}
 @keyframes tk{to{transform:translateX(-50%)}}
-/* the 24 hours behind each tile */
-#intro .ct .spk{position:absolute;left:5px;bottom:3px;width:calc(100% - 10px);height:40%;z-index:-1;pointer-events:none;opacity:.32;color:var(--faint)}
-#intro .ct .spk .l{fill:none;stroke:currentColor;stroke-width:1.4;vector-effect:non-scaling-stroke;stroke-linejoin:round}
-#intro .ct .spk .a{fill:currentColor;opacity:.18}
-#intro .ct.v-up .spk{color:var(--up)}
-#intro .ct.v-dn .spk{color:var(--dn)}
-#intro .ct.v-nt .spk{color:var(--nt)}
 @media (prefers-reduced-motion:reduce){#intro .tk{animation:none}}
 #intro .ct{position:absolute;left:0;top:0;width:110px;padding:8px 6px 7px;display:grid;gap:2px;justify-items:center;cursor:pointer;
   font:inherit;color:var(--txt);background:var(--glass),rgba(14,20,18,.72);border:1px solid var(--edge);border-radius:14px;
@@ -1969,8 +1962,7 @@ const intro = (() => {
   const tiles = keys.map((k, i) => {
     const b = document.createElement('button');
     b.className = 'ct'; b.dataset.a = k;
-    b.innerHTML = `<b><img src="icons/coins/${k}.png" alt="" width="18" height="18">${ASSETS[k].name}</b><span>—</span><i></i>` +
-      '<svg class="spk" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path class="a"/><path class="l"/></svg>';
+    b.innerHTML = `<b><img src="icons/coins/${k}.png" alt="" width="18" height="18">${ASSETS[k].name}</b><span>—</span><i></i>`;
     wrap.appendChild(b);
     // each coin its own drift: frequencies and phases from a fixed hash, so the motion never repeats in step
     const h = j => { const v = Math.sin((i + 1) * 12.9898 + j * 78.233) * 43758.5453; return v - Math.floor(v); };
@@ -2231,7 +2223,7 @@ const intro = (() => {
       T.vc = VC[h?.v] || TEAL; if (h?.v) cnt[h.v]++;
       T.b.title = h?.prob ? `${txt} · ${Math.round(h.prob * 100)}% · ${hzLabel(H)}` : '';
       if (T.b.children[1].textContent === '—' && summary?.assets?.[T.k]) T.b.children[1].textContent = fmt(T.k, summary.assets[T.k].price);
-      spark(T); tick(T);
+      tick(T);
     }
     const tot = cnt.up + cnt.down + cnt.neutral;
     moodTo = tot ? (cnt.up - cnt.down) / tot : 0;
@@ -2249,15 +2241,7 @@ const intro = (() => {
     if (!(p > 0)) return;
     T.b.children[1].textContent = fmt(T.k, p);
     if (T.last != null && p !== T.last) flash(T.b.children[1], p > T.last);
-    T.last = p; spark(T); tick(T);
-  }
-  // the last 24 hours as a faint line behind the tile, in the verdict's colour, ending at the live price
-  function spark(T) {
-    const s0 = summary?.assets?.[T.k]?.spark; if (!s0?.length) return;
-    const pts = T.last != null ? [...s0, T.last] : s0, lo = Math.min(...pts), hi = Math.max(...pts), r = hi - lo || 1;
-    const xy = pts.map((v, j) => [(j / (pts.length - 1) * 100).toFixed(1), (28 - (v - lo) / r * 24).toFixed(1)]);
-    const d = 'M' + xy.map(q => q.join(' ')).join('L');
-    T.b.querySelector('.spk .l').setAttribute('d', d); T.b.querySelector('.spk .a').setAttribute('d', d + 'L100 30L0 30Z');
+    T.last = p; tick(T);
   }
   // the ticker at the bottom: how many coins point each way, then every coin's live price and its move over 24 hours
   const tkEl = $('tk');
