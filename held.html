@@ -383,34 +383,38 @@ const liqFS = `uniform vec3 uCol; uniform float uT, uT0, uY, uSpent, uS, uH, uFa
     gl_FragColor = vec4(uCol * (a + shock * fade * .9 + shock * .15) * uFade, 1.); }`;
 const uvVS = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`;
 let PX = 500;
+// one height for every level; its size shows as thickness (world units)
+const THICK = L => { const r = Math.min(1, L.rel), room = (D?.B ?? 100) * U * .62;     // never thicker than the room between two buckets
+  return Math.min(room, isWall(L) ? .03 + .4 * r : L.k === 'stop' ? .01 + .16 * r : .03 + .44 * r); };
 // one level in the scene: built when it appears in the table, faded out when it leaves
 function buildLevel(L) {
   const o = { L, group: new THREE.Group(), fade: 0, gone: false }; o.group.position.x = WX(L.p); scene.add(o.group);
   if (isWall(L)) {
-    const h = 1.3 + 2.6 * Math.min(1, L.rel), depth = 2.6;
+    const h = 2.6, depth = 2.6, th = THICK(L);      // the bigger the wall, the thicker the glass
     o.mat = new THREE.ShaderMaterial({ vertexShader: wallVS, fragmentShader: wallFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       uniforms: { uCol: { value: col3(kindCol(L.k)) }, uA: { value: 1 }, uEdge: { value: 1 }, uT: { value: 0 }, uRipT: { value: -9 }, uRipY: { value: 0 }, uRipA: { value: 1 }, uH: { value: h } } });
-    o.panel = new THREE.Mesh(new THREE.PlaneGeometry(depth, h, 26, 44), o.mat); o.panel.rotation.y = Math.PI / 2; o.panel.position.y = h / 2; o.group.add(o.panel);
-    o.glow = new THREE.Mesh(new THREE.PlaneGeometry(.5, depth), new THREE.MeshBasicMaterial({ color: col3(kindCol(L.k)), opacity: .08, ...addBlend }));
+    o.panel = new THREE.Mesh(new THREE.BoxGeometry(depth, h, th, 26, 44, 1), o.mat); o.panel.rotation.y = Math.PI / 2; o.panel.position.y = h / 2; o.group.add(o.panel);
+    o.glow = new THREE.Mesh(new THREE.PlaneGeometry(th + .4, depth), new THREE.MeshBasicMaterial({ color: col3(kindCol(L.k)), opacity: .08, ...addBlend }));
     o.glow.rotation.x = -Math.PI / 2; o.glow.position.y = .01; o.group.add(o.glow); o.h = h;
   } else if (L.k === 'stop') {
     const n = 18, h = 3.2, g = new THREE.BufferGeometry(), pos = new Float32Array(n * 3);
     for (let j = 0; j < n; j++) pos[j * 3 + 1] = .12 + j * (h - .12) / (n - 1);
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     o.mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexShader: stopVS, fragmentShader: stopFS,
-      uniforms: { uCol: { value: col3('stop') }, uT: { value: 0 }, uT0: { value: -9 }, uY: { value: 0 }, uSpent: { value: 0 }, uPx: { value: PX }, uSize: { value: .14 + .12 * L.rel }, uFade: { value: 0 } } });
+      uniforms: { uCol: { value: col3('stop') }, uT: { value: 0 }, uT0: { value: -9 }, uY: { value: 0 }, uSpent: { value: 0 }, uPx: { value: PX }, uSize: { value: .1 + .4 * Math.min(1, L.rel) }, uFade: { value: 0 } } });
     o.pts = new THREE.Points(o.geo = g, o.mat); o.group.add(o.pts);
-    o.line = new THREE.Mesh(new THREE.PlaneGeometry(.012, h), new THREE.MeshBasicMaterial({ color: col3('stop'), opacity: .18, side: THREE.DoubleSide, ...addBlend }));
+    const th = THICK(L);                                 // the higher the score, the thicker the column
+    o.line = new THREE.Mesh(new THREE.BoxGeometry(th, h, th), new THREE.MeshBasicMaterial({ color: col3('stop'), opacity: .18, ...addBlend }));
     o.line.position.y = h / 2; o.group.add(o.line); o.h = h;
   } else {
-    const h = 2 + 2 * Math.min(1, L.rel), depth = 3.0;
+    const h = 3, depth = 3.0, th = THICK(L);      // the more is liquidated there, the thicker the curtain
     o.mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, vertexShader: uvVS, fragmentShader: liqFS,
       uniforms: { uCol: { value: col3('liq') }, uT: { value: 0 }, uT0: { value: -9 }, uY: { value: 0 }, uSpent: { value: 0 }, uS: { value: Math.min(1, L.rel) }, uH: { value: h }, uFade: { value: 0 } } });
-    o.panel = new THREE.Mesh(new THREE.PlaneGeometry(depth, h), o.mat); o.panel.rotation.y = Math.PI / 2; o.panel.position.y = h / 2; o.group.add(o.panel);
-    o.line = new THREE.Mesh(new THREE.PlaneGeometry(.02, h * .75), new THREE.MeshBasicMaterial({ color: col3('liq'), opacity: .35, side: THREE.DoubleSide, ...addBlend }));
+    o.panel = new THREE.Mesh(new THREE.BoxGeometry(depth, h, th), o.mat); o.panel.rotation.y = Math.PI / 2; o.panel.position.y = h / 2; o.group.add(o.panel);
+    o.line = new THREE.Mesh(new THREE.BoxGeometry(.01 + th * .3, h * .75, .01 + th * .3), new THREE.MeshBasicMaterial({ color: col3('liq'), opacity: .35, ...addBlend }));
     o.line.position.y = h * .375; o.group.add(o.line); o.h = h;
   }
-  return o;
+  o.th0 = THICK(L); return o;
 }
 
 // the magnets: horseshoes over the target gates, poles down, with a beam of pull underneath
@@ -738,6 +742,7 @@ function render3d(dt) {
     if (o.gone && o.fade <= 0) { scene.remove(o.group); dispose(o.group); objs.delete(k); continue; }
     const L = o.L, f = EASE.out(o.fade), age = L.fx ? t - L.fx.t0 : 9;
     o.group.position.x = WX(L.p); o.group.scale.y = .02 + .98 * f;
+    const tk = THICK(L) / o.th0; if (o.pts) o.line.scale.set(tk, 1, tk); else o.panel.scale.z = tk;   // a size that changed at a refresh
     if (isWall(L)) {
       const u = o.mat.uniforms; u.uT.value = t; if (L.rip) { u.uRipT.value = L.rip.t0; u.uRipY.value = L.rip.y; u.uRipA.value = L.rip.a; }
       if (L.state === 'broken') { u.uA.value = (age < .3 ? 1 + 3 * (1 - age / .3) : .06) * f; u.uEdge.value = (age < .3 ? 1 - age / .3 : .03) * f; o.glow.material.opacity = .03 * f; }
