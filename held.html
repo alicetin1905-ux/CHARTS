@@ -390,14 +390,14 @@ const THICK = L => { const r = Math.min(1, L.rel), room = (D?.B ?? 100) * U * .6
 function buildLevel(L) {
   const o = { L, group: new THREE.Group(), fade: 0, gone: false }; o.group.position.x = WX(L.p); scene.add(o.group);
   if (isWall(L)) {
-    const h = 2.6, depth = 2.6, th = THICK(L);      // the bigger the wall, the thicker the glass
+    const h = 1.3, depth = 2.6, th = THICK(L);      // low, about his height; the bigger the wall, the thicker the glass
     o.mat = new THREE.ShaderMaterial({ vertexShader: wallVS, fragmentShader: wallFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       uniforms: { uCol: { value: col3(kindCol(L.k)) }, uA: { value: 1 }, uEdge: { value: 1 }, uT: { value: 0 }, uRipT: { value: -9 }, uRipY: { value: 0 }, uRipA: { value: 1 }, uH: { value: h } } });
     o.panel = new THREE.Mesh(new THREE.BoxGeometry(depth, h, th, 26, 44, 1), o.mat); o.panel.rotation.y = Math.PI / 2; o.panel.position.y = h / 2; o.group.add(o.panel);
     o.glow = new THREE.Mesh(new THREE.PlaneGeometry(th + .4, depth), new THREE.MeshBasicMaterial({ color: col3(kindCol(L.k)), opacity: .08, ...addBlend }));
     o.glow.rotation.x = -Math.PI / 2; o.glow.position.y = .01; o.group.add(o.glow); o.h = h;
   } else if (L.k === 'stop') {
-    const n = 18, h = 3.2, g = new THREE.BufferGeometry(), pos = new Float32Array(n * 3);
+    const n = 9, h = 1.5, g = new THREE.BufferGeometry(), pos = new Float32Array(n * 3);
     for (let j = 0; j < n; j++) pos[j * 3 + 1] = .12 + j * (h - .12) / (n - 1);
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     o.mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexShader: stopVS, fragmentShader: stopFS,
@@ -407,7 +407,7 @@ function buildLevel(L) {
     o.line = new THREE.Mesh(new THREE.BoxGeometry(th, h, th), new THREE.MeshBasicMaterial({ color: col3('stop'), opacity: .18, ...addBlend }));
     o.line.position.y = h / 2; o.group.add(o.line); o.h = h;
   } else {
-    const h = 3, depth = 3.0, th = THICK(L);      // the more is liquidated there, the thicker the curtain
+    const h = 1.5, depth = 3.0, th = THICK(L);      // the more is liquidated there, the thicker the curtain
     o.mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, vertexShader: uvVS, fragmentShader: liqFS,
       uniforms: { uCol: { value: col3('liq') }, uT: { value: 0 }, uT0: { value: -9 }, uY: { value: 0 }, uSpent: { value: 0 }, uS: { value: Math.min(1, L.rel) }, uH: { value: h }, uFade: { value: 0 } } });
     o.panel = new THREE.Mesh(new THREE.BoxGeometry(depth, h, th), o.mat); o.panel.rotation.y = Math.PI / 2; o.panel.position.y = h / 2; o.group.add(o.panel);
@@ -695,7 +695,7 @@ function think(dt) {
 function physics(dt) {
   for (const o of objs.values()) if (o.L.k === 'stop' && o.L.fx && now - o.L.fx.t0 < 1.3) for (const sg of [-1, 1]) {   // sparks off the burning fuse
     const fy = o.L.fx.y + sg * (now - o.L.fx.t0) * 3.2;
-    if (fy > 0 && fy < 3.2 && R() < .8 * dt * 60) spark(WX(o.L.p), fy, (R() - .5) * .1, (R() - .5) * .8, -.2 + R() * .6, (R() - .5) * .8, R() < .5 ? 'txt' : 'stop', .3 + R() * .3, .04);
+    if (fy > 0 && fy < o.h && R() < .8 * dt * 60) spark(WX(o.L.p), fy, (R() - .5) * .1, (R() - .5) * .8, -.2 + R() * .6, (R() - .5) * .8, R() < .5 ? 'txt' : 'stop', .3 + R() * .3, .04);
   }
   for (const q of FX.sparks) { q.age += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; if (q.size > .025) { q.vy -= 3.2 * dt; q.vx *= .985; q.vz *= .985; } if (q.y < .01) { q.y = .01; q.vy *= -.35; } }
   for (const q of FX.shards) { q.age += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; q.vy -= 6 * dt; q.rx += q.wx * dt; q.ry += q.wy * dt; q.rz += q.wz * dt;
@@ -721,7 +721,7 @@ addEventListener('resize', resize);
 function render3d(dt) {
   const t = now, P = live.px ?? D.price;
   // camera: follows him, closer for the punches; every so often it pulls back to show both magnets
-  const portrait = Math.max(.45, Math.min(1, aspect / 1.78)), base = nice(P * 0.0012) * 12 * portrait;
+  const portrait = Math.max(.45, Math.min(1, aspect / 1.78)), base = nice(P * 0.0012) * 9 * portrait;
   let tc = H.p + H.face * (H.mode === 'approach' ? 120 : 50) / (U * 100), ts = H.mode === 'combo' || H.mode === 'pose' || H.mode === 'knock' ? base * .82 : base * (1 + Math.min(.4, H.speed / 1000));
   const both = MAG.up.p != null && MAG.dn.p != null;
   if (both && t > overviewAt && t < overviewAt + 6 && H.mode === 'follow' && !queue.length) { tc = (MAG.up.p + MAG.dn.p) / 2; ts = (MAG.up.p - MAG.dn.p) * 1.35; }
@@ -730,9 +730,9 @@ function render3d(dt) {
   camC += (tc - camC) * (1 - Math.exp(-dt * 2.4)); camS += (ts - camS) * (1 - Math.exp(-dt * 1.5));
   const lo = camC - camS * .33, hi = camC + camS * .33; if (H.p < lo) camC -= lo - H.p; else if (H.p > hi) camC += H.p - hi;
   const span = camS * U, dist = span / (2 * Math.tan(THREE.MathUtils.degToRad(17)) * aspect) * (1 - .05 * FX.kick);
-  const cx = WX(camC), yaw = .17 + Math.sin(t * .13) * .03, sh = FX.shake;
-  camera.position.set(cx + Math.sin(yaw) * dist + (Math.sin(t * 91) + Math.sin(t * 57)) * sh * .5, .95 + dist * .12 + (Math.cos(t * 83) + Math.sin(t * 41)) * sh * .5, Math.cos(yaw) * dist);
-  camera.lookAt(cx, .85 + dist * .05, 0);
+  const cx = WX(camC), yaw = 0, sh = FX.shake;     // straight on: the price runs left to right, thickness reads at a glance
+  camera.position.set(cx + Math.sin(yaw) * dist + (Math.sin(t * 91) + Math.sin(t * 57)) * sh * .5, .9 + dist * .07 + (Math.cos(t * 83) + Math.sin(t * 41)) * sh * .5, Math.cos(yaw) * dist);
+  camera.lookAt(cx, .8 + dist * .03, 0);
   scene.fog.near = dist * .7; scene.fog.far = dist * 2.6;
   floorMat.uniforms.uFocus.value.set(cx, 0); floorMat.uniforms.uFar.value = Math.max(12, dist * 1.4);
   const wide = Math.min(1, Math.max(0, (dist - 14) / 14));
