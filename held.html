@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>GlassSphere · Held</title>
+<meta name="theme-color" content="#05080a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@500;600;700;800&display=swap">
+<style>
+/* Held: the live price as an armoured figure walking the price floor. The levels of "Alle niveaus" (walls, estimated
+   stops and liquidations, the two targets) stand on it; every level the price crosses he meets with a jab and a cross.
+   Stand-alone for now; the data part is copied from index.html so it computes exactly what the coin page shows. */
+:root{
+  color-scheme: dark;
+  --bg:#05080a; --line:#1b2320; --line2:#2a3630; --txt:#eef4f0; --dim:#7c8f87; --faint:#4a5852;
+  --up:#35ffb0; --dn:#ff4d6a; --stop:#ffc857; --liq:#b48cff;
+  --mono:'JetBrains Mono','SF Mono',Consolas,monospace; --sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow:hidden}
+#stage{position:fixed;inset:0}
+#stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;font:500 12px var(--mono);letter-spacing:.1em;color:var(--dim);padding:24px}
+#msg[hidden]{display:none}
+#back{position:absolute;left:max(14px,env(safe-area-inset-left,0px));bottom:max(12px,env(safe-area-inset-bottom,0px));font:600 11px var(--mono);
+  color:var(--dim);text-decoration:none;border:1px solid var(--line2);border-radius:6px;padding:6px 10px;background:rgba(5,8,10,.7)}
+#back:hover{color:var(--txt)}
+#back:focus-visible{outline:2px solid var(--up);outline-offset:2px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="gl" aria-label="De live prijs als gepantserde held die over de prijsvloer loopt en elk niveau dat de prijs kruist met twee stoten te lijf gaat"></canvas>
+  <canvas id="hud" aria-hidden="true"></canvas>
+  <div id="msg">LIVE DATA LADEN…</div>
+  <div id="sat" style="position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px)"></div>
+  <a id="back" href="./#btc">← GlassSphere</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/Pass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/MaskPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/environments/RoomEnvironment.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const msg = t => { $('msg').hidden = !t; if (t) $('msg').textContent = t; };
+if (!window.THREE) { msg('3D KON NIET LADEN'); return; }
+
+/* =====================================================================================================================
+   DATA: copied from index.html (asset, fetching, estimates, levels and targets), BTC only for now
+   ===================================================================================================================== */
+const A = { name: 'BTC', file: 'glasssphere-data.json', okx: 'BTC-USDT-SWAP', okxCt: 0.01, usdt: 'BTCUSDT', gate: 'BTC_USDT', gateMul: 1e-4, gateIv: '10',
+  htx: 'BTC-USDT', htxCt: 0.001, deribit: 'BTC-PERPETUAL', deribitUsd: true, bitmex: 'XBTUSD', cdc: 'BTCUSD-PERP', hl: 'BTC', hlSig: 3, dydx: 'BTC-USD',
+  bin: 10, histBin: 100, buckets: [25, 50, 100, 250, 500], auto: { 0.015: 50, 0.03: 100, 0.06: 250, 0.12: 500 }, dec: 0 };
+const digits = step => Math.max(0, -Math.floor(Math.log10(step))) + 3;
+const nice = x => { const m = 10 ** Math.floor(Math.log10(x));
+  return [1, 2, 2.5, 5, 10].map(c => c * m).reduce((a, b) => Math.abs(Math.log(x / b)) < Math.abs(Math.log(x / a)) ? b : a); };
+const LEV = [[5, .30], [10, .35], [25, .25], [50, .10]];
+const MAINT = 0.004, HALF_LIFE_H = 168, HZ_MIN = 0.3, HORIZON = 3;
+const fx = (x, d) => x.toFixed(d).replace('.', ',');
+const fmtP = p => p.toLocaleString('nl-NL', { minimumFractionDigits: A.dec, maximumFractionDigits: A.dec });
+const fmtUsd = v => v >= 1e9 ? '$' + fx(v / 1e9, 2) + ' mld' : v >= 1e6 ? '$' + fx(v / 1e6, 1) + ' mln' : v >= 1e3 ? '$' + fx(v / 1e3, 0) + 'K' : '$' + fx(v, 0);
+const pct = (p, ref) => { const v = (p / ref - 1) * 100; return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2).replace('.', ',') + '%'; };
+
+async function getJSON(url, opts = {}) {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 9000);
+  try { const r = await fetch(url, { ...opts, signal: ctl.signal }); if (!r.ok) throw new Error(r.status); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+const hlPost = body => getJSON('https://api.hyperliquid.xyz/info', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+function binLevels(rows, side) {
+  const m = {}, B = A.bin;
+  for (const [p, usd] of rows) {
+    if (!(usd > 0)) continue;
+    const k = +((side === 'b' ? Math.floor(p / B + 1e-9) : Math.ceil(p / B - 1e-9)) * B).toFixed(digits(B));
+    m[k] = (m[k] || 0) + usd;
+  }
+  return Object.entries(m).map(([k, v]) => [+k, Math.round(v)]);
+}
+const BOOKS = {
+  okx: async () => { const b = (await getJSON(`https://www.okx.com/api/v5/market/books-full?instId=${A.okx}&sz=5000`)).data[0];
+    const f = r => [+r[0], +r[1] * A.okxCt * +r[0]]; return { b: b.bids.map(f), a: b.asks.map(f) }; },
+  binance: async () => { const j = await getJSON(`https://fapi.binance.com/fapi/v1/depth?symbol=${A.usdt}&limit=1000`);
+    const f = r => [+r[0], +r[1] * +r[0]]; return { b: j.bids.map(f), a: j.asks.map(f) }; },
+  deribit: async () => { const j = (await getJSON(`https://www.deribit.com/api/v2/public/get_order_book?instrument_name=${A.deribit}&depth=10000`)).result;
+    const f = A.deribitUsd ? r => r : r => [r[0], r[1] * r[0]]; return { b: j.bids.map(f), a: j.asks.map(f) }; },
+  gate: async () => { const j = await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/order_book?contract=${A.gate}&limit=300&interval=${A.gateIv}`);
+    const f = r => [+r.p, r.s * A.gateMul * +r.p]; return { b: j.bids.map(f), a: j.asks.map(f) }; },
+  hyperliquid: async () => { const j = await hlPost({ type: 'l2Book', coin: A.hl, nSigFigs: A.hlSig });
+    const f = r => [+r.px, +r.sz * +r.px]; return { b: j.levels[0].map(f), a: j.levels[1].map(f) }; },
+  bybit: async () => { const r = (await getJSON(`https://api.bybit.com/v5/market/orderbook?category=linear&symbol=${A.usdt}&limit=500`)).result;
+    const f = x => [+x[0], +x[1] * +x[0]]; return { b: r.b.map(f), a: r.a.map(f) }; },
+  bitget: async () => { const d = (await getJSON(`https://api.bitget.com/api/v2/mix/market/merge-depth?productType=usdt-futures&symbol=${A.usdt}&limit=max&precision=scale2`)).data;
+    const f = x => [+x[0], +x[1] * +x[0]]; return { b: d.bids.map(f), a: d.asks.map(f) }; },
+  htx: async () => { const t = (await getJSON(`https://api.hbdm.com/linear-swap-ex/market/depth?contract_code=${A.htx}&type=step0`)).tick;
+    const f = x => [x[0], x[1] * A.htxCt * x[0]]; return { b: t.bids.map(f), a: t.asks.map(f) }; },
+  bitmex: async () => { const j = await getJSON(`https://www.bitmex.com/api/v1/orderBook/L2?symbol=${A.bitmex}&depth=0`);
+    const f = x => [x.price, x.size]; return { b: j.filter(x => x.side === 'Buy').map(f), a: j.filter(x => x.side === 'Sell').map(f) }; },
+  cryptocom: async () => { const d = (await getJSON(`https://api.crypto.com/exchange/v1/public/get-book?instrument_name=${A.cdc}&depth=150`)).result.data[0];
+    const f = x => [+x[0], +x[1] * +x[0]]; return { b: d.bids.map(f), a: d.asks.map(f) }; },
+  dydx: async () => { const j = await getJSON(`https://indexer.dydx.trade/v4/orderbooks/perpetualMarket/${A.dydx}`);
+    const f = x => [+x.price, +x.size * +x.price]; return { b: j.bids.map(f), a: j.asks.map(f) }; },
+};
+const MARKET = {
+  okx: async () => { const [o, t] = await Promise.all([getJSON(`https://www.okx.com/api/v5/public/open-interest?instType=SWAP&instId=${A.okx}`),
+      getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${A.okx}`)]);
+    return { oi: +o.data[0].oiUsd, vol: +t.data[0].volCcy24h * +t.data[0].last }; },
+  gate: async () => { const [t] = await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/tickers?contract=${A.gate}`);
+    return { oi: +t.total_size * A.gateMul * +t.mark_price, vol: +t.volume_24h_quote }; },
+  bitget: async () => { const t = (await getJSON(`https://api.bitget.com/api/v2/mix/market/ticker?symbol=${A.usdt}&productType=usdt-futures`)).data[0];
+    return { oi: +t.holdingAmount * +t.lastPr, vol: +t.usdtVolume }; },
+  htx: async () => ({ vol: +(await getJSON(`https://api.hbdm.com/linear-swap-ex/market/detail/merged?contract_code=${A.htx}`)).tick.trade_turnover }),
+  deribit: async () => { const r = (await getJSON(`https://www.deribit.com/api/v2/public/get_book_summary_by_instrument?instrument_name=${A.deribit}`)).result[0];
+    return { oi: A.deribitUsd ? r.open_interest : r.open_interest * r.mark_price, vol: r.volume_usd }; },
+  cryptocom: async () => { const t = (await getJSON(`https://api.crypto.com/exchange/v1/public/get-tickers?instrument_name=${A.cdc}`)).result.data[0];
+    return { oi: +t.oi * +t.a, vol: +t.vv }; },
+  hyperliquid: async () => { const [m, c] = await hlPost({ type: 'metaAndAssetCtxs' });
+    const x = c[m.universe.findIndex(u => u.name === A.hl)]; return { oi: +x.openInterest * +x.markPx, vol: +x.dayNtlVlm }; },
+  dydx: async () => { const x = (await getJSON(`https://indexer.dydx.trade/v4/perpetualMarkets?ticker=${A.dydx}`)).markets[A.dydx];
+    return { oi: +x.openInterest * +x.oraclePrice, vol: +x.volume24H }; },
+  binance: async () => { const [o, t, f] = await Promise.all([getJSON(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${A.usdt}`),
+      getJSON(`https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${A.usdt}`), getJSON(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${A.usdt}`)]);
+    return { oi: +o.openInterest * +f.markPrice, vol: +t.quoteVolume }; },
+  bybit: async () => { const t = (await getJSON(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${A.usdt}`)).result.list[0];
+    return { oi: +t.openInterestValue, vol: +t.turnover24h }; },
+  bitmex: async () => { const [x] = await getJSON(`https://www.bitmex.com/api/v1/instrument?symbol=${A.bitmex}`); return { oi: x.openInterest, vol: x.foreignNotional24h || 0 }; },
+};
+async function fetchAll(table, wrap) {
+  const out = {};
+  await Promise.all(Object.entries(table).map(async ([k, fn]) => { try { out[k] = wrap(await fn(), k); } catch (e) {} }));
+  return out;
+}
+const fetchBooks = () => fetchAll(BOOKS, r => ({ b: binLevels(r.b, 'b'), a: binLevels(r.a, 'a') }));
+const fetchMarket = () => fetchAll(MARKET, r => r);
+async function fetchSeries() {
+  const base = 'https://www.okx.com/api/v5/market/', toC = r => [+r[0], +r[1], +r[2], +r[3], +r[4], +r[7]];
+  const rows = (await getJSON(base + `candles?instId=${A.okx}&bar=1H&limit=300`)).data;
+  try { rows.push(...(await getJSON(base + `history-candles?instId=${A.okx}&bar=1H&limit=100&after=${rows[rows.length - 1][0]}`)).data); } catch (e) {}
+  const candles = rows.map(toC).sort((a, b) => a[0] - b[0]).slice(-400);
+  const st = await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/contract_stats?contract=${A.gate}&interval=1h&from=${candles[0][0] / 1000}&limit=1000`);
+  return { candles, oi: st.map(r => [r.time * 1000, Math.round(r.open_interest_usd)]), taker: st.map(r => [r.time * 1000, r.lsr_taker / (1 + r.lsr_taker)]) };
+}
+// Stops: just beyond swing highs / lows that price has not traded through since.
+function estimateStops(candles, price, lo, hi) {
+  const out = [], n = candles.length, now = candles[n - 1][0];
+  const sufHi = new Float64Array(n + 1).fill(-Infinity), sufLo = new Float64Array(n + 1).fill(Infinity);
+  for (let i = n - 1; i >= 0; i--) { sufHi[i] = Math.max(sufHi[i + 1], candles[i][2]); sufLo[i] = Math.min(sufLo[i + 1], candles[i][3]); }
+  for (const [L, mult] of [[4, 1], [12, 2]]) {
+    for (let i = L; i < n - L; i++) {
+      const h = candles[i][2], l = candles[i][3];
+      let isH = true, isL = true;
+      for (let k = i - L; k <= i + L; k++) { if (k === i) continue; if (candles[k][2] >= h) isH = false; if (candles[k][3] <= l) isL = false; }
+      if (!isH && !isL) continue;
+      const rec = Math.pow(0.5, (now - candles[i][0]) / 3.6e6 / HALF_LIFE_H);
+      let vol = 0; for (let k = Math.max(0, i - 2); k <= Math.min(n - 1, i + 2); k++) vol += candles[k][5];
+      const w = vol * rec * mult;
+      if (isH && !(sufHi[i + 1] > h)) out.push({ p: h * 1.001, side: 'buy', w });
+      if (isL && !(sufLo[i + 1] < l)) out.push({ p: l * 0.999, side: 'sell', w });
+    }
+  }
+  const ws = out.map(o => o.w).sort((a, b) => a - b), med = ws.length ? ws[ws.length >> 1] : 1;
+  const rs = nice(price * 0.012);
+  for (let i = Math.ceil(lo / rs); i * rs <= hi; i++) {
+    const p = i * rs; out.push({ p: p > price ? p + rs * 0.05 : p - rs * 0.05, side: p > price ? 'buy' : 'sell', w: med * 0.25 });
+  }
+  return out.filter(o => (o.side === 'buy') === (o.p > price));
+}
+// Liquidations: OI added each hour at that hour's average price, split long/short, at the leverage mix that fit best.
+function estimateLiqs(candles, oi, taker) {
+  const oiAt = new Map(oi), tkAt = new Map(taker || []); let pos = [];
+  candles.forEach(([t, o, h, l, c]) => {
+    pos = pos.filter(q => q.side === 'long' ? l > q.p : h < q.p);
+    const a = oiAt.get(t), b = oiAt.get(t + 3.6e6), d = a != null && b != null ? b - a : null;
+    if (d != null && d < 0) { const r = b / a; pos.forEach(q => q.usd *= r); }
+    else if (d != null) {
+      let share = h > l ? (c - l) / (h - l) : 0.5;
+      const tk = tkAt.get(t); if (tk != null) share = 0.5 * share + 0.5 * tk;
+      const entry = (o + h + l + c) / 4;
+      for (const [L, w] of LEV) {
+        pos.push({ p: entry * (1 - 1 / L + MAINT), side: 'long', usd: d * share * w });
+        pos.push({ p: entry * (1 + 1 / L - MAINT), side: 'short', usd: d * (1 - share) * w });
+      }
+    }
+  });
+  return pos;
+}
+function volumeWeights(books, market, P) {
+  const depth = {};
+  for (const [ex, bk] of Object.entries(books)) {
+    let s = 0; for (const [p, v] of bk.b) if (p >= P * 0.99) s += v; for (const [p, v] of bk.a) if (p <= P * 1.01) s += v; depth[ex] = s;
+  }
+  const has = Object.keys(depth).filter(e => market[e]?.vol > 0);
+  const dT = has.reduce((s, e) => s + depth[e], 0), vT = has.reduce((s, e) => s + market[e].vol, 0);
+  const w = {};
+  for (const e of Object.keys(depth)) w[e] = has.includes(e) && dT && vT && depth[e] ? Math.min(1, (market[e].vol / vT) / (depth[e] / dT)) : 1;
+  return w;
+}
+const READ = { range: 0.15 };
+function poolsOf(stops, liqs, P) {
+  const B = nice(P * 0.0012), lo = P * (1 - READ.range), hi = P * (1 + READ.range), bins = new Map();
+  const add = (p, kind, v) => { if (p < lo || p > hi) return; const k = Math.floor(p / B + 1e-9) * B;
+    const o = bins.get(k) || { stop: 0, liq: 0 }; o[kind] += v; bins.set(k, o); };
+  stops.forEach(s => add(s.p, 'stop', s.w)); liqs.forEach(q => add(q.p, 'liq', q.usd));
+  let mS = 1e-9, mL = 1e-9; for (const o of bins.values()) { if (o.stop > mS) mS = o.stop; if (o.liq > mL) mL = o.liq; }
+  return [...bins].map(([k, o]) => ({ p: k + B / 2, stop: o.stop / mS, liq: o.liq / mL, liqUsd: o.liq, v: o.stop / mS + o.liq / mL }));
+}
+function targetsOf(cs, pools, P, days) {
+  const n = cs.length, ranges = [];
+  for (let e = n; e >= 24 && ranges.length < 14; e -= 24) { let h = -Infinity, l = Infinity;
+    for (let k = e - 24; k < e; k++) { if (cs[k][2] > h) h = cs[k][2]; if (cs[k][3] < l) l = cs[k][3]; } ranges.push(h - l); }
+  const range24 = ranges.reduce((s, x) => s + x, 0) / ranges.length;
+  const rH = range24 * Math.sqrt(days), minD = HZ_MIN * rH;
+  const best = arr => arr.length ? arr.reduce((x, y) => y.v > x.v ? y : x) : undefined;
+  const tUp = best(pools.filter(q => q.p - P > minD && q.p - P <= rH));
+  const tDn = best(pools.filter(q => P - q.p > minD && P - q.p <= rH));
+  return { range24, rH, minD, tUp, tDn, pUp: tUp && tDn ? (P - tDn.p) / (tUp.p - tDn.p) : null };
+}
+
+// D: the data as the coin page holds it; LV: the levels of its "Alle niveaus" table; TG: its two targets
+let D = null, LV = [], TG = null, nBooks = 0, mode = '', updAt = 0;
+function setData(raw, how) {
+  const price = raw.price, lo = price * 0.85, hi = price * 1.15, market = raw.market || {};
+  const weights = volumeWeights(raw.books, market, price);
+  const gateOi = raw.oi?.length ? raw.oi[raw.oi.length - 1][1] : 0, total = Object.values(market).reduce((s, m) => s + (m.oi || 0), 0);
+  const scale = gateOi && total > gateOi ? total / gateOi : 1;
+  const liqs = estimateLiqs(raw.candles, raw.oi || [], raw.taker).map(q => ({ ...q, usd: q.usd * scale }));
+  D = { ...raw, market, weights, stops: estimateStops(raw.candles, price, lo, hi), liqs };
+  nBooks = Object.keys(raw.books).length; mode = how; updAt = raw.ts;
+  // targets, and the chance the upper one comes first (renderReading in index.html)
+  const r = targetsOf(D.candles, poolsOf(D.stops, D.liqs, price), price, HORIZON);
+  let prob = null, first = null;
+  if (r.pUp != null) { const upFirst = r.pUp >= 0.5; prob = upFirst ? r.pUp : 1 - r.pUp; first = upFirst ? r.tUp : r.tDn; }
+  TG = { up: r.tUp?.p, dn: r.tDn?.p, first: first?.p, prob };
+  // the view range ("Doelen") and its automatic bucket, then the four largest of each kind on each side (buildModel, renderLevels)
+  const far = Math.max(r.tUp ? r.tUp.p / price - 1 : 0, r.tDn ? 1 - r.tDn.p / price : 0);
+  const rg = far ? Math.max(0.012, Math.min(0.25, far * 1.22)) : 0.03, ks = Object.keys(A.auto).map(Number);
+  const B = A.auto[ks.reduce((a, b) => Math.abs(Math.log(b / rg)) < Math.abs(Math.log(a / rg)) ? b : a)];
+  const i0 = Math.floor(price * (1 - rg) / B), i1 = Math.ceil(price * (1 + rg) / B), N = i1 - i0 + 1;
+  const bid = new Float64Array(N), ask = new Float64Array(N), stop = new Float64Array(N), liq = new Float64Array(N);
+  const idx = p => Math.floor(p / B + 1e-9) - i0;
+  for (const [ex, bk] of Object.entries(D.books)) { const w = weights[ex] ?? 1;
+    for (const [side, arr] of [['b', bid], ['a', ask]]) for (const [p, v] of bk[side]) { const j = idx(p); if (j >= 0 && j < N) arr[j] += v * w; } }
+  for (const s of D.stops) { const j = idx(s.p); if (j >= 0 && j < N) stop[j] += s.w; }
+  for (const q of D.liqs) { const j = idx(q.p); if (j >= 0 && j < N) liq[j] += q.usd; }
+  const mx = a => { let m = 1e-9; for (const v of a) if (v > m) m = v; return m; };
+  const mB = mx([...bid, ...ask]), mS = mx(stop), mL = mx(liq);
+  const top = (arr, above, k) => { const out = [];
+    for (let j = 0; j < N; j++) { const mid = (i0 + j + .5) * B; if ((mid > price) === above && arr[j] > 0) out.push([mid, arr[j]]); }
+    return out.sort((a, b) => b[1] - a[1]).slice(0, k); };
+  const rows = [];
+  for (const [k, arr, above, m, fmt] of [['ask', ask, true, mB, fmtUsd], ['bid', bid, false, mB, fmtUsd],
+    ['stop', stop, true, mS, v => 'score ' + Math.round(v / mS * 100)], ['stop', stop, false, mS, v => 'score ' + Math.round(v / mS * 100)],
+    ['liq', liq, true, mL, fmtUsd], ['liq', liq, false, mL, fmtUsd]])
+    for (const [p, v] of top(arr, above, 4)) rows.push({ key: k + '|' + p, k, p, s: v, rel: v / m, v: fmt(v), above });
+  LV = rows; D.B = B; D.range = rg;
+  onLevels();
+}
+async function loadSite() {
+  if (!/^https?:$/.test(location.protocol)) return null;
+  try { const r = await fetch(A.file, { cache: 'no-store' }); return r.ok ? await r.json() : null; } catch (e) { return null; }
+}
+let series = null, seriesAt = 0, market = null, site = null;
+async function loadLive() {
+  try {
+    if (!series || Date.now() - seriesAt > 5 * 60e3) {
+      const [se, mk] = await Promise.all([fetchSeries(), fetchMarket()]);
+      series = se; seriesAt = Date.now(); market = { ...(site?.market || {}), ...mk };
+    }
+    const books = await fetchBooks(); if (!Object.keys(books).length) throw new Error('no books');
+    const last = series.candles[series.candles.length - 1][4];
+    setData({ ts: Date.now(), price: live.fresh() || last, books, ...series, market }, 'live');
+    return true;
+  } catch (e) { return false; }
+}
+// the live price: OKX's ticker stream (every trade), polling the ticker every 3 s while the stream is down
+const live = (() => {
+  let ws = null, px = null, at = 0, ping = 0, poll = 0, retry = 0;
+  function apply(p) { if (!(p > 0)) return; const prev = px; px = p; at = Date.now(); onPrice(prev, p); }
+  async function pollOnce() { try { apply(+(await getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${A.okx}`)).data[0].last); } catch (e) {} }
+  function open() {
+    if (ws) return; let me; try { me = ws = new WebSocket('wss://ws.okx.com:8443/ws/v5/public'); } catch (e) { ws = null; return; }
+    me.onopen = () => { retry = 0; clearInterval(poll); poll = 0; me.send(JSON.stringify({ op: 'subscribe', args: [{ channel: 'tickers', instId: A.okx }] }));
+      ping = setInterval(() => me.readyState === 1 && me.send('ping'), 25e3); };
+    me.onmessage = e => { if (e.data === 'pong') return; try { const m = JSON.parse(e.data); if (m.data?.[0]) apply(+m.data[0].last); } catch (er) {} };
+    me.onclose = () => { clearInterval(ping); if (ws !== me) return; ws = null; if (!poll) poll = setInterval(pollOnce, 3000); setTimeout(open, Math.min(30e3, 1000 * 2 ** retry++)); };
+    me.onerror = () => me.close();
+  }
+  return { start() { pollOnce(); open(); }, fresh: () => px && Date.now() - at < 10e3 ? px : null, get px() { return px; }, get at() { return at; } };
+})();
+
+/* =====================================================================================================================
+   SCENE
+   ===================================================================================================================== */
+const HEX = { up: 0x35ffb4, dn: 0xff4f6d, stop: 0xffc35a, liq: 0xad8bff, cyan: 0x8fd6ff, txt: 0xe9f1ee };
+const CSS = { up: '#35ffb4', dn: '#ff4f6d', stop: '#ffc35a', liq: '#ad8bff', cyan: '#8fd6ff', txt: '#eef4f0', dim: '#7c8f87', faint: '#4a5852' };
+const FD = "'Inter',system-ui,sans-serif", FM = "'JetBrains Mono','SF Mono',Consolas,monospace";
+const nameOf = (k, above) => ({ ask: 'Verkoopmuur', bid: 'Koopmuur', stop: above ? 'Koopstops' : 'Verkoopstops', liq: above ? 'Short-liq.' : 'Long-liq.' })[k];
+const kindCol = k => ({ ask: 'dn', bid: 'up', stop: 'stop', liq: 'liq' })[k];
+const isWall = L => L.k === 'ask' || L.k === 'bid';
+const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${n >> 8 & 255},${n & 255},${Math.max(0, Math.min(1, a))})`; };
+const lerpHex = (a, b, k) => { const f = (x, y) => Math.round(x + (y - x) * k), P = parseInt(a.slice(1), 16), Q = parseInt(b.slice(1), 16);
+  return '#' + [f(P >> 16, Q >> 16), f(P >> 8 & 255, Q >> 8 & 255), f(P & 255, Q & 255)].map(v => v.toString(16).padStart(2, '0')).join(''); };
+const EASE = { out: u => 1 - Math.pow(1 - u, 3), io: u => u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2 };
+const lerp = THREE.MathUtils.lerp;
+let U = 0.01, ORIGIN = 0;                     // world units per dollar ($100 = 1 unit for BTC) and the price at x = 0
+const WX = p => (p - ORIGIN) * U;
+const PUNCH_Y = 1.0, MAG_Y = 2.55, HS = 1.4;
+const REACH = () => 52 / (U * 100);            // in dollars: 0.52 units ahead of him
+
+const glc = $('gl'), hud = $('hud'), hg = hud.getContext('2d');
+const renderer = new THREE.WebGLRenderer({ canvas: glc, antialias: true, powerPreference: 'high-performance' });
+renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x05080a); scene.fog = new THREE.Fog(0x05080a, 10, 60);
+const camera = new THREE.PerspectiveCamera(34, 16 / 9, .05, 400);
+const pmrem = new THREE.PMREMGenerator(renderer); scene.environment = pmrem.fromScene(new THREE.RoomEnvironment(), .04).texture;
+scene.add(new THREE.HemisphereLight(0x9fc8ff, 0x0a0f10, .35));
+const key = new THREE.DirectionalLight(0xffffff, 1.4); key.position.set(-4, 8, 6); scene.add(key);
+const rim = new THREE.DirectionalLight(0x6fb7ff, 1.6); rim.position.set(3, 3, -8); scene.add(rim);
+const col3 = name => new THREE.Color(HEX[name]);
+const addBlend = { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false };
+
+// floor: a fine grid fading into the dark, a lit lane along his path
+const floorMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, fog: false,
+  uniforms: { uFocus: { value: new THREE.Vector2() }, uFar: { value: 30 } },
+  vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `varying vec3 vW; uniform vec2 uFocus; uniform float uFar;
+    float grid(vec2 p, float s, float w){ vec2 g = abs(fract(p / s - .5) - .5) * s / fwidth(p); return 1. - min(min(g.x, g.y) / w, 1.); }
+    void main(){ float d = length(vW.xz - uFocus) / uFar; float fade = exp(-d * d * 3.);
+      float minor = grid(vW.xz, 1., 1.), major = grid(vW.xz, 5., 1.4), lane = exp(-vW.z * vW.z * 6.) * .5;
+      vec3 c = vec3(.11, .2, .19) * minor * .5 + vec3(.2, .34, .32) * major * .7 + vec3(.05, .12, .12) * lane;
+      gl_FragColor = vec4(c * fade, fade * (.25 + minor * .4 + major * .5 + lane * .4)); }` });
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 60), floorMat); floor.rotation.x = -Math.PI / 2; scene.add(floor);
+const floorBase = new THREE.Mesh(new THREE.PlaneGeometry(2000, 60), new THREE.MeshStandardMaterial({ color: 0x06090a, metalness: .3, roughness: .8, envMapIntensity: .15 }));
+floorBase.rotation.x = -Math.PI / 2; floorBase.position.y = -.005; scene.add(floorBase);
+
+function textSprite(lines, color, h) {
+  const c = document.createElement('canvas'), x = c.getContext('2d'), fs = 44, pad = 10;
+  const font = i => i ? `500 ${fs * .8}px ${FM}` : `700 ${fs}px ${FD}`;
+  const w = Math.max(...lines.map((l, i) => { x.font = font(i); return x.measureText(l).width; })) + pad * 2;
+  c.width = Math.ceil(w); c.height = Math.ceil(fs * 1.25 * lines.length + pad * 2);
+  lines.forEach((l, i) => { x.font = font(i); x.fillStyle = i ? 'rgba(233,241,238,.75)' : color; x.textBaseline = 'top'; x.fillText(l, pad, pad + i * fs * 1.25); });
+  const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
+  const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, fog: false }));
+  m.scale.set(h * c.width / c.height, h, 1); m.center.set(0, 0); m.userData = { w0: m.scale.x, h0: m.scale.y }; return m;
+}
+const dispose = o => o.traverse(n => { n.geometry?.dispose(); if (n.material) { n.material.map?.dispose(); n.material.dispose(); } });
+
+// glass walls: a panel with a glowing frame, rippling where a fist lands
+const wallVS = `uniform float uT, uRipT, uRipY, uH, uRipA; varying vec2 vUv; varying float vWave;
+  void main(){ vUv = uv; vec3 p = position; float age = uT - uRipT; vWave = 0.;
+    if (age > 0. && age < 2.) { float d = length(vec2(p.x, p.y + uH * .5 - uRipY)); float w = sin(d * 9. - age * 18.) * exp(-age * 2.4) * exp(-d * .9);
+      p.z += w * .16 * uRipA; vWave = max(w, 0.) * uRipA; }
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.); }`;
+const wallFS = `uniform vec3 uCol; uniform float uA, uEdge, uT; varying vec2 vUv; varying float vWave;
+  void main(){ vec2 e = abs(vUv * 2. - 1.); float frame = max(smoothstep(.965, 1., e.x), smoothstep(.985, 1., e.y));
+    float top = smoothstep(.97, 1., vUv.y) * 1.5; float scan = .5 + .5 * sin(vUv.y * 160. - uT * 3.);
+    float base = (.05 + .07 * (1. - vUv.y)) * (.85 + .15 * scan);
+    gl_FragColor = vec4(uCol * (base * uA + frame * uEdge * 1.6 + top * uEdge + vWave * 2.2 * uA), 1.); }`;
+const stopVS = `uniform float uT, uT0, uY, uSpent, uPx, uSize; varying float vB;
+  void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.); float age = uT - uT0, d = abs(position.y - uY), front = age * 3.2;
+    float lit = (age > 0. && d < front) ? exp(-(front - d) * 1.4) * 3. + .4 * exp(-age) : 0.;
+    vB = mix(.55, .12, uSpent) + lit; gl_PointSize = uSize * uPx / -mv.z * (1. + min(lit, 2.) * .6); gl_Position = projectionMatrix * mv; }`;
+const stopFS = `uniform vec3 uCol; uniform float uFade; varying float vB; void main(){ float r = length(gl_PointCoord - .5); float a = smoothstep(.5, 0., r); float core = smoothstep(.18, 0., r);
+  gl_FragColor = vec4((uCol * a + vec3(core) * min(vB, 1.5) * .6) * vB * uFade, 1.); }`;
+const liqFS = `uniform vec3 uCol; uniform float uT, uT0, uY, uSpent, uS, uH, uFade; varying vec2 vUv;
+  void main(){ float y = vUv.y * uH; float fade = pow(1. - vUv.y, 1.6) * smoothstep(0., .12, vUv.x) * smoothstep(1., .88, vUv.x);
+    float strands = .5 + .5 * sin(vUv.x * 60. + sin(vUv.y * 6. + uT * 1.4) * 2.); float flow = .6 + .4 * sin(vUv.y * 14. - uT * 3. + vUv.x * 9.);
+    float a = (.08 + .14 * uS) * fade * (.6 + .4 * strands * flow) * mix(1., .25, uSpent);
+    float age = uT - uT0, shock = 0.;
+    if (age > 0. && age < 1.2) { float f = age * 4.; float d = abs(abs(y - uY) - f); shock = exp(-d * d * 18.) * (1. - age / 1.2) * 1.3 + exp(-age * 6.) * .35 * fade; }
+    gl_FragColor = vec4(uCol * (a + shock * fade * .9 + shock * .15) * uFade, 1.); }`;
+const uvVS = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`;
+let PX = 500;
+// one level in the scene: built when it appears in the table, faded out when it leaves
+function buildLevel(L) {
+  const o = { L, group: new THREE.Group(), fade: 0, gone: false }; o.group.position.x = WX(L.p); scene.add(o.group);
+  if (isWall(L)) {
+    const h = 1.3 + 2.6 * Math.min(1, L.rel), depth = 2.6;
+    o.mat = new THREE.ShaderMaterial({ vertexShader: wallVS, fragmentShader: wallFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      uniforms: { uCol: { value: col3(kindCol(L.k)) }, uA: { value: 1 }, uEdge: { value: 1 }, uT: { value: 0 }, uRipT: { value: -9 }, uRipY: { value: 0 }, uRipA: { value: 1 }, uH: { value: h } } });
+    o.panel = new THREE.Mesh(new THREE.PlaneGeometry(depth, h, 26, 44), o.mat); o.panel.rotation.y = Math.PI / 2; o.panel.position.y = h / 2; o.group.add(o.panel);
+    o.glow = new THREE.Mesh(new THREE.PlaneGeometry(.5, depth), new THREE.MeshBasicMaterial({ color: col3(kindCol(L.k)), opacity: .08, ...addBlend }));
+    o.glow.rotation.x = -Math.PI / 2; o.glow.position.y = .01; o.group.add(o.glow); o.h = h;
+  } else if (L.k === 'stop') {
+    const n = 18, h = 3.2, g = new THREE.BufferGeometry(), pos = new Float32Array(n * 3);
+    for (let j = 0; j < n; j++) pos[j * 3 + 1] = .12 + j * (h - .12) / (n - 1);
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    o.mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexShader: stopVS, fragmentShader: stopFS,
+      uniforms: { uCol: { value: col3('stop') }, uT: { value: 0 }, uT0: { value: -9 }, uY: { value: 0 }, uSpent: { value: 0 }, uPx: { value: PX }, uSize: { value: .14 + .12 * L.rel }, uFade: { value: 0 } } });
+    o.pts = new THREE.Points(o.geo = g, o.mat); o.group.add(o.pts);
+    o.line = new THREE.Mesh(new THREE.PlaneGeometry(.012, h), new THREE.MeshBasicMaterial({ color: col3('stop'), opacity: .18, side: THREE.DoubleSide, ...addBlend }));
+    o.line.position.y = h / 2; o.group.add(o.line); o.h = h;
+  } else {
+    const h = 2 + 2 * Math.min(1, L.rel), depth = 3.0;
+    o.mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, vertexShader: uvVS, fragmentShader: liqFS,
+      uniforms: { uCol: { value: col3('liq') }, uT: { value: 0 }, uT0: { value: -9 }, uY: { value: 0 }, uSpent: { value: 0 }, uS: { value: Math.min(1, L.rel) }, uH: { value: h }, uFade: { value: 0 } } });
+    o.panel = new THREE.Mesh(new THREE.PlaneGeometry(depth, h), o.mat); o.panel.rotation.y = Math.PI / 2; o.panel.position.y = h / 2; o.group.add(o.panel);
+    o.line = new THREE.Mesh(new THREE.PlaneGeometry(.02, h * .75), new THREE.MeshBasicMaterial({ color: col3('liq'), opacity: .35, side: THREE.DoubleSide, ...addBlend }));
+    o.line.position.y = h * .375; o.group.add(o.line); o.h = h;
+  }
+  return o;
+}
+
+// the magnets: horseshoes over the target gates, poles down, with a beam of pull underneath
+const chrome = new THREE.MeshStandardMaterial({ color: 0xaab4b9, metalness: 1, roughness: .22, envMapIntensity: .8 });
+function buildMagnet(up) {
+  const c = col3(up ? 'up' : 'dn'), root = new THREE.Group(), grp = new THREE.Group(); root.add(grp); grp.position.y = MAG_Y; scene.add(root);
+  const paint = new THREE.MeshStandardMaterial({ color: c.clone().multiplyScalar(.55), metalness: .55, roughness: .32, emissive: c, emissiveIntensity: .12 });
+  const R = .42, tube = .15;
+  const arc = new THREE.Mesh(new THREE.TorusGeometry(R, tube, 24, 64, Math.PI), paint); arc.position.y = .28; grp.add(arc);
+  for (const sx of [-1, 1]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(tube, tube, .28, 24), paint); leg.position.set(sx * R, .14, 0); grp.add(leg);
+    const cp = new THREE.Mesh(new THREE.CylinderGeometry(tube * 1.02, tube * 1.02, .16, 24), chrome); cp.position.set(sx * R, -.08, 0); grp.add(cp);
+    const tip = new THREE.Mesh(new THREE.CircleGeometry(tube * .9, 24), new THREE.MeshBasicMaterial({ color: c, toneMapped: false })); tip.rotation.x = Math.PI / 2; tip.position.set(sx * R, -.165, 0); grp.add(tip);
+  }
+  const beamMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    uniforms: { uCol: { value: c }, uA: { value: .3 }, uT: { value: 0 } }, vertexShader: uvVS,
+    fragmentShader: `uniform vec3 uCol; uniform float uA, uT; varying vec2 vUv; void main(){ float r = sin(vUv.x * 3.14159); float bands = .6 + .4 * sin(vUv.y * 40. + uT * 6.);
+      gl_FragColor = vec4(uCol * uA * pow(r, 2.) * (.35 + .65 * vUv.y) * bands, 1.); }` });
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.42, .16, MAG_Y - .17, 32, 1, true), beamMat); beam.position.y = (MAG_Y - .17) / 2; root.add(beam);
+  const gate = new THREE.Mesh(new THREE.PlaneGeometry(.025, MAG_Y), new THREE.MeshBasicMaterial({ color: c, opacity: .5, side: THREE.DoubleSide, ...addBlend }));
+  gate.position.y = MAG_Y / 2; gate.rotation.y = Math.PI / 2; root.add(gate);
+  const pad = new THREE.Mesh(new THREE.RingGeometry(.35, .5, 64), new THREE.MeshBasicMaterial({ color: c, opacity: .5, ...addBlend }));
+  pad.rotation.x = -Math.PI / 2; pad.position.y = .012; root.add(pad);
+  const light = new THREE.PointLight(c, .6, 5, 2); light.position.set(0, MAG_Y - .5, .4); root.add(light);
+  return { up, root, grp, beamMat, gate, pad, paint, light, p: null, shown: 0, hit: -1e9, prob: .5, label: null, labelTxt: '' };
+}
+const MAG = { up: buildMagnet(true), dn: buildMagnet(false) };
+
+// the hero: brushed gunmetal and chrome, a chest core that shows the direction
+const hero = new THREE.Group(), body = new THREE.Group(); hero.add(body); scene.add(hero);
+const armor = new THREE.MeshStandardMaterial({ color: 0x4d575e, metalness: 1, roughness: .34, envMapIntensity: .7 });
+const dark = new THREE.MeshStandardMaterial({ color: 0x1a1f23, metalness: .85, roughness: .5, envMapIntensity: .6 });
+const glowMat = new THREE.MeshBasicMaterial({ color: 0xbfeaff, toneMapped: false });
+const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+const cap = (r, l, m) => new THREE.Mesh(new THREE.CapsuleGeometry(r, l, 8, 16), m);
+{
+  const torso = cap(.125, .17, armor); torso.scale.set(1.08, 1, .78); torso.position.y = .02; body.add(torso);
+  const abs = cap(.09, .08, dark); abs.position.set(0, -.08, .02); abs.scale.z = .8; body.add(abs);
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(.25, .13, .07), armor); plate.position.set(0, .085, .055); body.add(plate);
+  const core = new THREE.Mesh(new THREE.CylinderGeometry(.034, .034, .02, 32), coreMat); core.rotation.x = Math.PI / 2; core.position.set(0, .09, .095); body.add(core);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(.042, .009, 8, 32), chrome); ring.position.set(0, .09, .1); body.add(ring);
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(.1, .095, .05, 24), dark); belt.position.y = -.15; belt.scale.z = .8; hero.add(belt);
+  const neck = cap(.04, .03, dark); neck.position.y = .19; body.add(neck);
+  const helm = new THREE.Mesh(new THREE.SphereGeometry(.088, 32, 24), armor); helm.scale.set(.92, 1.12, 1); helm.position.y = .28; body.add(helm);
+  const face = new THREE.Mesh(new THREE.SphereGeometry(.082, 32, 24, -.9, 1.8, .9, 1.25), dark); face.scale.set(.95, 1.12, 1.06); face.position.set(0, .275, .008); body.add(face);
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(.085, .014, .02), glowMat); visor.position.set(0, .29, .083); body.add(visor);
+}
+const coreLight = new THREE.PointLight(0x35ffb4, .9, 2.4, 2); coreLight.position.set(0, .09, .3); body.add(coreLight);
+const limbs = {};
+for (const sx of [-1, 1]) {
+  const sh = new THREE.Mesh(new THREE.SphereGeometry(.07, 24, 16), armor); sh.position.set(sx * .165, .135, 0); sh.scale.set(1, .9, .95); body.add(sh);
+  const arm = new THREE.Group(); arm.position.set(sx * .17, .13, 0); body.add(arm);
+  const up = cap(.043, .11, dark); up.position.y = -.09; arm.add(up);
+  const fore = new THREE.Group(); fore.position.y = -.17; arm.add(fore);
+  const fa = cap(.05, .1, armor); fa.position.y = -.07; fore.add(fa);
+  const fist = new THREE.Mesh(new THREE.BoxGeometry(.085, .085, .085), armor); fist.position.y = -.175; fore.add(fist);
+  const knuckle = new THREE.Mesh(new THREE.BoxGeometry(.088, .03, .088), chrome); knuckle.position.y = -.21; fore.add(knuckle);
+  const palm = new THREE.Mesh(new THREE.CircleGeometry(.022, 20), glowMat); palm.position.set(0, -.176, .044); fore.add(palm);
+  // legs hang from the pelvis, not the torso, so he can lean into a punch while his feet stay planted
+  const hip = new THREE.Group(); hip.position.set(sx * .065, -.15, 0); hero.add(hip);
+  const th = cap(.058, .14, armor); th.position.y = -.1; hip.add(th);
+  const knee = new THREE.Group(); knee.position.y = -.2; hip.add(knee);
+  knee.add(new THREE.Mesh(new THREE.SphereGeometry(.05, 16, 12), dark));
+  const sn = cap(.052, .14, armor); sn.position.y = -.1; knee.add(sn);
+  const boot = new THREE.Mesh(new THREE.BoxGeometry(.085, .07, .13), dark); boot.position.set(0, -.2, .02); knee.add(boot);
+  const sole = new THREE.Mesh(new THREE.BoxGeometry(.08, .008, .12), glowMat); sole.position.set(0, -.236, .02); knee.add(sole);
+  limbs[sx] = { arm, fore, hip, knee };
+}
+hero.scale.setScalar(HS);
+
+// particles, glass shards, rings and impact stars
+const PMAX = 4000, pg = new THREE.BufferGeometry();
+const pPos = new Float32Array(PMAX * 3), pCol = new Float32Array(PMAX * 3), pSize = new Float32Array(PMAX);
+pg.setAttribute('position', new THREE.BufferAttribute(pPos, 3)); pg.setAttribute('color', new THREE.BufferAttribute(pCol, 3)); pg.setAttribute('size', new THREE.BufferAttribute(pSize, 1));
+const pMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true, uniforms: { uPx: { value: PX } },
+  vertexShader: `attribute float size; varying vec3 vC; uniform float uPx; void main(){ vC = color; vec4 mv = modelViewMatrix * vec4(position, 1.); gl_PointSize = size * uPx / -mv.z; gl_Position = projectionMatrix * mv; }`,
+  fragmentShader: `varying vec3 vC; void main(){ float r = length(gl_PointCoord - .5); float a = smoothstep(.5, 0., r); gl_FragColor = vec4(vC * a * a * 1.8, 1.); }` });
+const points = new THREE.Points(pg, pMat); points.frustumCulled = false; scene.add(points);
+const PCOL = Object.fromEntries(Object.entries(HEX).map(([k, v]) => [k, new THREE.Color(v)]));
+const SMAX = 400, shardMat = new THREE.MeshBasicMaterial({ opacity: .85, ...addBlend });
+const shardMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(.02, .22, .14), shardMat, SMAX);
+shardMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(SMAX * 3), 3); shardMesh.frustumCulled = false; scene.add(shardMesh);
+const dummy = new THREE.Object3D();
+const ringPool = Array.from({ length: 28 }, () => { const m = new THREE.Mesh(new THREE.RingGeometry(.96, 1, 96), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, ...addBlend })); m.visible = false; scene.add(m); return m; });
+const starTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'), g = x.createRadialGradient(128, 128, 0, 128, 128, 128);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.12, 'rgba(255,255,255,.8)'); g.addColorStop(.4, 'rgba(255,255,255,.08)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+  x.globalCompositeOperation = 'lighter'; for (let i = 0; i < 12; i++) { x.save(); x.translate(128, 128); x.rotate(i / 12 * Math.PI * 2 + .13); const l = i % 2 ? 80 : 124, gg = x.createLinearGradient(0, 0, l, 0);
+    gg.addColorStop(0, 'rgba(255,255,255,.9)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gg; x.beginPath(); x.moveTo(0, -3); x.lineTo(l, 0); x.lineTo(0, 3); x.fill(); x.restore(); }
+  return new THREE.CanvasTexture(c); })();
+const starPool = Array.from({ length: 6 }, () => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: starTex, ...addBlend })); s.visible = false; scene.add(s); return s; });
+
+// post: bloom, then vignette, grain, a touch of chromatic aberration on impacts, and the flash
+const composer = new THREE.EffectComposer(renderer);
+composer.addPass(new THREE.RenderPass(scene, camera));
+const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(960, 540), .8, .5, .78); composer.addPass(bloom);
+const grade = new THREE.ShaderPass({
+  uniforms: { tDiffuse: { value: null }, uT: { value: 0 }, uAb: { value: 0 }, uFlash: { value: 0 }, uTint: { value: new THREE.Color() } }, vertexShader: uvVS,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uT, uAb, uFlash; uniform vec3 uTint; varying vec2 vUv;
+    float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+    void main(){ vec2 c = vUv - .5; float ab = (.0012 + uAb * .006) * length(c) * 2.;
+      vec3 col = vec3(texture2D(tDiffuse, vUv - c * ab).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv + c * ab).b);
+      col += uTint * .06 * (1. - length(c)); col *= mix(.45, 1., smoothstep(.95, .25, length(c * vec2(1.1, 1.))));
+      col += (h(vUv * 900. + uT) - .5) * .035; gl_FragColor = vec4(mix(col, vec3(1.), uFlash), 1.); }` });
+composer.addPass(grade);
+
+/* =====================================================================================================================
+   THE LIVE SHOW: levels appear and leave with each refresh; every level the live price crosses is queued, and he walks
+   there and settles it with a jab and a cross. A wall the price touches and turns back from holds: he staggers back.
+   ===================================================================================================================== */
+const objs = new Map();          // level key -> scene object
+const spent = new Map();         // level key -> time it was settled (kept while the table still lists it)
+const labels = new Map();        // price -> label sprite
+const queue = [];                // { p, dir, type: 'cross' | 'hold' | 'target', levels, T }
+const FX = { sparks: [], shards: [], rings: [], stars: [], calls: [], shake: 0, flash: 0, ab: 0, kick: 0 };
+const H = { p: null, v: 0, face: 1, yaw: Math.PI / 2, mode: 'follow', t0: 0, job: null, speed: 0, dist: 0, phase: 0, guard: 0, idleAt: 0, mood: 0, lockAt: -9 };
+const stats = { walls: 0, liq: 0, stops: 0, targets: 0 };
+let now = 0, camC = null, camS = 1200, overviewAt = 20;
+
+function onLevels() {
+  const P = live.px || D.price;
+  if (ORIGIN === 0) { ORIGIN = Math.round(P / 1000) * 1000; U = 1 / nice(P * 0.0012); }
+  if (H.p == null) H.p = P;
+  const keep = new Set(LV.map(L => L.key));
+  for (const [k, o] of objs) if (!keep.has(k)) o.gone = true;
+  for (const L of LV) {
+    const o = objs.get(L.key);
+    if (!o) { const n = buildLevel(L); L.state = spent.has(L.key) ? (isWall(L) ? 'broken' : 'spent') : 'live'; objs.set(L.key, n); }
+    else { const st = o.L.state, fxL = o.L.fx, rip = o.L.rip, last = o.L.lastFx; Object.assign(o.L, L, { state: st, fx: fxL, rip, lastFx: last }); o.gone = false; }
+  }
+  for (const k of spent.keys()) if (!keep.has(k)) spent.delete(k);
+  // labels, one per price
+  const groups = new Map(); for (const o of objs.values()) if (!o.gone) { const p = o.L.p; if (!groups.has(p)) groups.set(p, []); groups.get(p).push(o.L); }
+  for (const [p, sp] of labels) if (!groups.has(p)) { scene.remove(sp); dispose(sp); labels.delete(p); }
+  for (const [p, ls] of groups) {
+    const title = ls.map(l => nameOf(l.k, l.above)).join(' + ').toUpperCase(), sub = fmtP(p) + '  ' + ls.map(l => l.v).join(' · ');
+    const old = labels.get(p); if (old && old.userData.txt === title + sub) continue;
+    if (old) { scene.remove(old); dispose(old); }
+    const top = ls.slice().sort((a, b) => b.rel - a.rel)[0], sp = textSprite([title, sub], CSS[kindCol(top.k)], .3);
+    sp.userData.txt = title + sub; sp.position.set(WX(p) + .05, .06, 1.35); scene.add(sp); labels.set(p, sp);
+  }
+  // the magnets glide to the new targets
+  for (const [k, up] of [['up', true], ['dn', false]]) {
+    const m = MAG[k], p = TG?.[k];
+    m.p = p ?? null; if (p == null) continue;
+    if (m.x == null) m.x = WX(p);
+    const ch = TG.prob == null ? null : p === TG.first ? TG.prob : 1 - TG.prob;
+    m.prob = ch ?? .5;
+    const txt = `DOEL ${up ? '▲' : '▼'}  ${fmtP(p)}|${ch == null ? '' : Math.round(ch * 100) + '% kans' + (p === TG.first ? ' · eerst' : '')}`;
+    if (txt !== m.labelTxt) { if (m.label) { m.root.remove(m.label); dispose(m.label); }
+      m.label = textSprite(txt.split('|'), CSS[up ? 'up' : 'dn'], .34); m.label.center.set(.5, 0); m.label.position.y = MAG_Y + .62; m.root.add(m.label); m.labelTxt = txt; }
+  }
+  msg('');
+}
+
+// the price ticks: a level it crosses is queued; a wall it reaches and turns back from holds
+function onPrice(prev, p) {
+  if (!D || prev == null || prev === p) return;
+  const dir = p > prev ? 1 : -1, tol = D.B * .25;
+  for (const o of objs.values()) {
+    const L = o.L; if (o.gone || L.state !== 'live' || L.queued) continue;
+    if ((prev - L.p) * (p - L.p) <= 0) { enqueue(L.p, dir, 'cross', L); continue; }
+    if (isWall(L)) {
+      const d = p - L.p;
+      if (Math.abs(d) < tol) L.near = Math.sign(d);
+      else if (L.near && Math.sign(d) === L.near && Math.abs(d) > tol * 3) { L.near = 0;
+        if (now - (L.heldAt ?? -1e9) > 90) { L.heldAt = now; enqueue(L.p, -L.near || -Math.sign(d), 'hold', L); } }
+    }
+  }
+  for (const k of ['up', 'dn']) { const m = MAG[k];
+    if (m.p != null && (prev - m.p) * (p - m.p) <= 0 && now - m.hit > 120 && !queue.some(j => j.T === m)) queue.push({ p: m.p, dir, type: 'target', levels: [], T: m }); }
+}
+function enqueue(p, dir, type, L) {
+  L.queued = true;
+  const j = queue.find(q => q.p === p && q.type === type && q.dir === dir);
+  if (j) j.levels.push(L); else queue.push({ p, dir: type === 'hold' ? Math.sign(p - (live.px ?? p)) || dir : dir, type, levels: [L] });
+}
+
+function spark(x, y, z, vx, vy, vz, col, life, size) { if (FX.sparks.length < 3500) FX.sparks.push({ x, y, z, vx, vy, vz, col, life, age: 0, size }); }
+function callout(title, sub, col) {
+  const same = FX.calls.find(c => c.base === title && now - c.t0 < 1.6);
+  if (same) { same.n++; same.title = title + '  ×' + same.n; same.sub = sub; same.t0 = now; return; }
+  FX.calls.unshift({ base: title, title, sub, col, t0: now, n: 1 }); FX.calls.length = Math.min(FX.calls.length, 3);
+}
+const R = Math.random;
+function settle(L, type, dir) {
+  const o = objs.get(L.key); if (!o) return;
+  const y = PUNCH_Y, x = WX(L.p), col = kindCol(L.k), sub = `${nameOf(L.k, L.above)} · ${L.v} · ${fmtP(L.p)}`;
+  L.queued = false; L.lastFx = now;
+  if (type === 'hold') {
+    L.rip = { t0: now, y, a: 1 }; FX.rings.push({ x, y, t0: now, col, kind: 'wall' }); FX.shake = Math.max(FX.shake, .07); FX.ab = 1.2;
+    for (let i = 0; i < 26; i++) spark(x - dir * .02, y, (R() - .5) * .2, -dir * (.5 + R() * 2.2), (R() - .5) * 2.4, (R() - .5) * 2.4, R() < .4 ? 'txt' : col, .35 + R() * .4, .05);
+    callout('MUUR HOUDT', sub, col); return;
+  }
+  spent.set(L.key, now);
+  if (isWall(L)) {
+    L.state = 'broken'; L.fx = { t0: now, y }; FX.flash = Math.max(FX.flash, .2); FX.shake = Math.max(FX.shake, .08); FX.ab = 1; stats.walls++;
+    for (let i = 0; i < 46; i++) {
+      const sy = Math.max(.05, Math.min(o.h, y + (R() - .5) * o.h * 1.1)), sz = (R() - .5) * 2.4, d = Math.hypot(sy - y, sz);
+      FX.shards.push({ x, y: sy, z: sz, vx: dir * (1.2 + R() * 3.5) / (1 + d * .5), vy: (R() - .3) * 2.5, vz: (R() - .5) * 2.5 + sz * .6,
+        rx: R() * 6, ry: R() * 6, rz: R() * 6, wx: (R() - .5) * 14, wy: (R() - .5) * 14, wz: (R() - .5) * 14, s: .5 + R() * .9, col, age: 0, life: 1.4 + R() * .8 });
+    }
+    for (let i = 0; i < 30; i++) spark(x, y, (R() - .5) * .3, dir * (1 + R() * 3), (R() - .5) * 2.5, (R() - .5) * 2.5, R() < .5 ? 'txt' : col, .4 + R() * .5, .05);
+    callout('MUUR DOORBROKEN', sub, col);
+  } else if (L.k === 'stop') {
+    L.state = 'spent'; L.fx = { t0: now, y }; stats.stops++; callout('STOPS GERAAKT', sub, col);
+  } else {
+    L.state = 'spent'; L.fx = { t0: now, y }; FX.shake = Math.max(FX.shake, .12); FX.ab = 1; stats.liq += L.s;
+    FX.rings.push({ x, y: .02, t0: now, col, kind: 'floor' });
+    for (let i = 0; i < 70; i++) spark(x, .2 + R() * 3, (R() - .5) * 2.2, dir * (1 + R() * 4.5), (R() - .2) * 1.5, (R() - .5) * 1.5, R() < .3 ? 'txt' : col, .6 + R() * .8, .045);
+    callout('LIQUIDATIES', sub, col);
+  }
+}
+function hitTarget(m) {
+  const x = WX(m.p), y = 1.25, col = m.up ? 'up' : 'dn';
+  m.hit = now; H.lockAt = now; FX.flash = .5; FX.shake = Math.max(FX.shake, .14); FX.ab = 1.4; FX.kick = 1.2; stats.targets++;
+  for (let i = 0; i < 3; i++) FX.rings.push({ x, y, t0: now + i * .16, col, kind: 'big' });
+  FX.rings.push({ x, y: .02, t0: now, col, kind: 'floor' });
+  for (let i = 0; i < 80; i++) { const a = R() * Math.PI * 2, b = R() * Math.PI - Math.PI / 2, v = 1.5 + R() * 3.5;
+    spark(x, y, 0, Math.cos(a) * Math.cos(b) * v, Math.sin(b) * v, Math.sin(a) * Math.cos(b) * v, R() < .4 ? 'txt' : col, .7 + R() * .9, .05); }
+  callout('DOEL GERAAKT', `Doel ${m.up ? '▲' : '▼'} · ${fmtP(m.p)} · kans was ${Math.round(m.prob * 100)}%`, col);
+}
+const COMBO = .8, JAB = .15, CROSS = .38, POSE = 1.5, KNOCK = .6;
+function punch(j, big) {
+  const x = WX(j.p), col = j.levels[0] ? kindCol(j.levels[0].k) : 'txt';
+  FX.stars.push({ x, y: PUNCH_Y, t0: now, col, big }); FX.kick = big ? 1 : .35; FX.shake = Math.max(FX.shake, big ? .05 : .025); FX.ab = Math.max(FX.ab, big ? 1 : .4);
+  if (big) { for (const L of j.levels) settle(L, j.type === 'hold' ? 'hold' : 'cross', j.dir); return; }
+  for (const L of j.levels) { L.lastFx = now; if (isWall(L)) L.rip = { t0: now, y: PUNCH_Y, a: .35 }; }
+  for (let i = 0; i < 12; i++) spark(x - j.dir * .03, PUNCH_Y, (R() - .5) * .1, -j.dir * (.3 + R() * 1.3), (R() - .3) * 1.6, (R() - .5) * 1.6, R() < .5 ? 'txt' : col, .25 + R() * .25, .04);
+}
+
+// his behaviour, each frame
+function think(dt) {
+  const P = live.px ?? D?.price; if (P == null || H.p == null) return;
+  const backlog = queue.length, spd = backlog > 2 ? 1.6 : 1;
+  if (H.mode === 'follow' && backlog) { H.job = queue.shift(); H.mode = 'approach'; }
+  let target = P;
+  if (H.mode === 'approach') target = H.job.type === 'target' ? H.job.p : H.job.p - H.job.dir * REACH();
+  if (H.mode === 'approach' || H.mode === 'follow') {
+    const d = target - H.p, ad = Math.abs(d), vmax = (ad > 300 ? 430 : ad > 120 ? 240 : 165) * spd * (U * 100);
+    const want = ad < (H.mode === 'follow' ? 3 : .5) / (U * 100) ? 0 : Math.sign(d) * Math.min(vmax, Math.sqrt(2 * 1100 * (U * 100) * ad) * .9);
+    const acc = 1100 * (U * 100) * spd * dt; H.v += Math.max(-acc, Math.min(acc, want - H.v));
+    let step = H.v * dt; if (Math.abs(step) > ad) { step = d; H.v = 0; } H.p += step;
+    if (H.mode === 'approach') { H.face = H.job.dir;
+      if (Math.abs(target - H.p) < 1.5 / (U * 100) && Math.abs(H.v) < 60 * (U * 100)) { H.mode = H.job.type === 'target' ? 'pose' : 'combo'; H.t0 = now; H.v = 0; H.hits = 0; } }
+    else if (Math.abs(H.v) > 15 * (U * 100)) H.face = Math.sign(H.v);
+  } else {
+    H.v = 0; const u = (now - H.t0) * spd;
+    if (H.mode === 'combo' || H.mode === 'shadow') {
+      if (H.mode === 'combo' && H.hits === 0 && u >= JAB) { H.hits = 1; punch(H.job, false); }
+      if (H.mode === 'combo' && H.hits === 1 && u >= CROSS) { H.hits = 2; punch(H.job, true);
+        if (H.job.type === 'hold') { H.mode = 'knock'; H.t0 = now; H.kFrom = H.p; } }
+      if ((H.mode === 'combo' || H.mode === 'shadow') && u >= COMBO) { H.mode = 'follow'; H.idleAt = now; }
+    } else if (H.mode === 'knock') { const k = Math.min(1, (now - H.t0) / KNOCK); H.p = H.kFrom - H.face * 32 / (U * 100) * EASE.out(k); if (k >= 1) { H.mode = 'follow'; H.idleAt = now; } }
+    else if (H.mode === 'pose') { if (H.hits === 0 && now - H.t0 > .15) { H.hits = 1; hitTarget(H.job.T); } if (now - H.t0 >= POSE) { H.mode = 'follow'; H.idleAt = now; } }
+  }
+  // standing still a while: a little shadow-boxing
+  if (H.mode === 'follow' && Math.abs(H.v) < 1e-6 && now - H.idleAt > 14) { H.mode = 'shadow'; H.t0 = now; H.idleAt = now; }
+  // body state for the animation
+  H.speed += (Math.abs(H.v) / (U * 100) - H.speed) * Math.min(1, dt * 12);
+  const ph0 = H.phase; H.dist += Math.abs(H.v * dt) * U; H.phase = H.dist / .95 * Math.PI * 2;
+  if (Math.floor(H.phase / Math.PI) !== Math.floor(ph0 / Math.PI) && H.speed > 40) {        // a foot lands
+    const fxp = WX(H.p) + H.face * .1, run = Math.min(1, H.speed / 430);
+    for (let i = 0; i < 4 + run * 8; i++) spark(fxp + (R() - .5) * .12, .02, (R() - .5) * .25, -H.face * R() * .7 * (.3 + run), .2 + R() * .5 * (.4 + run), (R() - .5) * .5, 'cyan', .3 + R() * .3, .026);
+    if (run > .45) FX.rings.push({ x: fxp, y: .015, t0: now, col: 'cyan', kind: 'step' });
+  }
+  const closing = H.mode === 'approach' && Math.abs(target - H.p) * U < .9;
+  const gw = H.mode === 'combo' || H.mode === 'shadow' || H.mode === 'knock' || closing ? 1 : 0;
+  H.guard += (gw - H.guard) * Math.min(1, dt * (gw > H.guard ? 12 : 5));
+  H.yaw += ((H.mode === 'pose' ? .35 : 1) * H.face * Math.PI / 2 - H.yaw) * Math.min(1, dt * 7);
+  const drift = P - (D?.candles?.[Math.max(0, D.candles.length - 25)]?.[4] ?? P);
+  H.mood += ((H.mode === 'approach' || H.mode === 'combo' ? H.face : Math.sign(drift) * .6) - H.mood) * dt * 1.5;
+  // the magnets pull: motes stream from him toward each target, more for the stronger one
+  for (const m of [MAG.up, MAG.dn]) if (m.p != null && R() < (m.prob ?? .5) * .9 * dt * 60) {
+    const hx = WX(H.p), mx = m.x, k = .6 + R() * .5;
+    spark(hx + (R() - .5) * .4, 1.2 + (R() - .5) * .4, (R() - .5) * .6, (mx - hx) * .32 * k, (MAG_Y - 1.2) * .32 * k, 0, m.up ? 'up' : 'dn', 2.6, .022);
+  }
+}
+function physics(dt) {
+  for (const o of objs.values()) if (o.L.k === 'stop' && o.L.fx && now - o.L.fx.t0 < 1.3) for (const sg of [-1, 1]) {   // sparks off the burning fuse
+    const fy = o.L.fx.y + sg * (now - o.L.fx.t0) * 3.2;
+    if (fy > 0 && fy < 3.2 && R() < .8 * dt * 60) spark(WX(o.L.p), fy, (R() - .5) * .1, (R() - .5) * .8, -.2 + R() * .6, (R() - .5) * .8, R() < .5 ? 'txt' : 'stop', .3 + R() * .3, .04);
+  }
+  for (const q of FX.sparks) { q.age += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; if (q.size > .025) { q.vy -= 3.2 * dt; q.vx *= .985; q.vz *= .985; } if (q.y < .01) { q.y = .01; q.vy *= -.35; } }
+  for (const q of FX.shards) { q.age += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; q.vy -= 6 * dt; q.rx += q.wx * dt; q.ry += q.wy * dt; q.rz += q.wz * dt;
+    if (q.y < .03) { q.y = .03; q.vy *= -.3; q.vx *= .6; q.vz *= .6; q.wx *= .5; q.wy *= .5; q.wz *= .5; } }
+  FX.sparks = FX.sparks.filter(q => q.age < q.life); FX.shards = FX.shards.filter(q => q.age < q.life);
+  FX.rings = FX.rings.filter(r => now - r.t0 < 1.8); FX.stars = FX.stars.filter(r => now - r.t0 < .45); FX.calls = FX.calls.filter(c => now - c.t0 < 2.4);
+  FX.shake *= Math.exp(-dt * 5); FX.flash = Math.max(0, FX.flash - dt * 1.6); FX.ab = Math.max(0, FX.ab - dt * 2.5); FX.kick = Math.max(0, FX.kick - dt * 2.2);
+}
+
+/* =====================================================================================================================
+   RENDER
+   ===================================================================================================================== */
+const tmpV = new THREE.Vector3();
+let W = 960, Hh = 540, DPR = 1, aspect = 16 / 9, SAT = 0;
+function resize() {
+  W = innerWidth; Hh = innerHeight; aspect = W / Hh; SAT = $('sat').offsetHeight; DPR = Math.min(1.75, devicePixelRatio || 1);
+  renderer.setPixelRatio(DPR); renderer.setSize(W, Hh, false); composer.setPixelRatio(DPR); composer.setSize(W, Hh);
+  bloom.resolution.set(W * DPR, Hh * DPR); hud.width = Math.round(W * DPR); hud.height = Math.round(Hh * DPR);
+  camera.aspect = aspect; camera.updateProjectionMatrix();
+  PX = Hh * DPR * .9; pMat.uniforms.uPx.value = PX; for (const o of objs.values()) if (o.pts) o.mat.uniforms.uPx.value = PX;
+}
+addEventListener('resize', resize);
+function render3d(dt) {
+  const t = now, P = live.px ?? D.price;
+  // camera: follows him, closer for the punches; every so often it pulls back to show both magnets
+  const portrait = Math.max(.45, Math.min(1, aspect / 1.78)), base = nice(P * 0.0012) * 12 * portrait;
+  let tc = H.p + H.face * (H.mode === 'approach' ? 120 : 50) / (U * 100), ts = H.mode === 'combo' || H.mode === 'pose' || H.mode === 'knock' ? base * .82 : base * (1 + Math.min(.4, H.speed / 1000));
+  const both = MAG.up.p != null && MAG.dn.p != null;
+  if (both && t > overviewAt && t < overviewAt + 6 && H.mode === 'follow' && !queue.length) { tc = (MAG.up.p + MAG.dn.p) / 2; ts = (MAG.up.p - MAG.dn.p) * 1.35; }
+  else if (t >= overviewAt + 6) overviewAt = t + 45;
+  if (camC == null) { camC = tc; camS = ts * 4; }
+  camC += (tc - camC) * (1 - Math.exp(-dt * 2.4)); camS += (ts - camS) * (1 - Math.exp(-dt * 1.5));
+  const lo = camC - camS * .33, hi = camC + camS * .33; if (H.p < lo) camC -= lo - H.p; else if (H.p > hi) camC += H.p - hi;
+  const span = camS * U, dist = span / (2 * Math.tan(THREE.MathUtils.degToRad(17)) * aspect) * (1 - .05 * FX.kick);
+  const cx = WX(camC), yaw = .17 + Math.sin(t * .13) * .03, sh = FX.shake;
+  camera.position.set(cx + Math.sin(yaw) * dist + (Math.sin(t * 91) + Math.sin(t * 57)) * sh * .5, .95 + dist * .12 + (Math.cos(t * 83) + Math.sin(t * 41)) * sh * .5, Math.cos(yaw) * dist);
+  camera.lookAt(cx, .85 + dist * .05, 0);
+  scene.fog.near = dist * .7; scene.fog.far = dist * 2.6;
+  floorMat.uniforms.uFocus.value.set(cx, 0); floorMat.uniforms.uFar.value = Math.max(12, dist * 1.4);
+  const wide = Math.min(1, Math.max(0, (dist - 14) / 14));
+  // levels: fade in, fade out, react
+  for (const [k, o] of objs) {
+    o.fade = Math.max(0, Math.min(1, o.fade + (o.gone ? -dt * 1.6 : dt * 1.4)));
+    if (o.gone && o.fade <= 0) { scene.remove(o.group); dispose(o.group); objs.delete(k); continue; }
+    const L = o.L, f = EASE.out(o.fade), age = L.fx ? t - L.fx.t0 : 9;
+    o.group.position.x = WX(L.p); o.group.scale.y = .02 + .98 * f;
+    if (isWall(L)) {
+      const u = o.mat.uniforms; u.uT.value = t; if (L.rip) { u.uRipT.value = L.rip.t0; u.uRipY.value = L.rip.y; u.uRipA.value = L.rip.a; }
+      if (L.state === 'broken') { u.uA.value = (age < .3 ? 1 + 3 * (1 - age / .3) : .06) * f; u.uEdge.value = (age < .3 ? 1 - age / .3 : .03) * f; o.glow.material.opacity = .03 * f; }
+      else { const hot = L.lastFx != null && t - L.lastFx < .5 ? 1 + (1 - (t - L.lastFx) / .5) * 2 : 1; u.uA.value = (.8 + L.rel * .5) * hot * f; u.uEdge.value = hot * f; o.glow.material.opacity = (.05 + L.rel * .06) * f; }
+    } else {
+      const u = o.mat.uniforms; u.uT.value = t; u.uFade.value = f;
+      if (L.fx) { u.uT0.value = L.fx.t0; u.uY.value = L.fx.y; u.uSpent.value = Math.min(1, age / 1.4); } else u.uSpent.value = L.state === 'live' ? 0 : 1;
+      o.line.material.opacity = (L.state === 'live' ? (L.k === 'stop' ? .18 : .35) : .06) * f;
+    }
+  }
+  // floor labels: the most important first, and none on top of another one
+  const shown = [], cand = [];
+  for (const [p, sp] of labels) {
+    const ls = [...objs.values()].filter(o => o.L.p === p), dead = ls.every(o => o.L.state !== 'live'), f = Math.max(0, ...ls.map(o => o.fade));
+    const near = Math.max(0, 1 - Math.abs(p - H.p) / (camS * .55));
+    cand.push({ p, sp, a: near * (1 - wide) * (dead ? .35 : 1) * f, w: Math.max(...ls.map(o => o.L.rel)) * (dead ? .3 : 1) + near });
+  }
+  cand.sort((a, b) => b.w - a.w);
+  for (const c of cand) {
+    const k = Math.max(.8, dist / 9); c.sp.scale.set(c.sp.userData.w0 * k, c.sp.userData.h0 * k, 1); c.sp.position.x = WX(c.p) + .05;
+    tmpV.set(WX(c.p), 0, 1.35).project(camera); const sx = (tmpV.x * .5 + .5) * W, wpx = c.sp.userData.w0 * k / span * W * .9;
+    const free = !shown.some(o => sx < o[1] + 22 && sx + wpx > o[0] - 22);
+    const target = free ? c.a : 0; c.sp.material.opacity += (target - c.sp.material.opacity) * Math.min(1, dt * 8);
+    c.sp.visible = c.sp.material.opacity > .01; if (free && c.a > .05) shown.push([sx, sx + wpx]);
+  }
+  // magnets
+  for (const m of [MAG.up, MAG.dn]) {
+    m.shown += ((m.p != null ? 1 : 0) - m.shown) * Math.min(1, dt * 2); m.root.visible = m.shown > .01; if (m.p == null && !m.root.visible) continue;
+    if (m.p != null) m.x += (WX(m.p) - m.x) * Math.min(1, dt * 2);
+    const hit = t - m.hit < 30, age = t - m.hit, pulse = .5 + .5 * Math.sin(t * (2 + m.prob * 3)), closeness = m.p == null ? 0 : Math.max(0, 1 - Math.abs(H.p - m.p) / (camS * .9));
+    m.root.position.x = m.x; m.root.scale.setScalar(.01 + .99 * m.shown);
+    m.grp.position.y = MAG_Y + Math.sin(t * 1.3 + (m.up ? 0 : 2)) * .04; m.grp.rotation.y = -.25 + Math.sin(t * .5 + (m.up ? 0 : 1)) * .1;
+    m.paint.emissiveIntensity = hit ? .5 + .2 * pulse : .1 + m.prob * .25 * pulse + closeness * .2;
+    m.beamMat.uniforms.uT.value = t; m.beamMat.uniforms.uA.value = hit ? (age < 1.2 ? 1.2 - age * .5 : .4) : .05 + m.prob * .15 + closeness * .25;
+    m.light.intensity = hit ? 1.6 : .4 + closeness; m.gate.material.opacity = (hit ? .7 : .35 + closeness * .3) * m.shown; m.pad.material.opacity = (hit ? .8 : .35 + closeness * .4) * m.shown;
+    if (m.label) { m.label.material.opacity = Math.min(1, Math.max(0, (dist - 13) / 6)) * m.shown; m.label.visible = m.label.material.opacity > .01;
+      const k = Math.max(1, dist / 9); m.label.scale.set(m.label.userData.w0 * k, m.label.userData.h0 * k, 1); m.label.position.y = MAG_Y + .62 + (k - 1) * .3; }
+  }
+  // hero: walking, guard, jab and cross, the stagger off a wall that holds, the fist raised at a target
+  const lock = t - H.lockAt < 1.2 ? 1 - (t - H.lockAt) / 1.2 : 0;
+  const run = Math.min(1, H.speed / 430), walk = Math.min(1, H.speed / 140), gd = H.guard, ph = H.phase;
+  const bob = Math.abs(Math.sin(ph)) * .028 * walk * (1 + run) + (1 - walk) * Math.sin(t * 2.2) * .005;
+  hero.position.set(WX(H.p), .585 * HS + bob, 0); hero.rotation.set(0, H.yaw, 0);
+  const u = H.mode === 'combo' || H.mode === 'shadow' ? (t - H.t0) * (queue.length > 2 ? 1.6 : 1) : -1;
+  const jab = u < .03 ? 0 : u < JAB ? EASE.out((u - .03) / (JAB - .03)) : u < .28 ? 1 - EASE.io((u - JAB) / (.28 - JAB)) : 0;
+  const cross = u < .25 ? 0 : u < CROSS ? EASE.out((u - .25) / (CROSS - .25)) : u < .47 ? 1 : u < .68 ? 1 - EASE.io((u - .47) / .21) : 0;
+  const near = H.face > 0 ? -1 : 1, far = -near;
+  const kn = H.mode === 'knock' ? Math.sin(Math.PI * Math.min(1, (t - H.t0) / KNOCK)) : 0;
+  const pu = H.mode === 'pose' ? t - H.t0 : -1, ps = pu < 0 ? 0 : EASE.out(Math.min(1, pu / .35)) * Math.min(1, (POSE - pu) / .3);
+  body.rotation.set(.05 * walk + .14 * run + .1 * gd + .14 * cross + .06 * jab - .45 * kn - .08 * ps, -near * .5 * cross + far * .12 * jab, 0);
+  for (const sx of [-1, 1]) {
+    const L = limbs[sx], s = Math.sin(ph + (sx > 0 ? 0 : Math.PI)), lead = sx === far ? 1 : -1, stance = gd * (1 - walk * .7);
+    L.hip.rotation.set(lerp(-s * (.42 + .38 * run) * walk, lead > 0 ? -.38 : .3, stance) + kn * .35 * lead, 0, sx * .03);
+    L.knee.rotation.x = lerp(Math.max(0, Math.sin(ph + (sx > 0 ? 0 : Math.PI) + 1.3)) * (.6 + .7 * run) * walk + .06, .32, stance) + kn * .2;
+    let ax = lerp(s * (.35 + .5 * run) * walk + .05, -.85, gd), az = lerp(0, -sx * .18, gd), fxr = lerp(-(.25 + .95 * run), -1.95, gd);
+    const e = sx === far ? jab : cross;
+    ax = lerp(ax, -1.52, e); az = lerp(az, -sx * .05, e); fxr = lerp(fxr, -.04, e);
+    if (sx === near && ps > 0) { ax = lerp(ax, -2.85, ps); fxr = lerp(fxr, -.15, ps); az = lerp(az, sx * .12, ps); }
+    if (kn > 0) { ax = lerp(ax, .55, kn * .7); fxr = lerp(fxr, -.5, kn * .7); }
+    L.arm.rotation.set(ax, 0, az); L.fore.rotation.x = fxr;
+  }
+  const moodC = lerpHex(CSS.dn, CSS.up, (H.mood + 1) / 2);
+  coreMat.color.set(moodC).multiplyScalar(2.2 + lock * 2 + ps); coreLight.color.set(moodC); coreLight.intensity = .8 + lock * 1.5 + ps;
+  glowMat.color.set(0xbfeaff).multiplyScalar(1.5 + Math.max(jab, cross) * 1.5);
+  // particles, shards, rings, stars
+  let n = 0;
+  for (const q of FX.sparks) { if (n >= PMAX) break; const a = 1 - q.age / q.life, c = PCOL[q.col] || PCOL.txt;
+    pPos[n * 3] = q.x; pPos[n * 3 + 1] = q.y; pPos[n * 3 + 2] = q.z; pCol[n * 3] = c.r * a; pCol[n * 3 + 1] = c.g * a; pCol[n * 3 + 2] = c.b * a; pSize[n] = q.size * (.5 + a * .5); n++; }
+  pg.setDrawRange(0, n); pg.attributes.position.needsUpdate = pg.attributes.color.needsUpdate = pg.attributes.size.needsUpdate = true;
+  let m = 0;
+  for (const q of FX.shards) { if (m >= SMAX) break; const a = Math.max(0, 1 - q.age / q.life);
+    dummy.position.set(q.x, q.y, q.z); dummy.rotation.set(q.rx, q.ry, q.rz); dummy.scale.setScalar(q.s); dummy.updateMatrix(); shardMesh.setMatrixAt(m, dummy.matrix);
+    const c = PCOL[q.col]; shardMesh.instanceColor.setXYZ(m, c.r * (.5 + a * 1.2), c.g * (.5 + a * 1.2), c.b * (.5 + a * 1.2)); m++; }
+  shardMesh.count = m; shardMesh.instanceMatrix.needsUpdate = true; shardMesh.instanceColor.needsUpdate = true;
+  ringPool.forEach(r => r.visible = false);
+  FX.rings.slice(-ringPool.length).forEach((r, i) => {
+    const age = t - r.t0; if (age < 0) return; const mesh = ringPool[i];
+    const dur = r.kind === 'big' ? 1.3 : r.kind === 'floor' ? 1.6 : r.kind === 'step' ? .5 : 1.0, k = Math.min(1, age / dur), e = EASE.out(k);
+    mesh.visible = true; mesh.material.color.copy(PCOL[r.col]).multiplyScalar(2.2 * (1 - k) * (r.kind === 'step' ? .35 : 1));
+    if (r.kind === 'wall') { mesh.position.set(r.x, r.y, 0); mesh.rotation.set(0, Math.PI / 2, 0); mesh.scale.setScalar(.1 + e * 1.4); }
+    else if (r.kind === 'step') { mesh.position.set(r.x, .015, 0); mesh.rotation.set(-Math.PI / 2, 0, 0); mesh.scale.setScalar(.08 + e * .45); }
+    else if (r.kind === 'floor') { mesh.position.set(r.x, .015, 0); mesh.rotation.set(-Math.PI / 2, 0, 0); mesh.scale.setScalar(.2 + e * 5); }
+    else { mesh.position.set(r.x, r.y, .1); mesh.quaternion.copy(camera.quaternion); mesh.scale.setScalar(.2 + e * 3.2); }
+  });
+  starPool.forEach(s => s.visible = false);
+  FX.stars.slice(-starPool.length).forEach((s, i) => { const k = (t - s.t0) / .45, sp = starPool[i];
+    sp.visible = true; sp.position.set(s.x, s.y, .15); sp.scale.setScalar(s.big ? .3 + EASE.out(k) * 1.2 : .12 + EASE.out(k) * .55);
+    sp.material.opacity = 1 - k; sp.material.rotation = k * .4; sp.material.color.copy(PCOL[s.col]).lerp(PCOL.txt, .6).multiplyScalar(1.5); });
+  grade.uniforms.uT.value = t; grade.uniforms.uAb.value = FX.ab; grade.uniforms.uFlash.value = FX.flash * .45; grade.uniforms.uTint.value.set(moodC);
+  composer.render();
+}
+
+/* HUD: the ticker, the two targets, the price bar (projected from the scene so it moves with it), what just happened */
+const project = p => { tmpV.set(WX(p), PUNCH_Y, 0).project(camera); return (tmpV.x * .5 + .5) * W; };
+function txt(s, x, y, font, color, align = 'left') { hg.font = font; hg.fillStyle = color; hg.textAlign = align; hg.textBaseline = 'alphabetic'; hg.fillText(s, x, y); }
+function drawHud() {
+  const k = Math.max(.62, Math.min(W / 960, Hh / 540)), LW = W / k, LH = Hh / k, t = now, P = live.px ?? D.price;
+  hg.setTransform(DPR * k, 0, 0, DPR * k, 0, 0); hg.clearRect(0, 0, LW, LH);
+  const Pk = p => project(p) / k, gx = 24, top = 8 + SAT / k;
+  const sh = hg.createLinearGradient(0, 0, 0, 140); sh.addColorStop(0, 'rgba(3,6,7,.92)'); sh.addColorStop(1, 'rgba(3,6,7,0)'); hg.fillStyle = sh; hg.fillRect(0, 0, LW, 140);
+  // ticker
+  const fresh = live.px && Date.now() - live.at < 10e3;
+  hg.fillStyle = fresh ? CSS.up : CSS.faint; hg.beginPath(); hg.arc(gx + 3, top + 18, 3, 0, 7); hg.fill();
+  txt(`BTC / USDT · ${fresh ? 'LIVE' : 'VERTRAAGD'}`, gx + 12, top + 22, `600 9.5px ${FM}`, CSS.dim);
+  txt(fmtP(P), gx - 1, top + 52, `600 28px ${FM}`, CSS.txt);
+  hg.font = `600 28px ${FM}`; const pw = hg.measureText(fmtP(P)).width;
+  const ref = D.candles[Math.max(0, D.candles.length - 25)][4], ch = pct(P, ref), up = P >= ref;
+  hg.font = `600 11px ${FM}`; const cw = hg.measureText(ch + ' 24u').width + 14;
+  hg.fillStyle = rgba(up ? CSS.up : CSS.dn, .14); hg.beginPath(); hg.roundRect(gx + 10 + pw, top + 36, cw, 20, 3); hg.fill();
+  txt(ch + ' 24u', gx + 17 + pw, top + 50, `600 11px ${FM}`, up ? CSS.up : CSS.dn);
+  // targets, top right
+  let x = LW - gx; const tw = Math.min(150, (LW - 300) / 2);
+  if (tw > 90) for (const m of [MAG.up, MAG.dn]) {
+    const c = m.up ? CSS.up : CSS.dn, x0 = x - tw;
+    txt(`DOEL ${m.up ? '▲' : '▼'}`, x0, top + 22, `600 9.5px ${FM}`, c);
+    if (m.p == null) { txt('geen', x0, top + 44, `600 15px ${FM}`, CSS.faint); x -= tw + 22; continue; }
+    const hit = t - m.hit < 30;
+    txt(hit ? 'GERAAKT' : pct(m.p, P), x, top + 22, `500 9.5px ${FM}`, hit ? CSS.txt : CSS.dim, 'right');
+    txt(fmtP(m.p), x0, top + 44, `600 17px ${FM}`, CSS.txt);
+    txt(Math.round(m.prob * 100) + '%' + (m.p === TG?.first ? ' eerst' : ''), x, top + 44, `600 12px ${FM}`, c, 'right');
+    hg.fillStyle = 'rgba(255,255,255,.08)'; hg.fillRect(x0, top + 52, tw, 2); hg.fillStyle = c; hg.fillRect(x0, top + 52, tw * m.prob, 2);
+    x -= tw + 22;
+  }
+  // the price bar
+  const ry = top + 86;
+  hg.fillStyle = 'rgba(255,255,255,.1)'; hg.fillRect(gx, ry, LW - gx * 2, 1);
+  const lo = camC - camS * .8, hi = camC + camS * .8, B100 = nice(P * 0.0012), step = camS > B100 * 30 ? B100 * 5 : camS > B100 * 14 ? B100 * 2.5 : B100, minor = step / 5;
+  hg.save(); hg.beginPath(); hg.rect(gx, ry - 20, LW - gx * 2, 30); hg.clip();
+  for (let q = Math.ceil(lo / minor) * minor; q <= hi; q += minor) {
+    const xx = Pk(q), big = Math.abs(q / step - Math.round(q / step)) < 1e-6; hg.fillStyle = big ? 'rgba(233,241,238,.45)' : 'rgba(233,241,238,.16)'; hg.fillRect(xx, ry - (big ? 6 : 3), 1, big ? 6 : 3);
+    if (big) txt(fmtP(q), xx, ry - 10, `500 8.5px ${FM}`, 'rgba(233,241,238,.45)', 'center');
+  }
+  for (const o of objs.values()) {
+    const L = o.L, xx = Pk(L.p), c = CSS[kindCol(L.k)], liveL = L.state === 'live', age = L.lastFx != null ? t - L.lastFx : 9;
+    hg.fillStyle = rgba(c, (liveL ? .95 : .25) * o.fade); hg.fillRect(xx - 1, ry + 1, 2, liveL ? 6 : 3);
+    if (age < .7) { hg.fillStyle = rgba(c, .5 * (1 - age / .7)); hg.fillRect(xx - 10, ry - 18, 20, 26); }
+  }
+  for (const m of [MAG.up, MAG.dn]) if (m.p != null) { const xx = Pk(m.p); hg.fillStyle = m.up ? CSS.up : CSS.dn; hg.save(); hg.translate(xx, ry + 4); hg.rotate(Math.PI / 4); hg.fillRect(-3, -3, 6, 6); hg.restore(); }
+  hg.restore();
+  const moodC = lerpHex(CSS.dn, CSS.up, (H.mood + 1) / 2), px = Math.max(gx + 16, Math.min(LW - gx - 16, Pk(P)));
+  hg.fillStyle = moodC; hg.fillRect(px - .5, ry - 16, 1, 26);
+  hg.font = `600 9.5px ${FM}`; const lw = hg.measureText(fmtP(P)).width + 12;
+  hg.beginPath(); hg.roundRect(px - lw / 2, ry + 10, lw, 15, 2); hg.fill(); txt(fmtP(P), px, ry + 21, `600 9.5px ${FM}`, '#05080a', 'center');
+  // lower thirds
+  const bsh = hg.createLinearGradient(0, LH - 150, 0, LH); bsh.addColorStop(0, 'rgba(3,6,7,0)'); bsh.addColorStop(1, 'rgba(3,6,7,.85)'); hg.fillStyle = bsh; hg.fillRect(0, LH - 150, LW, 150);
+  FX.calls.forEach((c, i) => {
+    const age = t - c.t0, inK = EASE.out(Math.min(1, age / .28)), a = Math.max(0, inK - (age > 2 ? (age - 2) / .4 : 0));
+    const y = LH - 66 - i * 44, xo = gx - (1 - inK) * 24, col = CSS[c.col];
+    hg.globalAlpha = a * (i ? .6 : 1);
+    hg.font = `800 15px ${FD}`; const w1 = hg.measureText(c.title).width + c.title.length * 1.2; hg.font = `500 10.5px ${FM}`; const w = Math.max(w1, hg.measureText(c.sub).width) + 34;
+    hg.fillStyle = 'rgba(8,12,14,.78)'; hg.fillRect(xo, y - 22, w, 38); hg.fillStyle = col; hg.fillRect(xo, y - 22, 3, 38);
+    hg.save(); hg.font = `800 15px ${FD}`; hg.fillStyle = CSS.txt; hg.textAlign = 'left'; hg.textBaseline = 'alphabetic'; hg.letterSpacing = '1.2px'; hg.fillText(c.title, xo + 16, y - 4); hg.restore();
+    txt(c.sub, xo + 16, y + 10, `500 10.5px ${FM}`, rgba(col, .95));
+    hg.globalAlpha = 1;
+  });
+  // status, bottom right
+  const ago = Math.max(0, Math.round((Date.now() - updAt) / 1000));
+  txt(mode === 'live' ? `${nBooks} orderboeken · ververst ${ago} s geleden` : `uurdata van GlassSphere · ${nBooks} orderboeken`, LW - gx, LH - 30, `500 9px ${FM}`, 'rgba(233,241,238,.45)', 'right');
+  txt(`vandaag: ${stats.walls} muren · ${stats.stops} stops · ${fmtUsd(stats.liq)} liq. · ${stats.targets} doelen`, LW - gx, LH - 16, `500 9px ${FM}`, 'rgba(233,241,238,.3)', 'right');
+}
+
+let last = 0;
+function frame(ts) {
+  const dt = Math.min(.05, last ? (ts - last) / 1000 : 0); last = ts; now += dt;
+  if (D) { think(dt); physics(dt); render3d(dt); drawHud(); }
+  requestAnimationFrame(frame);
+}
+(async () => {
+  resize(); live.start();
+  site = await loadSite(); if (site) setData(site, 'site');
+  if (await loadLive()) setInterval(loadLive, 15e3);
+  else if (!site) { msg('GEEN DATA: BEURZEN EN ' + A.file.toUpperCase() + ' NIET BEREIKBAAR'); setInterval(async () => { if (await loadLive()) location.reload(); }, 30e3); }
+  else setInterval(loadLive, 30e3);
+  await (document.fonts ? document.fonts.ready : null);
+  // labels drawn before the fonts arrived are drawn again
+  for (const sp of labels.values()) { scene.remove(sp); dispose(sp); } labels.clear(); MAG.up.labelTxt = MAG.dn.labelTxt = '';
+  if (D) onLevels();
+  requestAnimationFrame(frame);
+})();
+// a hidden tab: the stream and the frames rest; back again, the hero catches up with the price
+document.addEventListener('visibilitychange', () => { last = 0; });
+window.HELD = { get D() { return D; }, get LV() { return LV; }, get TG() { return TG; }, H, queue, onPrice, live };
+})();
+</script>
+</body>
+</html>
