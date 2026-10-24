@@ -1607,7 +1607,7 @@ function targetsOf(cs, pools, P, days) {
 }
 /* ---------- buy / sell signals ----------
    The 3-day reading at 70% or more: Buy when "eerst omhoog", Sell when "eerst omlaag", marked on the candle where it
-   began, over the last 7 days. Each closed hour is worked out from the data as it was then (the same calculation as
+   began, over the last 7 days; it runs until the other one starts. Each closed hour is worked out from the data as it was then (the same calculation as
    the reading), the current hour from the data now. Cached per coin and hour. */
 const SIG = { days: 3, min: 70, hours: 168 };
 // How often the 3-day reading came true by the chance shown: the more likely target reached first, of the times one
@@ -1631,11 +1631,9 @@ function signals() {
     sigCache.set(key, hist); if (sigCache.size > 30) sigCache.delete(sigCache.keys().next().value);
   }
   const all = [...hist, { t: cs[n - 1][0], pUp: targetsOf(cs, poolsOf(D.stops, D.liqs, D.price), D.price, SIG.days).pUp }];
-  // a signal starts at 70% and runs until the chance drops under 60% (neutral) or the other signal starts, so a reading
-  // wavering around 70% does not repeat it
+  // a signal starts at 70% and runs until the other signal starts
   const pct = (h, sd) => h.pUp == null ? 0 : Math.round((sd === 'buy' ? h.pUp : 1 - h.pUp) * 100);
   const step = (cur, h) => {
-    if (cur && pct(h, cur) < 60) cur = null;
     for (const sd of ['buy', 'sell']) if (sd !== cur && pct(h, sd) >= SIG.min) return sd;
     return cur;
   };
