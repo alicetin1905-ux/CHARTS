@@ -1065,7 +1065,7 @@ function draw() {
     // labels newest first, each only where it does not run into a newer one
     ctx.font = `700 ${fs - 1}px ` + css('--mono'); const kept = [];
     for (const m of marks.reverse()) {
-      const pc0 = Math.round(m.sg.prob * 100), txt = `${m.buy ? 'BUY' : 'SELL'} ${pc0}%${m.sg.active ? ` · hist. ${hist3(pc0)}% · nu` : ''}`;   // older ones short
+      const txt = `${m.buy ? 'BUY' : 'SELL'} ${Math.round(m.sg.prob * 100)}%${m.sg.active ? ' · nu' : ''}`;
       const tw = ctx.measureText(txt).width + 10, ly = m.yt + m.d * 26;
       const lx = Math.max(2, Math.min(chartR - tw - 2, m.x - tw / 2));
       if (kept.some(k => lx < k.r + 4 && lx + tw > k.l - 4 && Math.abs(ly - k.y) < 20)) continue;
