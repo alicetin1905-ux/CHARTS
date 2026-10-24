@@ -2090,7 +2090,7 @@ const intro = (() => {
     orbAt = { x: ocx, y: ocy + bob, R };
     g.globalAlpha = 1;
   }
-  // each tile: the live price (OKX, every 15 s while the sphere is open) and the GlassSphere verdict for the chosen
+  // each tile: the live price (OKX's stream while the sphere is open, polled every 15 s while it is down) and the GlassSphere verdict for the chosen
   // horizon, from glasssphere-summary.json (written every hour with the data files)
   const fmt = (k, p) => p.toLocaleString('nl-NL', { minimumFractionDigits: ASSETS[k].dec, maximumFractionDigits: ASSETS[k].dec });
   const VERDICT = { up: ['Eerst omhoog', 'up'], down: ['Eerst omlaag', 'dn'], neutral: ['Neutraal', 'nt'] };
@@ -2099,12 +2099,41 @@ const intro = (() => {
   // in the move's colour
   async function btcBeat() {
     const T = tiles.find(x => x.k === 'btc'); if (!T) return;
-    try {
-      const p = +(await getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${ASSETS.btc.okx}`)).data[0].last;
-      if (T.last != null) { const d = p / T.last - 1; if (Math.abs(d) >= 0.0003) { beat = Math.min(1, beat + Math.abs(d) / 0.0015); beatDir = Math.sign(d); beatAt = performance.now(); } }
-      setPrice(T, p);
-    } catch (e) {}
+    const fresh = latest.btc && Date.now() - latest.btc.at < 5e3;
+    let p = fresh ? latest.btc.p : null;
+    if (p == null) try { p = +(await getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${ASSETS.btc.okx}`)).data[0].last; } catch (e) { return; }
+    if (T.beatRef != null) { const d = p / T.beatRef - 1; if (Math.abs(d) >= 0.0003) { beat = Math.min(1, beat + Math.abs(d) / 0.0015); beatDir = Math.sign(d); beatAt = performance.now(); } }
+    T.beatRef = p;                                             // the move is measured over these 3 s
+    if (!fresh) setPrice(T, p);
   }
+  // live prices over OKX's ticker stream for all coins while the sphere is open: it pushes every trade, each tile and
+  // the ticker are repainted at most once a second. The 15 s polling fills in while the stream is down
+  let ws = null, wsRetry = 0, wsT = 0, wsPing = 0;
+  const latest = {}, painted = {}, byInst = Object.fromEntries(tiles.map(T => [ASSETS[T.k].okx, T]));
+  function paintLive(T) { T.pend = 0; painted[T.k] = performance.now(); setPrice(T, latest[T.k].p); }
+  function wsOpen() {
+    if (ws || el.hidden || document.hidden) return;
+    let me; try { me = ws = new WebSocket('wss://ws.okx.com:8443/ws/v5/public'); } catch (e) { ws = null; return; }
+    me.onopen = () => { wsRetry = 0;
+      me.send(JSON.stringify({ op: 'subscribe', args: tiles.map(T => ({ channel: 'tickers', instId: ASSETS[T.k].okx })) }));
+      wsPing = setInterval(() => me.readyState === 1 && me.send('ping'), 25e3); };       // OKX closes a silent stream after 30 s
+    me.onmessage = e => {
+      if (e.data === 'pong') return;
+      try {
+        const m = JSON.parse(e.data), T = byInst[m.arg?.instId], d = m.data?.[0]; if (!T || !d || !(+d.last > 0)) return;
+        latest[T.k] = { p: +d.last, at: Date.now() };
+        const wait = 1000 - (performance.now() - (painted[T.k] || 0));
+        if (wait <= 0) paintLive(T); else if (!T.pend) T.pend = setTimeout(() => paintLive(T), wait);
+      } catch (er) {}
+    };
+    me.onclose = () => { clearInterval(wsPing); if (ws !== me) return; ws = null; if (!el.hidden) wsT = setTimeout(wsOpen, Math.min(30e3, 1000 * 2 ** wsRetry++)); };
+    me.onerror = () => me.close();
+  }
+  function wsClose() {
+    clearTimeout(wsT); clearInterval(wsPing); tiles.forEach(T => { clearTimeout(T.pend); T.pend = 0; });
+    const w = ws; ws = null; if (w) { w.onclose = null; try { w.close(); } catch (e) {} }
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) wsClose(); else if (!el.hidden) wsOpen(); });
   function verdicts() {
     const cnt = { up: 0, down: 0, neutral: 0 }, seenNow = {};
     for (const T of tiles) {
@@ -2134,6 +2163,7 @@ const intro = (() => {
   }
   async function prices() {
     await Promise.all(tiles.map(async T => { try {
+      if (latest[T.k] && Date.now() - latest[T.k].at < 20e3) return;          // the stream has it
       const x = (await getJSON(`https://www.okx.com/api/v5/market/ticker?instId=${ASSETS[T.k].okx}`)).data[0];
       setPrice(T, +x.last);
     } catch (e) {} }));
@@ -2227,16 +2257,16 @@ const intro = (() => {
     if (Math.hypot(e.clientX - orbAt.x, e.clientY - orbAt.y) < orbAt.R * 1.1) overview();
   });
   function finish() {
-    cancelAnimationFrame(raf); raf = 0; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); clearInterval(btimer); instant = false;
+    cancelAnimationFrame(raf); raf = 0; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); clearInterval(btimer); wsClose(); instant = false;
     const a = tiles[pick.i].k; pick = null;
     if (location.hash !== '#' + a) location.hash = a;       // a history entry, so Back returns to the sphere
   }
   function show() {
     el.hidden = false; el.style.opacity = 1; document.body.style.overflow = 'hidden'; pick = null; hover = -1; hideCard(cardEl); hideCard(sumEl);
     size(); t0 = performance.now(); if (!raf) raf = requestAnimationFrame(frame); live.stop();
-    verdicts(); loadSummary(); prices(); clearInterval(ptimer); ptimer = setInterval(prices, 15e3); clearInterval(btimer); btimer = setInterval(btcBeat, 3e3);
+    verdicts(); loadSummary(); prices(); clearInterval(ptimer); ptimer = setInterval(prices, 15e3); clearInterval(btimer); btimer = setInterval(btcBeat, 3e3); wsOpen();
   }
-  function hide() { if (el.hidden) return; cancelAnimationFrame(raf); raf = 0; pick = null; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); clearInterval(btimer); instant = false; }
+  function hide() { if (el.hidden) return; cancelAnimationFrame(raf); raf = 0; pick = null; el.hidden = true; document.body.style.overflow = ''; clearInterval(ptimer); clearInterval(btimer); wsClose(); instant = false; }
   wrap.addEventListener('click', e => {
     const b = e.target.closest('.ct'); if (!b || pick) return;
     if (lpDone) { lpDone = false; return; }                    // that was a long press: the preview stays
@@ -2282,7 +2312,7 @@ $('back').addEventListener('click', toSphere);
 document.querySelector('.mark').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toSphere(); } });
 addEventListener('hashchange', () => {          // Back / Forward between the sphere and a coin
   const a = location.hash.slice(1);
-  if (ASSETS[a]) { intro.hide(); if (a !== loaded) selectAsset(a); else live.start(); }
+  if (ASSETS[a]) { intro.hide(); if (a !== loaded) selectAsset(a); else if (!live.on) live.start(); }
   else intro.show();
 });
 // the live price only while a coin's page is on screen
