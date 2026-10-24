@@ -1,4 +1,4 @@
-"""Hourly check for GlassSphere: the first-target verdict on the page's standard horizon (3 days) now and an
+"""Hourly check for GlassSphere: the first-target verdict on the page's standard horizon (1 day) now and an
 hour ago, and alerts.
 
 Reads a data file written by `glasssphere_snapshot.py DIR --asset ...` (BTC, ETH, SOL, ..., WLD) and prints one status line,
@@ -23,7 +23,7 @@ DECIMALS = {'BTC': 0, 'ETH': 1, 'SOL': 2, 'BNB': 2, 'XRP': 4, 'DOGE': 5, 'SUI': 
             'WLD': 4, 'NEAR': 3,
             'HYPE': 2, 'ZEC': 2, 'LTC': 2, 'ADA': 4, 'UNI': 3, 'LINK': 3}   # as the page shows prices
 # smallest liquidation wave worth an alert, USD per hour (Gate's liquidations in the smaller coins are small)
-DAYS = 3   # the standard horizon of the page
+DAYS = 1   # the standard horizon of the page
 LIQ_MIN = {'BTC': 1e6, 'ETH': 5e5, 'SOL': 2e5, 'BNB': 2.5e4, 'XRP': 1e5, 'DOGE': 1e5, 'SUI': 5e4, 'ENA': 2.5e4,
            'PEPE': 1e5, 'WLD': 5e4, 'NEAR': 5e4,
            'HYPE': 1e5, 'ZEC': 1e5, 'LTC': 5e4, 'ADA': 5e4, 'UNI': 5e4, 'LINK': 5e4}

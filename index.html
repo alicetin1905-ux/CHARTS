@@ -565,8 +565,8 @@ header.top .px{transform-origin:left center;transform:scale(calc(1 - var(--sh,0)
     <div class="reading">
       <div class="verdict">
         <div class="seg" id="hz" aria-label="Termijn van de doelen">
-          <button data-v="1">1 dag</button>
-          <button data-v="3" class="on">3 dagen</button>
+          <button data-v="1" class="on">1 dag</button>
+          <button data-v="3">3 dagen</button>
           <button data-v="7">1 week</button>
         </div>
         <div class="vrow">
@@ -597,7 +597,7 @@ header.top .px{transform-origin:left center;transform:scale(calc(1 - var(--sh,0)
         <span><i class="sw" style="background:linear-gradient(90deg,var(--up),var(--dn))"></i>Doelen GlassSphere</span>
         <span><i class="sw" style="background:var(--stop)"></i>Stops (stippellijn, schatting)</span>
         <span><i class="sw" style="background:var(--liq)"></i>Liquidaties (stippellijn, schatting)</span>
-        <span><i class="sw" style="background:linear-gradient(90deg,var(--up) 50%,var(--dn) 50%)"></i>Buy / Sell: 3 dagen ≥ 70%</span>
+        <span><i class="sw" style="background:linear-gradient(90deg,var(--up) 50%,var(--dn) 50%)"></i>Buy / Sell: 1 dag ≥ 70%</span>
       </div>
     </div>
     <div class="stage"><canvas id="cv"></canvas><canvas id="fxc" aria-hidden="true"></canvas><div id="tip" hidden></div></div>
@@ -626,7 +626,7 @@ header.top .px{transform-origin:left center;transform:scale(calc(1 - var(--sh,0)
       <p><b>Limietorders</b> zijn echt: het zichtbare orderboek van de perp op tot 14 beurzen (niet elke munt staat op elke beurs; BitMEX heeft alleen BTC), in USD per blok. Waar een beurs PEPE per 1000 noteert (Binance, Bybit, Hyperliquid, Deribit) is de prijs teruggerekend naar 1 PEPE. Elk boek reikt maar zo ver als de beurs het geeft, dus verder van de prijs is het boek onvolledig: HTX ±0,35%, Crypto.com ±0,4%, OKX ±0,8%, MEXC ±1%, Bitget ±1,2%, dYdX ±1,5%, Hyperliquid ±2,4% (grove blokken), Gate ±3,5%, Bitfinex ±11%, Binance 1000 niveaus, Bybit 500 niveaus, en Deribit, BitMEX en Kraken het hele boek. MEXC, Kraken en Bitfinex blokkeren browsers en komen alleen uit de uurlijkse data (glasssphere-data.json en glasssphere-&lt;munt&gt;.json). Met <b>Gewogen naar volume</b> telt een beurs met meer diepte binnen ±1% dan zijn aandeel in het handelsvolume naar rato minder mee (dYdX en MEXC vooral). De kolom Stabiel in de tabel zegt hoeveel van de laatste 6 uur een muur er al stond, zodat muren die net verschijnen (mogelijke nepmuren) opvallen.</p>
       <p><b>Stops</b> (stop-loss, koopstop, verkoopstop) staan bij geen enkele beurs in het publieke boek. Hier geschat: net boven elke top die nog niet is geraakt (koopstops van shorts en uitbraakkopers), net onder elke ongeraakte bodem (verkoopstops van longs), gewogen naar het volume rond die top of bodem en hoe recent die is, plus een kleine bijdrage op ronde $1000-niveaus. In de grafiek staan de sterkste stop-niveaus boven en onder de prijs als gele stippellijn; een score 0–100, geen bedrag.</p>
       <p><b>Liquidaties</b> zijn geschat uit de groei van de openstaande posities (open interest) per uur op Gate (de enige beurs met gratis uurgeschiedenis): nieuwe posities op de gemiddelde prijs van dat uur, voor de helft verdeeld naar waar de kaars sloot en voor de helft naar het aandeel kopende marktorders, met 5×, 10×, 25× en 50× hefboom (30/35/25/10%). Die mix paste het best bij Gates echte liquidaties (correlatie 0,78 per uur over 161 dagen). Niveaus die de prijs al raakte zijn weggehaald, en de bedragen zijn opgeschaald naar de openstaande posities van alle beurzen samen. De grootste liquidatieniveaus staan in de grafiek als paarse stippellijn.</p>
-      <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week; standaard 3 dagen) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddeld dagbereik × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, openstaande posities, financiering (funding), CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
+      <p><b>Eerste doel</b> in GlassSphere: voor de gekozen termijn (1 dag, 3 dagen of 1 week; standaard 1 dag) het grootste cluster boven en onder de prijs tussen 0,3× en 1× de verwachte bewegingsruimte (gemiddeld dagbereik × √dagen). De kans dat het bovenste eerst geraakt wordt, is de afstand naar het onderste gedeeld door de som van beide afstanden. Getest op Binance-data van 2022 tot 2026 (<code>backtests/glasssphere.md</code>): die kansen kwamen elk jaar goed uit, maar een trade richting het waarschijnlijkste doel met de stop op het andere cluster leverde na kosten gemiddeld niets op. Momentum, openstaande posities, financiering (funding), CVD en de liquiditeitstrek voorspelden de richting niet of te zwak, en tellen daarom niet mee.</p>
     </details>
   </footer>
 </main>
@@ -732,13 +732,13 @@ const autoBucket = () => { const r = viewRange(), ks = Object.keys(A.auto).map(N
 const bucketSize = () => state.bucket || autoBucket() || A.buckets[2];
 const HZ_MIN = 0.3;                   // targets at least 0.3 x the expected range away, so they are worth a trade
 const hzLabel = d => d === 1 ? '1 dag' : d === 7 ? '1 week' : d + ' dagen';
-// standard horizon: 3 days for every coin. A horizon chosen on a coin's page is kept for that coin only.
-const hzDefault = k => 3;
+// standard horizon: 1 day for every coin. A horizon chosen on a coin's page is kept for that coin only.
+const hzDefault = k => 1;
 const horizons = {};      // chosen horizon per asset, where it differs from the standard
 const hzOf = k => horizons[k] || hzDefault(k);
 
 const $ = id => document.getElementById(id);
-const state = { zoom: 1, hoverX: null, asset: 'btc', data: null, live: false, src: '', range: 0, bucket: 0, tf: 60, horizon: 3, weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
+const state = { zoom: 1, hoverX: null, asset: 'btc', data: null, live: false, src: '', range: 0, bucket: 0, tf: 60, horizon: 1, weighted: true, off: new Set(), hover: null };   // bucket 0 = auto
 const buckets = {};      // bucket per asset (0 = auto)
 try {
   const s = JSON.parse(localStorage.getItem('glasssphere-prefs') || '{}');
@@ -1606,16 +1606,16 @@ function targetsOf(cs, pools, P, days) {
   return { range24, rH, minD, tUp, tDn, pUp: tUp && tDn ? (P - tDn.p) / (tUp.p - tDn.p) : null };
 }
 /* ---------- buy / sell signals ----------
-   The 3-day reading at 70% or more: Buy when "eerst omhoog", Sell when "eerst omlaag", marked on the candle where it
+   The 1-day reading (the standard one) at 70% or more: Buy when "eerst omhoog", Sell when "eerst omlaag", marked on the candle where it
    began, over the last 7 days; it runs until the other one starts. Each closed hour is worked out from the data as it was then (the same calculation as
    the reading), the current hour from the data now. Cached per coin and hour. */
-const SIG = { days: 3, min: 70, hours: 168 };
-// How often the 3-day reading came true by the chance shown: the more likely target reached first, of the times one
-// was reached within 3 days. 17 coins on the Binance archive, 2022 - Sep 2026 (scripts/glasssphere_threshold_test.py,
-// backtests/glasssphere.md section 5). With the stop as far as the target it won half the time: the chance comes from
-// the distances, not from foreseeing the direction
-const HIST3 = [[75, 86], [70, 79], [65, 75], [60, 68], [55, 60], [50, 54]];
-const hist3 = pct => (HIST3.find(([lo]) => pct >= lo) || [])[1];
+const SIG = { days: 1, min: 70, hours: 168 };
+// How often the reading came true by the chance shown, per horizon (days): the more likely target reached first, of the
+// times one was reached within the horizon. 17 coins on the Binance archive, 2022 - Sep 2026
+// (scripts/glasssphere_threshold_test.py, backtests/glasssphere.md section 5). With the stop as far as the target it won
+// half the time: the chance comes from the distances, not from foreseeing the direction
+const HIST = { 1: [[75, 86], [70, 81], [65, 75], [60, 68], [55, 61], [50, 54]], 3: [[75, 86], [70, 79], [65, 75], [60, 68], [55, 60], [50, 54]] };
+const histOf = (days, pct) => (HIST[days]?.find(([lo]) => pct >= lo) || [])[1];
 const sigCache = new Map();
 function signals() {
   const D = state.data, cs = D.candles, n = cs.length; if (n < 72) return [];
@@ -1696,7 +1696,7 @@ function renderReading() {
   const col = prob == null || Math.round(prob * 100) < 60 ? 'var(--nt)' : r.pUp > 0.5 ? 'var(--up)' : 'var(--dn)';
   $('rd-lab').textContent = lab; $('rd-lab').style.color = col;
   $('aurora').style.setProperty('--mood', col); orbFx.set(prob, r.pUp != null && r.pUp >= 0.5, col);
-  const hp = H === 3 && prob != null ? hist3(Math.round(prob * 100)) : null;     // measured for the 3-day reading only
+  const hp = prob != null ? histOf(H, Math.round(prob * 100)) : null;     // measured for 1 and 3 days, not for a week
   $('rd-sc').textContent = prob == null ? `geen cluster aan beide kanten binnen ${hl}` : `${fmtP(first.p)} vóór ${fmtP(other.p)} · ${Math.round(prob * 100)}% kans${hp ? ` · historisch ${hp}%` : ''}`;
   $('rd-chip').textContent = prob == null ? `${lab} · ${hl}` : `${lab} · ${Math.round(prob * 100)}% · ${hl}`; $('rd-chip').style.color = col;
   // the target bar: lower target left, upper right, the live price as a dot at its place between them
@@ -1730,7 +1730,7 @@ function renderReading() {
       (hp ? `<div><span>Kwam uit (test)</span><b>${hp}%</b><em>bij ${Math.round(prob * 100)}% getoond, 17 munten 2022–2026</em></div>` : '') +
       `<div><span>Winst : risico</span><b>1 : ${fx(dS / dT, 1)}</b><em>doel ${dist(Math.abs(first.p - P))}, stop ${dist(Math.abs(other.p - P))}</em></div></div>`;
     html += `<p class="lead">De kans komt alleen uit de afstanden: het dichtste cluster wordt vaker eerst geraakt. ` +
-      (hp ? `In de test kwam een getoonde ${Math.round(prob * 100)}% in ${hp}% van de keren uit (als binnen 3 dagen een doel geraakt werd). ` : '') +
+      (hp ? `In de test kwam een getoonde ${Math.round(prob * 100)}% in ${hp}% van de keren uit (als binnen ${hl} een doel geraakt werd). ` : '') +
       `Omdat de stop dan verder weg ligt dan het doel, levert een trade erop gemiddeld niets op; met een stop even ver als het doel won hij in de test maar de helft van de keren.</p>`;
   } else {
     html += `<p class="lead">Voor ${hl} (bewegingsruimte ±${dist(r.rH)}) ligt er niet aan beide kanten een cluster tussen ${dist(r.minD)} en ${dist(r.rH)} van de prijs. Kies een andere termijn.</p>`;
