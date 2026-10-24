@@ -260,6 +260,16 @@ header.top{background:rgba(7,10,9,.7);backdrop-filter:blur(18px) saturate(1.2);-
 .levels tbody tr:hover td{background:rgba(255,255,255,.025)}
 .levels tr.now{background:linear-gradient(90deg,rgba(238,244,240,.09),rgba(238,244,240,.02))}
 .levels tr.now td{background:transparent;text-shadow:0 0 12px rgba(238,244,240,.35)}
+/* the price's row stands out: larger, brighter, with a bright edge above and below and a pulsing live dot */
+.levels tr.now{background:linear-gradient(90deg,rgba(238,244,240,.2),rgba(110,200,255,.07) 60%,rgba(238,244,240,.03))}
+.levels tr.now td{font-size:14px;padding-top:12px;padding-bottom:12px;color:#fff;
+  box-shadow:inset 0 1px 0 rgba(238,244,240,.55),inset 0 -1px 0 rgba(238,244,240,.55);text-shadow:0 0 14px rgba(238,244,240,.6)}
+.levels tr.now td:first-child{font-size:18px;letter-spacing:.01em}
+.nowlbl{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:3px 10px 3px 8px;border-radius:999px;border:1px solid rgba(238,244,240,.6);background:rgba(238,244,240,.1);box-shadow:0 0 14px -2px rgba(238,244,240,.5);text-shadow:none}
+.nowlbl i{width:7px;height:7px;border-radius:50%;background:var(--up);box-shadow:0 0 8px var(--up);animation:now-dot 1.6s ease-in-out infinite}
+@keyframes now-dot{50%{opacity:.35;transform:scale(.7)}}
+@media (prefers-reduced-motion:reduce){.nowlbl i{animation:none}}
 .pill{background:rgba(255,255,255,.03);box-shadow:0 0 12px -3px currentColor}
 .meter{background:rgba(255,255,255,.06);height:7px;border-radius:4px}
 .meter i{border-radius:4px}
@@ -1340,7 +1350,7 @@ function renderLevels() {
     if (tr) old.delete(key);
     else {
       tr = document.createElement('tr'); tr.dataset.key = key;
-      tr.innerHTML = r.now ? '<td></td><td>0,00%</td><td>Huidige prijs</td><td></td><td></td><td></td>'
+      tr.innerHTML = r.now ? '<td></td><td>0,00%</td><td><span class="nowlbl"><i></i>Huidige prijs</span></td><td></td><td></td><td></td>'
         : `<td></td><td></td><td><span class="pill">${r.name}</span></td><td></td><td><span class="meter"><i style="width:0"></i></span></td><td></td>`;
       if (r.now) tr.className = 'now';
       else { tr.className = 'enter'; tr.addEventListener('animationend', e => e.target === tr.cells[0] && tr.classList.remove('enter')); }
