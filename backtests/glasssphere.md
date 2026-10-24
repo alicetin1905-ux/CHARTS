@@ -611,3 +611,48 @@ Targets: the largest pool above and below between *min* × and 1 × the expected
 | 3 d | 0.5 × | 3334 | 8.83% / 10.81% | 55% | 60% | 48% | +0.061% | -0.039% | -0.1 |
 | 7 d | 0.3 × | 3356 | 8.91% / 11.72% | 56% | 58% | 21% | +0.066% | -0.034% | -0.1 |
 | 7 d | 0.5 × | 2811 | 11.28% / 13.24% | 53% | 55% | 33% | +0.006% | -0.094% | -0.1 |
+
+## 5. Which chance comes true: the 3-day reading by the chance shown, 17 coins
+
+scripts/glasssphere_threshold_test.py: the page's 3-day reading (targets at least 0.3 × the expected range away) on the Binance archive, 2022 (or the listing) – Sep 2026, every 6 hours, for BTC, ETH, SOL, BNB, XRP, DOGE, SUI, ENA, 1000PEPE, WLD, NEAR, HYPE, ZEC, LTC, ADA, UNI and LINK. *Came true*: the more likely target was reached first, of the times one was reached within 3 days. *Trade*: toward it, stop at the other target, closed after 3 days if neither; 0.1% round-trip cost. All coins pooled, weighted by points.
+
+| Chance shown | Points | Mean shown | Came true | Neither in 3 days | Target / stop (median) | Avg trade after cost |
+|---|---|---|---|---|---|---|
+| 50-54% | 31797 | 52% | 54% | 44% | 7.5% / 8.2% | -0.03% |
+| 55-59% | 27814 | 57% | 60% | 40% | 6.2% / 8.3% | -0.14% |
+| 60-64% | 20492 | 62% | 68% | 37% | 5.1% / 8.4% | -0.07% |
+| 65-69% | 13683 | 67% | 74% | 33% | 4.3% / 8.6% | -0.05% |
+| 70-74% | 7240 | 72% | 79% | 30% | 3.6% / 9.0% | -0.12% |
+| 75-79% | 912 | 75% | 86% | 29% | 3.1% / 9.6% | -0.03% |
+
+| From | Points | Mean shown | Came true | Neither | Avg trade after cost |
+|---|---|---|---|---|---|
+| 55% | 70141 | 62% | 68% | 37% | -0.10% |
+| 60% | 42327 | 65% | 73% | 34% | -0.07% |
+| 65% | 21835 | 69% | 76% | 32% | -0.07% |
+| 70% | 8152 | 72% | 80% | 30% | -0.11% |
+| 75% | 912 | 75% | 86% | 29% | -0.03% |
+
+Per coin, from 65% (the buy / sell signal):
+
+| Coin | Points | Came true | Avg trade after cost | t |
+|---|---|---|---|---|
+| BTCUSDT | 1657 | 74% | -0.33% | -1.2 |
+| ETHUSDT | 1555 | 76% | -0.24% | -0.6 |
+| SOLUSDT | 1459 | 79% | +0.11% | +0.2 |
+| BNBUSDT | 1707 | 77% | -0.22% | -0.7 |
+| XRPUSDT | 1419 | 74% | -0.27% | -0.6 |
+| DOGEUSDT | 1541 | 77% | +0.02% | +0.0 |
+| SUIUSDT | 1093 | 76% | +0.01% | +0.0 |
+| ENAUSDT | 517 | 78% | +0.80% | +0.8 |
+| 1000PEPEUSDT | 866 | 74% | -0.05% | -0.1 |
+| WLDUSDT | 742 | 72% | -0.47% | -0.5 |
+| NEARUSDT | 1331 | 78% | +0.24% | +0.4 |
+| HYPEUSDT | 424 | 80% | +0.27% | +0.3 |
+| ZECUSDT | 1331 | 72% | -0.62% | -1.1 |
+| LTCUSDT | 1556 | 78% | -0.04% | -0.1 |
+| ADAUSDT | 1507 | 79% | +0.02% | +0.0 |
+| UNIUSDT | 1501 | 78% | -0.01% | -0.0 |
+| LINKUSDT | 1629 | 78% | +0.23% | +0.5 |
+
+The chance shown is conservative: what is shown as 65–69% came true 75% of the time, 75%+ 86%. But the higher the chance, the nearer the target and the farther the stop, so a trade toward it stays near zero after cost at every level, and no coin's result is far from noise (|t| ≤ 1.2). No minimum chance turns the reading into a profitable signal on its own.
