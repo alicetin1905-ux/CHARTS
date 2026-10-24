@@ -345,12 +345,13 @@ const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 60), floorMat); floor
 const floorBase = new THREE.Mesh(new THREE.PlaneGeometry(2000, 60), new THREE.MeshStandardMaterial({ color: 0x06090a, metalness: .3, roughness: .8, envMapIntensity: .15 }));
 floorBase.rotation.x = -Math.PI / 2; floorBase.position.y = -.005; scene.add(floorBase);
 
-function textSprite(lines, color, h) {
+function textSprite(lines, color, h, mid) {
   const c = document.createElement('canvas'), x = c.getContext('2d'), fs = 44, pad = 10;
   const font = i => i ? `500 ${fs * .8}px ${FM}` : `700 ${fs}px ${FD}`;
   const w = Math.max(...lines.map((l, i) => { x.font = font(i); return x.measureText(l).width; })) + pad * 2;
   c.width = Math.ceil(w); c.height = Math.ceil(fs * 1.25 * lines.length + pad * 2);
-  lines.forEach((l, i) => { x.font = font(i); x.fillStyle = i ? 'rgba(233,241,238,.75)' : color; x.textBaseline = 'top'; x.fillText(l, pad, pad + i * fs * 1.25); });
+  lines.forEach((l, i) => { x.font = font(i); x.fillStyle = i ? (i === 1 ? 'rgba(233,241,238,.92)' : 'rgba(233,241,238,.6)') : color; x.textBaseline = 'top';
+    x.textAlign = mid ? 'center' : 'left'; x.fillText(l, mid ? c.width / 2 : pad, pad + i * fs * 1.25); });
   const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
   const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, fog: false }));
   m.scale.set(h * c.width / c.height, h, 1); m.center.set(0, 0); m.userData = { w0: m.scale.x, h0: m.scale.y }; return m;
@@ -549,11 +550,13 @@ function onLevels() {
   const groups = new Map(); for (const o of objs.values()) if (!o.gone) { const p = o.L.p; if (!groups.has(p)) groups.set(p, []); groups.get(p).push(o.L); }
   for (const [p, sp] of labels) if (!groups.has(p)) { scene.remove(sp); dispose(sp); labels.delete(p); }
   for (const [p, ls] of groups) {
-    const title = ls.map(l => nameOf(l.k, l.above)).join(' + ').toUpperCase(), sub = fmtP(p) + '  ' + ls.map(l => l.v).join(' · ');
-    const old = labels.get(p); if (old && old.userData.txt === title + sub) continue;
+    // written in the level itself, horizontally: what it is, its size, its price
+    const title = ls.map(l => nameOf(l.k, l.above)).join(' + ').toUpperCase(), sub = ls.map(l => l.v).join(' · '), lines = [title, sub, fmtP(p)];
+    const old = labels.get(p); if (old && old.userData.txt === lines.join('|')) continue;
     if (old) { scene.remove(old); dispose(old); }
-    const top = ls.slice().sort((a, b) => b.rel - a.rel)[0], sp = textSprite([title, sub], CSS[kindCol(top.k)], .3);
-    sp.userData.txt = title + sub; sp.position.set(WX(p) + .05, .06, 1.35); scene.add(sp); labels.set(p, sp);
+    const top = ls.slice().sort((a, b) => b.rel - a.rel)[0], sp = textSprite(lines, CSS[kindCol(top.k)], .5, true);
+    const h = Math.max(...ls.map(l => objs.get(l.key)?.h ?? 1.3));
+    sp.userData.txt = lines.join('|'); sp.userData.y = h * .5; sp.center.set(.5, .5); sp.position.set(WX(p), h * .5, -.5); scene.add(sp); labels.set(p, sp);
   }
   // the magnets glide to the new targets
   for (const [k, up] of [['up', true], ['dn', false]]) {
@@ -753,19 +756,19 @@ function render3d(dt) {
       o.line.material.opacity = (L.state === 'live' ? (L.k === 'stop' ? .18 : .35) : .06) * f;
     }
   }
-  // floor labels: the most important first, and none on top of another one
+  // the labels in the levels: the most important first, and none on top of another one
   const shown = [], cand = [];
   for (const [p, sp] of labels) {
     const ls = [...objs.values()].filter(o => o.L.p === p), dead = ls.every(o => o.L.state !== 'live'), f = Math.max(0, ...ls.map(o => o.fade));
     const near = Math.max(0, 1 - Math.abs(p - H.p) / (camS * .55));
-    cand.push({ p, sp, a: near * (1 - wide) * (dead ? .35 : 1) * f, w: Math.max(...ls.map(o => o.L.rel)) * (dead ? .3 : 1) + near });
+    cand.push({ p, sp, f, a: (.65 + .35 * near) * (1 - wide) * (dead ? .35 : 1) * f, w: Math.max(...ls.map(o => o.L.rel)) * (dead ? .3 : 1) + near });
   }
   cand.sort((a, b) => b.w - a.w);
   for (const c of cand) {
-    const k = Math.max(.8, dist / 9); c.sp.scale.set(c.sp.userData.w0 * k, c.sp.userData.h0 * k, 1); c.sp.position.x = WX(c.p) + .05;
-    tmpV.set(WX(c.p), 0, 1.35).project(camera); const sx = (tmpV.x * .5 + .5) * W, wpx = c.sp.userData.w0 * k / span * W * .9;
+    const k = Math.min(1.6, Math.max(1, dist / 7)); c.sp.scale.set(c.sp.userData.w0 * k, c.sp.userData.h0 * k, 1); c.sp.position.set(WX(c.p), c.sp.userData.y * c.f, -.5);
+    tmpV.copy(c.sp.position).project(camera); const wpx = c.sp.userData.w0 * k / span * W * 1.05, sx = (tmpV.x * .5 + .5) * W - wpx / 2;
     const free = !shown.some(o => sx < o[1] + 22 && sx + wpx > o[0] - 22);
-    const target = free ? c.a : 0; c.sp.material.opacity += (target - c.sp.material.opacity) * Math.min(1, dt * 8);
+    if (free) c.sp.material.opacity += (c.a - c.sp.material.opacity) * Math.min(1, dt * 8); else c.sp.material.opacity = 0;   // a label in the way of a more important one goes at once
     c.sp.visible = c.sp.material.opacity > .01; if (free && c.a > .05) shown.push([sx, sx + wpx]);
   }
   // magnets
