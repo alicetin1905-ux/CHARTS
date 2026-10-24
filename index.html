@@ -172,6 +172,11 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 .verdict .k{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 .verdict .lab{font-size:24px;font-weight:700;letter-spacing:-.01em}
 .verdict .sc{font-family:var(--mono);font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+/* the chance as a glass sphere filled to the chance, in the verdict's colour; beside the verdict on a phone, above it
+   in the narrow column of a wide screen */
+.vrow{display:grid;grid-template-columns:120px;justify-content:center;gap:10px}
+.vtxt{display:grid;gap:10px;min-width:0}
+#rd-orb{width:120px;height:120px;order:-1;justify-self:center}
 /* target bar: the lower target left, the upper right, the live price as a glowing dot between them */
 .route{margin-top:22px}
 .rt-bar{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--dn),rgba(255,255,255,.08) 50%,var(--up))}
@@ -241,7 +246,18 @@ footer .dot.snap{background:var(--nt)}
 
 /* GlassSphere glass: translucent panels with a lit top edge and a soft glow, on a faint orb-like background */
 :root{--glass:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));--edge:rgba(130,210,255,.13);--edge-hi:rgba(255,255,255,.07)}
-body{background:radial-gradient(90% 55% at 50% -8%,rgba(53,255,176,.09),transparent 60%),radial-gradient(70% 45% at 100% 105%,rgba(77,159,255,.07),transparent 60%),var(--bg)}
+body{background:transparent}
+/* behind the page: the old glow plus two slow drifting clouds in the colour of the coin's verdict */
+@property --mood{syntax:'<color>';inherits:true;initial-value:#35ffb0}
+.aurora{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;--mood:var(--nt);transition:--mood 2.5s ease;
+  background:radial-gradient(90% 55% at 50% -8%,rgba(53,255,176,.09),transparent 60%),radial-gradient(70% 45% at 100% 105%,rgba(77,159,255,.07),transparent 60%)}
+.aurora i{position:absolute;left:50%;top:50%;width:120vmax;height:120vmax;margin:-60vmax 0 0 -60vmax;border-radius:50%;will-change:transform;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--mood) 15%,transparent),transparent);animation:aur1 28s ease-in-out infinite alternate}
+.aurora i+i{width:90vmax;height:90vmax;margin:-45vmax 0 0 -45vmax;animation:aur2 37s ease-in-out infinite alternate;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--mood) 11%,transparent),transparent)}
+@keyframes aur1{from{transform:translate(-32vw,-38vh) scale(1)}to{transform:translate(26vw,-12vh) scale(1.2)}}
+@keyframes aur2{from{transform:translate(30vw,36vh)}to{transform:translate(-22vw,8vh) scale(1.15)}}
+@media (prefers-reduced-motion:reduce){.aurora i{animation:none}}
 header.top{background:rgba(7,10,9,.7);backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2);border-bottom-color:var(--edge)}
 .mark img{box-shadow:0 0 14px rgba(53,255,176,.35)}
 .px b{text-shadow:0 0 18px rgba(238,244,240,.25)}
@@ -431,6 +447,8 @@ body.swap header.top .px{opacity:.25}
   .reading{grid-template-columns:minmax(0,1fr)}
   .verdict{border-right:0;border-bottom:1px solid var(--line)}
   .verdict .lab{font-size:20px}
+  .vrow{grid-template-columns:minmax(0,1fr) 96px;justify-content:stretch;align-items:center;gap:12px}
+  #rd-orb{width:96px;height:96px;order:0}
   .story{padding:12px}
   .calc table{font-size:11px}
   .calc th,.calc td{white-space:normal;padding:6px 6px}
@@ -439,6 +457,7 @@ body.swap header.top .px{opacity:.25}
 </style>
 </head>
 <body>
+<div class="aurora" id="aurora" aria-hidden="true"><i></i><i></i></div>
 
 <div id="intro" hidden>
   <canvas id="intro-cv" aria-hidden="true"></canvas>
@@ -510,9 +529,14 @@ body.swap header.top .px{opacity:.25}
           <button data-v="3" class="on">3 dagen</button>
           <button data-v="7">1 week</button>
         </div>
-        <div class="k">Eerste doel</div>
-        <div class="lab" id="rd-lab">—</div>
-        <div class="sc" id="rd-sc">—</div>
+        <div class="vrow">
+          <div class="vtxt">
+            <div class="k">Eerste doel</div>
+            <div class="lab" id="rd-lab">—</div>
+            <div class="sc" id="rd-sc">—</div>
+          </div>
+          <canvas id="rd-orb" aria-hidden="true"></canvas>
+        </div>
         <div class="route" aria-label="De prijs tussen de twee doelen">
           <div class="rt-bar"><b class="rt-dot" id="rd-dot"><span id="rd-now">—</span></b></div>
           <div class="rt-ends"><span id="rd-lo">—</span><span id="rd-hi">—</span></div>
@@ -921,6 +945,8 @@ function showPrice(p) {
 const fmtP = p => p.toLocaleString('nl-NL', { minimumFractionDigits: A.dec, maximumFractionDigits: A.dec });
 const fmtUsd = v => v >= 1e9 ? '$' + fx(v / 1e9, 2) + ' mld' : v >= 1e6 ? '$' + fx(v / 1e6, 1) + ' mln' : v >= 1e3 ? '$' + fx(v / 1e3, 0) + 'K' : '$' + fx(v, 0);
 const pct = p => { const d = (p / model.price - 1) * 100; return (d > 0 ? '+' : '') + fx(d, 2) + '%'; };
+const mixHex = (a, b, t) => { const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), x = p(a), y = p(b);
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
 function alpha(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; }
 const tfCandles = () => (state.tf === 15 && state.data.candles15) || (state.tf === 240 && state.data.candles4h) || state.data.candles;
 let geo = null;
@@ -964,7 +990,9 @@ function draw() {
   }
   // candles
   ctx.save(); ctx.beginPath(); ctx.rect(0, top, chartR, bot - top); ctx.clip();
+  const own = lvFx.own();                  // live: the newest candle and the price line are drawn by the live layer
   shown.forEach((c, i) => {
+    if (own && i === shown.length - 1) return;
     const x = 4 + i * barW, col = c[4] >= c[1] ? C.up : C.dn;
     ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1;
     if (glass) { ctx.shadowColor = alpha(col, .55); ctx.shadowBlur = 6; ctx.strokeStyle = alpha(col, .7); }
@@ -1052,19 +1080,21 @@ function draw() {
     ctx.beginPath(); rrect(W - axisW + 1, yy - 10, axisW - 2, 20, 10); ctx.fill(); ctx.shadowBlur = 0;
     ctx.fillStyle = css('--bg'); ctx.font = `700 ${fs}px ` + css('--mono'); ctx.fillText(fmtP(p), W - axisW + 4, yy);
   }
-  // current price
-  const yp = Math.round(y(model.price)) + .5;
-  if (glass) {
-    ctx.strokeStyle = C.txt; ctx.lineWidth = 1.5; ctx.shadowColor = alpha(C.txt, .8); ctx.shadowBlur = 8;
-    ctx.beginPath(); ctx.moveTo(0, yp); ctx.lineTo(W - axisW, yp); ctx.stroke(); ctx.shadowBlur = 0;
-    ctx.fillStyle = C.txt; ctx.beginPath(); rrect(W - axisW + 1, yp - 10, axisW - 2, 20, 10); ctx.fill();
-  } else {
-  ctx.strokeStyle = C.txt; ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, yp); ctx.lineTo(W - axisW, yp); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle = C.txt; ctx.fillRect(W - axisW + 1, yp - 10, axisW - 1, 20);
+  // current price (live: on the live layer, where it follows the price smoothly)
+  if (!own) {
+    const yp = Math.round(y(model.price)) + .5;
+    if (glass) {
+      ctx.strokeStyle = C.txt; ctx.lineWidth = 1.5; ctx.shadowColor = alpha(C.txt, .8); ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.moveTo(0, yp); ctx.lineTo(W - axisW, yp); ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.fillStyle = C.txt; ctx.beginPath(); rrect(W - axisW + 1, yp - 10, axisW - 2, 20, 10); ctx.fill();
+    } else {
+    ctx.strokeStyle = C.txt; ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, yp); ctx.lineTo(W - axisW, yp); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = C.txt; ctx.fillRect(W - axisW + 1, yp - 10, axisW - 1, 20);
+    }
+    ctx.fillStyle = css('--bg'); ctx.font = `700 ${fs}px ` + css('--mono'); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(fmtP(model.price), W - axisW + 4, yp);
   }
-  ctx.fillStyle = css('--bg'); ctx.font = `700 ${fs}px ` + css('--mono'); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText(fmtP(model.price), W - axisW + 4, yp);
 
   // crosshair: a line at the pointer both ways, its price on the axis and the candle's time at the bottom
   if (state.hover != null) {
@@ -1088,7 +1118,7 @@ function draw() {
   }
   if (state.zoom !== 1) { ctx.font = '10px ' + css('--mono'); ctx.fillStyle = C.faint; ctx.textBaseline = 'top';
     ctx.fillText(`zoom ${fx(state.zoom, 1)}× · dubbeltik = terug`, 8, 6); }
-  lvFx.kick();
+  lvFx.kick({ ...C, bg: css('--bg'), mono: css('--mono') }, fs);
 }
 
 /* ---------- level effects: on a layer over the chart, so the candles are not redrawn every frame ----------
@@ -1103,10 +1133,12 @@ const lvFx = (() => {
   const DUR = { liq: 1700, stop: 1400, bounce: 1500, break: 1600, target: 2300 };
   const SAY = { liq: 'Liquidaties!', stop: 'Stops geraakt', bounce: 'Muur houdt', break: 'Muur doorbroken', target: 'Doel geraakt' };
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
-  let raf = 0;
+  let raf = 0, lastF = 0, sp = null, spAt = 0, Cc = null, FS = 11;
+  const rr = (x, y, w, h, r) => g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h);
+  const own = () => !reduce.matches && live.on && !!state.data;
   const rnd = (seed, i) => { const x = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453; return x - Math.floor(x); };
   const eo = t => 1 - Math.pow(1 - t, 3);
-  function kick() { if (!raf) raf = requestAnimationFrame(frame); }
+  function kick(c, fs) { if (c) { Cc = c; FS = fs; } if (!raf) raf = requestAnimationFrame(frame); }
   function check(prev, p) {
     if (!geo?.levels || !model || !(prev > 0) || prev === p) return;
     const now = performance.now(), tol = model.B * 0.6;
@@ -1169,13 +1201,37 @@ const lvFx = (() => {
     g.beginPath(); g.roundRect ? g.roundRect(x0, y - 22 - 11, w, 22, 11) : g.rect(x0, y - 33, w, 22); g.fill(); g.stroke();
     g.fillStyle = col; g.fillText(txt, x0 + 8, y - 22); g.globalAlpha = 1;
   }
+  // the newest candle grows with the live price, its colour shifting between red and green, in a soft pulsing glow;
+  // the price line follows smoothly, with a dot pulsing where the candle closes
+  function liveCandle(now) {
+    const { y, top, bot, chartR, axisW, barW, shown, W } = geo; if (!shown?.length || !Cc) return;
+    const P = model.price, dt = Math.min(0.1, (now - (spAt || now)) / 1000); spAt = now;
+    if (sp == null || Math.abs(sp - P) > (model.hi - model.lo) * 0.15) sp = P; else sp += (P - sp) * Math.min(1, dt * 9);
+    const i = shown.length - 1, c = shown[i], x = 4 + i * barW, o = c[1], hi = Math.max(c[2], sp), lo = Math.min(c[3], sp);
+    const k = Math.max(-1, Math.min(1, (sp - o) / (model.B * 0.6))), col = mixHex(Cc.dn, Cc.up, (k + 1) / 2), pulse = 0.5 + 0.5 * Math.sin(now / 420);
+    g.save(); g.beginPath(); g.rect(0, top, chartR, bot - top); g.clip();
+    g.strokeStyle = alpha(col, .8); g.fillStyle = col; g.lineWidth = 1; g.shadowColor = alpha(col, .9); g.shadowBlur = 8 + 10 * pulse;
+    g.beginPath(); g.moveTo(x + barW / 2, y(hi)); g.lineTo(x + barW / 2, y(lo)); g.stroke();
+    const yo = y(o), yc = y(sp); g.beginPath(); rr(x + 1, Math.min(yo, yc), barW - 2, Math.max(1.5, Math.abs(yo - yc)), 1.5); g.fill();
+    g.restore();
+    const yp = Math.round(y(sp)) + .5, xr = W - axisW;
+    g.strokeStyle = Cc.txt; g.lineWidth = 1.5; g.shadowColor = alpha(Cc.txt, .8); g.shadowBlur = 8;
+    g.beginPath(); g.moveTo(0, yp); g.lineTo(xr, yp); g.stroke(); g.shadowBlur = 0;
+    g.fillStyle = alpha(Cc.txt, .2 + .3 * pulse); g.beginPath(); g.arc(x + barW / 2, yp, 3 + 3 * pulse, 0, 7); g.fill();
+    g.fillStyle = Cc.txt; g.beginPath(); rr(xr + 1, yp - 10, axisW - 2, 20, 10); g.fill();
+    g.fillStyle = Cc.bg; g.font = `700 ${FS}px ${Cc.mono}`; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(fmtP(P), xr + 4, yp);
+  }
   function frame(now) {
     raf = 0;
+    const live1 = own();
+    if (live1 && !list.length && now - lastF < 30) { raf = requestAnimationFrame(frame); return; }   // 30 a second unless an effect runs
+    lastF = now;
     const dpr = window.devicePixelRatio || 1, W = fc.clientWidth, H = fc.clientHeight;
     if (fc.width !== Math.round(W * dpr) || fc.height !== Math.round(H * dpr)) { fc.width = Math.round(W * dpr); fc.height = Math.round(H * dpr); }
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
     if (!geo?.levels || !model || document.getElementById('intro').hidden === false || document.hidden) { list.length = 0; return; }
     const { y, axisW, barW, nBars } = geo, xr = W - axisW, xp = Math.min(xr - 4, 4 + (nBars - 0.5) * barW);   // xp: the newest candle
+    if (live1) liveCandle(now);
     // breathing: brighter and faster the closer the price is
     let near = false;
     if (!reduce.matches) for (const L of geo.levels) {
@@ -1243,9 +1299,64 @@ const lvFx = (() => {
       }
       pill(SAY[e.type], xp, yy, col, Math.min(1, f * 2.5), taken);
     }
-    if (list.length || near) raf = requestAnimationFrame(frame);
+    if (list.length || near || live1) raf = requestAnimationFrame(frame);
   }
-  return { kick, check, table };
+  return { kick, check, table, own };
+})();
+
+/* ---------- the chance sphere: glass filled to the chance of the first target, in the verdict's colour. The liquid
+   sways, more when the live price moves, and small bubbles rise in it ---------- */
+const orbFx = (() => {
+  const cv = $('rd-orb'), g = cv.getContext('2d'), reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  let fill = 0, to = 0, col = '#ffc857', colTo = col, up = true, txt = '—', energy = 0, raf = 0, seen = true, last = 0, mono = null;
+  new IntersectionObserver(([e]) => { seen = e.isIntersecting; if (seen) kick(); }).observe(cv);
+  const hex = c => c.startsWith('var(') ? css(c.slice(4, -1)) : c;
+  function set(prob, isUp, c) { to = prob == null ? 0 : prob; up = isUp; colTo = hex(c); txt = prob == null ? '—' : Math.round(prob * 100) + '%'; kick(); }
+  function nudge(k) { energy = Math.min(1, energy + k); kick(); }
+  function kick() { if (!raf) raf = requestAnimationFrame(frame); }
+  function frame(now) {
+    raf = 0;
+    if (!seen || document.hidden || !$('rd').open || !document.getElementById('intro').hidden) { last = 0; return; }
+    if (last && now - last < 30) { raf = requestAnimationFrame(frame); return; }
+    const dt = last ? Math.min(0.1, (now - last) / 1000) : 0.016; last = now;
+    const dpr = window.devicePixelRatio || 1, S = cv.clientWidth; if (!S) return;
+    if (cv.width !== Math.round(S * dpr)) cv.width = cv.height = Math.round(S * dpr);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, S, S);
+    const still = reduce.matches, t = now / 1000;
+    fill = still ? to : fill + (to - fill) * Math.min(1, dt * 2.5); energy *= Math.pow(0.4, dt);
+    col = mixHex(col, colTo, still ? 1 : Math.min(1, dt * 3)); mono = mono || css('--mono');
+    const R = S / 2 - 4, cx = S / 2, cy = S / 2;
+    const gl = g.createRadialGradient(cx, cy, R * .8, cx, cy, R + 4); gl.addColorStop(0, alpha(col, 0)); gl.addColorStop(1, alpha(col, .3));
+    g.fillStyle = gl; g.beginPath(); g.arc(cx, cy, R + 4, 0, 7); g.fill();
+    g.save(); g.beginPath(); g.arc(cx, cy, R, 0, 7); g.clip();
+    const body = g.createRadialGradient(cx - R * .25, cy - R * .3, R * .1, cx, cy, R);
+    body.addColorStop(0, '#0f2a2c'); body.addColorStop(.7, '#071719'); body.addColorStop(1, '#04100f');
+    g.fillStyle = body; g.fillRect(0, 0, S, S);
+    // the liquid: its level is the chance, its surface two waves
+    const lvl = cy + R - 2 * R * fill, A = still ? 0 : R * (0.025 + 0.1 * energy);
+    const wave = x => lvl + A * Math.sin(x / R * 3.2 + t * 2.1) + A * 0.6 * Math.sin(x / R * 5.3 - t * 3.1);
+    g.beginPath(); g.moveTo(cx - R, cy + R); for (let x = -R; x <= R; x += 2) g.lineTo(cx + x, wave(x)); g.lineTo(cx + R, cy + R); g.closePath();
+    const lg = g.createLinearGradient(0, lvl - R * .1, 0, cy + R); lg.addColorStop(0, alpha(col, .9)); lg.addColorStop(1, alpha(col, .3));
+    g.fillStyle = lg; g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.2; g.beginPath(); for (let x = -R; x <= R; x += 2) x === -R ? g.moveTo(cx + x, wave(x)) : g.lineTo(cx + x, wave(x)); g.stroke();
+    if (!still && fill > 0.05) for (let k = 0; k < 7; k++) {                  // bubbles
+      const ph = (t * (0.16 + k * 0.03) + k * 0.37) % 1, bx = cx + Math.sin(k * 2.3 + t * 0.7) * R * 0.5, by = cy + R - ph * (cy + R - lvl);
+      g.fillStyle = `rgba(255,255,255,${0.3 * (1 - ph)})`; g.beginPath(); g.arc(bx, by, 1 + (k % 3) * 0.7, 0, 7); g.fill();
+    }
+    const fr = g.createRadialGradient(cx, cy, R * .7, cx, cy, R); fr.addColorStop(0, 'rgba(110,200,255,0)'); fr.addColorStop(1, 'rgba(110,200,255,.5)');
+    g.fillStyle = fr; g.fillRect(0, 0, S, S);
+    const sp = g.createRadialGradient(cx - R * .38, cy - R * .45, 0, cx - R * .38, cy - R * .45, R * .45);
+    sp.addColorStop(0, 'rgba(255,255,255,.5)'); sp.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = sp; g.fillRect(0, 0, S, S);
+    g.restore();
+    g.strokeStyle = alpha(col, .65); g.lineWidth = 1.3; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.shadowColor = 'rgba(0,0,0,.75)'; g.shadowBlur = 6;
+    g.font = `700 ${Math.round(S * .22)}px ${mono}`; g.fillStyle = '#fff'; g.fillText(txt, cx, cy + S * .04);
+    if (to) { g.font = `600 ${Math.round(S * .11)}px ${mono}`; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillText(up ? '▲ omhoog' : '▼ omlaag', cx, cy + S * .25); }
+    g.shadowBlur = 0;
+    if (!still || Math.abs(to - fill) > 0.001) raf = requestAnimationFrame(frame);
+  }
+  $('rd').addEventListener('toggle', kick);
+  return { set, nudge, kick };
 })();
 
 /* ---------- tooltip ---------- */
@@ -1452,6 +1563,7 @@ function renderReading() {
   }
   const col = prob == null || Math.round(prob * 100) < 60 ? 'var(--nt)' : r.pUp > 0.5 ? 'var(--up)' : 'var(--dn)';
   $('rd-lab').textContent = lab; $('rd-lab').style.color = col;
+  $('aurora').style.setProperty('--mood', col); orbFx.set(prob, r.pUp != null && r.pUp >= 0.5, col);
   $('rd-sc').textContent = prob == null ? `geen cluster aan beide kanten binnen ${hl}` : `${fmtP(first.p)} vóór ${fmtP(other.p)} · ${Math.round(prob * 100)}% kans`;
   $('rd-chip').textContent = prob == null ? `${lab} · ${hl}` : `${lab} · ${Math.round(prob * 100)}% · ${hl}`; $('rd-chip').style.color = col;
   // the target bar: lower target left, upper right, the live price as a dot at its place between them
@@ -1625,7 +1737,7 @@ const live = (() => {
     const D = state.data; if (!D || !model) return;
     for (const [k, ms] of DUR) { const cs = D[k], c = cs?.[cs.length - 1];       // only a candle that is still open
       if (c && at < c[0] + ms) { c[4] = p; if (p > c[2]) c[2] = p; if (p < c[3]) c[3] = p; } }
-    const prev = model.price; model.price = p; lvFx.check(prev, p);
+    const prev = model.price; model.price = p; lvFx.check(prev, p); orbFx.nudge(Math.min(0.4, Math.abs(p - prev) / model.B * 0.25));
     if (at - shownAt >= 1000) paint(); else if (!drawT) drawT = setTimeout(paint, 1000 - (at - shownAt));
   }
   async function pollOnce() {
