@@ -656,3 +656,18 @@ Per coin, from 65% (the buy / sell signal):
 | LINKUSDT | 1629 | 78% | +0.23% | +0.5 |
 
 The chance shown is conservative: what is shown as 65–69% came true 75% of the time, 75%+ 86%. But the higher the chance, the nearer the target and the farther the stop, so a trade toward it stays near zero after cost at every level, and no coin's result is far from noise (|t| ≤ 1.2). No minimum chance turns the reading into a profitable signal on its own.
+
+### Other stops: take profit at the more likely target, stop at a multiple of its distance
+
+Instead of the stop at the other target: the stop at 0.5, 0.75, 1 or 1.5 × the distance to the target (a candle touching both counts as the stop; closed after 3 days if neither; 0.1% round-trip cost). Avg trade after cost (share of winning trades), all coins pooled.
+
+| From | Points | Stop at the other target | Stop 0.5× | Stop 0.75× | Stop 1× | Stop 1.5× |
+|---|---|---|---|---|---|---|
+| 55% | 70141 | -0.10% | -0.10% (36%) | -0.09% (44%) | -0.09% (50%) | -0.10% (54%) |
+| 60% | 42327 | -0.07% | -0.07% (35%) | -0.07% (44%) | -0.07% (50%) | -0.07% (55%) |
+| 65% | 21835 | -0.07% | -0.04% (35%) | -0.04% (44%) | -0.04% (50%) | -0.06% (56%) |
+| 70% | 8152 | -0.11% | -0.04% (35%) | -0.04% (44%) | -0.05% (50%) | -0.06% (57%) |
+
+From 65%, coins with a positive result: stop 0.5× 6 of 17, stop 0.75× 7 of 17, stop 1.0× 8 of 17, stop 1.5× 9 of 17; the largest |t| is 1.9 (BTC, losing).
+
+With the stop as far as the target the trade wins half the time: the reading picks the nearer pool, which the price reaches first more often because it is nearer, not because the reading foresees the direction. No stop makes it pay after cost.

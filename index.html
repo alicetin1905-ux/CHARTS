@@ -1065,7 +1065,8 @@ function draw() {
     // labels newest first, each only where it does not run into a newer one
     ctx.font = `700 ${fs - 1}px ` + css('--mono'); const kept = [];
     for (const m of marks.reverse()) {
-      const txt = `${m.buy ? 'BUY' : 'SELL'} ${Math.round(m.sg.prob * 100)}%${m.sg.active ? ' · nu' : ''}`, tw = ctx.measureText(txt).width + 10, ly = m.yt + m.d * 26;
+      const pc0 = Math.round(m.sg.prob * 100), txt = `${m.buy ? 'BUY' : 'SELL'} ${pc0}%${m.sg.active ? ` · hist. ${hist3(pc0)}% · nu` : ''}`;   // older ones short
+      const tw = ctx.measureText(txt).width + 10, ly = m.yt + m.d * 26;
       const lx = Math.max(2, Math.min(chartR - tw - 2, m.x - tw / 2));
       if (kept.some(k => lx < k.r + 4 && lx + tw > k.l - 4 && Math.abs(ly - k.y) < 20)) continue;
       kept.push({ l: lx, r: lx + tw, y: ly });
@@ -1609,6 +1610,12 @@ function targetsOf(cs, pools, P, days) {
    began, over the last 7 days. Each closed hour is worked out from the data as it was then (the same calculation as
    the reading), the current hour from the data now. Cached per coin and hour. */
 const SIG = { days: 3, min: 65, hours: 168 };
+// How often the 3-day reading came true by the chance shown: the more likely target reached first, of the times one
+// was reached within 3 days. 17 coins on the Binance archive, 2022 - Sep 2026 (scripts/glasssphere_threshold_test.py,
+// backtests/glasssphere.md section 5). With the stop as far as the target it won half the time: the chance comes from
+// the distances, not from foreseeing the direction
+const HIST3 = [[75, 86], [70, 79], [65, 75], [60, 68], [55, 60], [50, 54]];
+const hist3 = pct => (HIST3.find(([lo]) => pct >= lo) || [])[1];
 const sigCache = new Map();
 function signals() {
   const D = state.data, cs = D.candles, n = cs.length; if (n < 72) return [];
@@ -1691,7 +1698,8 @@ function renderReading() {
   const col = prob == null || Math.round(prob * 100) < 60 ? 'var(--nt)' : r.pUp > 0.5 ? 'var(--up)' : 'var(--dn)';
   $('rd-lab').textContent = lab; $('rd-lab').style.color = col;
   $('aurora').style.setProperty('--mood', col); orbFx.set(prob, r.pUp != null && r.pUp >= 0.5, col);
-  $('rd-sc').textContent = prob == null ? `geen cluster aan beide kanten binnen ${hl}` : `${fmtP(first.p)} vóór ${fmtP(other.p)} · ${Math.round(prob * 100)}% kans`;
+  const hp = H === 3 && prob != null ? hist3(Math.round(prob * 100)) : null;     // measured for the 3-day reading only
+  $('rd-sc').textContent = prob == null ? `geen cluster aan beide kanten binnen ${hl}` : `${fmtP(first.p)} vóór ${fmtP(other.p)} · ${Math.round(prob * 100)}% kans${hp ? ` · historisch ${hp}%` : ''}`;
   $('rd-chip').textContent = prob == null ? `${lab} · ${hl}` : `${lab} · ${Math.round(prob * 100)}% · ${hl}`; $('rd-chip').style.color = col;
   // the target bar: lower target left, upper right, the live price as a dot at its place between them
   const pos = r.pUp == null ? 50 : Math.max(0, Math.min(100, r.pUp * 100));
@@ -1721,8 +1729,11 @@ function renderReading() {
       `<span class="tg-k">bewegingsruimte ${hl} ±${dist(r.rH)}</span></div>${row(r.tDn, false)}</div>`;
     html += `<div class="kv">` +
       `<div><span>Kans eerst</span><b>${Math.round(prob * 100)}%</b><em>${fmtP(first.p)} vóór ${fmtP(other.p)}</em></div>` +
+      (hp ? `<div><span>Kwam uit (test)</span><b>${hp}%</b><em>bij ${Math.round(prob * 100)}% getoond, 17 munten 2022–2026</em></div>` : '') +
       `<div><span>Winst : risico</span><b>1 : ${fx(dS / dT, 1)}</b><em>doel ${dist(Math.abs(first.p - P))}, stop ${dist(Math.abs(other.p - P))}</em></div></div>`;
-    html += `<p class="lead">De kans komt alleen uit de afstanden: het dichtste cluster wordt vaker eerst geraakt. Omdat de stop dan verder weg ligt dan het doel, levert een trade erop gemiddeld niets op.</p>`;
+    html += `<p class="lead">De kans komt alleen uit de afstanden: het dichtste cluster wordt vaker eerst geraakt. ` +
+      (hp ? `In de test kwam een getoonde ${Math.round(prob * 100)}% in ${hp}% van de keren uit (als binnen 3 dagen een doel geraakt werd). ` : '') +
+      `Omdat de stop dan verder weg ligt dan het doel, levert een trade erop gemiddeld niets op; met een stop even ver als het doel won hij in de test maar de helft van de keren.</p>`;
   } else {
     html += `<p class="lead">Voor ${hl} (bewegingsruimte ±${dist(r.rH)}) ligt er niet aan beide kanten een cluster tussen ${dist(r.minD)} en ${dist(r.rH)} van de prijs. Kies een andere termijn.</p>`;
   }

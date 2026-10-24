@@ -4,6 +4,8 @@ range away) on the Binance archive, 2022 (or the listing) - Sep 2026, every 6 ho
 For each group: how often the more likely target was reached first (of the times one was reached within 3 days), how
 often neither was, and the result of a trade toward it with the stop at the other target (closed after 3 days if
 neither; 0.1% round-trip cost). Also from a minimum chance up (55%, 60%, ... 80%), as a buy / sell signal would use it.
+Other stops (alt): take profit at the more likely target with the stop at 0.5, 0.75, 1 or 1.5 x the target's distance
+instead of at the other target (closed after 3 days if neither; a candle touching both counts as the stop).
 
     python3 scripts/glasssphere_threshold_test.py [cache_dir] --symbol BTCUSDT [--json OUT]
 Uses the archive cache of glasssphere_backtest_long.py; prints a table and, with --json, writes the numbers.
@@ -17,6 +19,7 @@ import glasssphere_backtest_long as L  # noqa: E402  (reads --symbol and the cac
 import glasssphere_model as M  # noqa: E402
 
 DAYS, LO, STEP, FEE = 3, 0.3, 6, L.FEE
+STOPS = [0.5, 0.75, 1.0, 1.5]                      # stop distance as a multiple of the target distance
 BUCKETS = [(50, 55), (55, 60), (60, 65), (65, 70), (70, 75), (75, 80), (80, 101)]
 MINS = [55, 60, 65, 70, 75, 80]
 
@@ -53,8 +56,19 @@ def points(candles, stats):
             pnl = -stp                                    # same candle: assume the stop came first
         else:
             pnl = (candles[k + 24 * DAYS][4] / P - 1) * (1 if go_up else -1)
+        path, end = candles[k + 1:k + 1 + 24 * DAYS], candles[k + 24 * DAYS][4] / P - 1
+        alt = {}
+        for m in STOPS:                                   # take profit at the target, stop at m x its distance
+            r = None
+            for x in path:
+                fav, adv = (x[2] / P - 1, 1 - x[3] / P) if go_up else (1 - x[3] / P, x[2] / P - 1)
+                if adv >= m * tgt:
+                    r = -m * tgt; break
+                if fav >= tgt:
+                    r = tgt; break
+            alt[str(m)] = (r if r is not None else end * (1 if go_up else -1)) - FEE
         out.append({'pct': round(max(p_up, 1 - p_up) * 100), 'first': first, 'right': first in ('up', 'down') and (first == 'up') == go_up,
-                    'tgt': tgt, 'stp': stp, 'pnl': pnl - FEE})
+                    'tgt': tgt, 'stp': stp, 'pnl': pnl - FEE, 'alt': alt})
     return out
 
 
@@ -66,7 +80,11 @@ def stats_of(rs):
     sd = (sum((r['pnl'] - m) ** 2 for r in rs) / len(rs)) ** 0.5
     neff = max(len(rs) * STEP / (24 * DAYS), 2)          # overlapping 3-day windows: about one independent per 3 days
     med = lambda xs: sorted(xs)[len(xs) // 2]
-    return {'n': len(rs), 'pred': sum(r['pct'] for r in rs) / len(rs), 'hit': sum(r['right'] for r in hit) / max(len(hit), 1),
+    alt = {}
+    for k in rs[0]['alt']:
+        xs = [r['alt'][k] for r in rs]; am = sum(xs) / len(xs); asd = (sum((x - am) ** 2 for x in xs) / len(xs)) ** 0.5
+        alt[k] = {'pnl': am, 'win': sum(x > 0 for x in xs) / len(xs), 't': am / asd * neff ** 0.5 if asd else 0}
+    return {'alt': alt, 'n': len(rs), 'pred': sum(r['pct'] for r in rs) / len(rs), 'hit': sum(r['right'] for r in hit) / max(len(hit), 1),
             'neither': 1 - len(hit) / len(rs), 'tgt': med([r['tgt'] for r in rs]), 'stp': med([r['stp'] for r in rs]),
             'pnl': m, 't': m / sd * neff ** 0.5 if sd else 0}
 
@@ -82,7 +100,8 @@ def main():
         for k, s in part.items():
             if s:
                 print(f"  {name} {k:>7}  n {s['n']:5d}  getoond {s['pred']:.0f}%  uitgekomen {s['hit']:.0%}  geen {s['neither']:.0%}  "
-                      f"doel {s['tgt']:.1%} / stop {s['stp']:.1%}  trade {s['pnl']:+.2%}  t {s['t']:+.1f}")
+                      f"doel {s['tgt']:.1%} / stop {s['stp']:.1%}  trade {s['pnl']:+.2%}  t {s['t']:+.1f}  | " +
+                      '  '.join(f"stop {k}x {v['pnl']:+.2%}" for k, v in s['alt'].items()))
     if '--json' in sys.argv:
         json.dump(res, open(sys.argv[sys.argv.index('--json') + 1], 'w'))
 
