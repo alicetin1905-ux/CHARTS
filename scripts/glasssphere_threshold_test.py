@@ -21,6 +21,8 @@ import glasssphere_model as M  # noqa: E402
 DAYS = int(sys.argv[sys.argv.index('--days') + 1]) if '--days' in sys.argv else 3     # the reading's horizon
 LO, STEP, FEE = 0.3, 6, L.FEE
 STOPS = [0.5, 0.75, 1.0, 1.5]                      # stop distance as a multiple of the target distance
+# your own take profit and stop, both as a multiple of the distance to the more likely target
+GRID = [(tp, sl) for tp in (0.5, 0.75, 1.0) for sl in (0.5, 1.0, 1.5, 2.0)]
 BUCKETS = [(50, 55), (55, 60), (60, 65), (65, 70), (70, 75), (75, 80), (80, 101)]
 MINS = [55, 60, 65, 70, 75, 80]
 
@@ -68,8 +70,20 @@ def points(candles, stats):
                 if fav >= tgt:
                     r = tgt; break
             alt[str(m)] = (r if r is not None else end * (1 if go_up else -1)) - FEE
+        grid = {}
+        for tp, sl in GRID:                               # [result, 'tp' / 'sl' / 'time']
+            r = None
+            for x in path:
+                fav, adv = (x[2] / P - 1, 1 - x[3] / P) if go_up else (1 - x[3] / P, x[2] / P - 1)
+                if adv >= sl * tgt:
+                    r = [-sl * tgt, 'sl']; break
+                if fav >= tp * tgt:
+                    r = [tp * tgt, 'tp']; break
+            r = r or [end * (1 if go_up else -1), 'time']
+            grid[f'{tp}/{sl}'] = [r[0] - FEE, r[1]]
+        how = 'tp' if first in ('up', 'down') and (first == 'up') == go_up else 'sl' if first else 'time'
         out.append({'pct': round(max(p_up, 1 - p_up) * 100), 'first': first, 'right': first in ('up', 'down') and (first == 'up') == go_up,
-                    'tgt': tgt, 'stp': stp, 'pnl': pnl - FEE, 'alt': alt})
+                    'tgt': tgt, 'stp': stp, 'pnl': pnl - FEE, 'alt': alt, 'grid': grid, 'how': how})
     return out
 
 
@@ -85,7 +99,14 @@ def stats_of(rs):
     for k in rs[0]['alt']:
         xs = [r['alt'][k] for r in rs]; am = sum(xs) / len(xs); asd = (sum((x - am) ** 2 for x in xs) / len(xs)) ** 0.5
         alt[k] = {'pnl': am, 'win': sum(x > 0 for x in xs) / len(xs), 't': am / asd * neff ** 0.5 if asd else 0}
-    return {'alt': alt, 'n': len(rs), 'pred': sum(r['pct'] for r in rs) / len(rs), 'hit': sum(r['right'] for r in hit) / max(len(hit), 1),
+    def parts(get):                                       # share and mean result of take profit, stop and time-out
+        out = {}
+        for h in ('tp', 'sl', 'time'):
+            xs = [v for v, w in (get(r) for r in rs) if w == h]
+            out[h] = [len(xs) / len(rs), sum(xs) / len(xs) if xs else 0]
+        return out
+    grid = {k: {'pnl': sum(r['grid'][k][0] for r in rs) / len(rs), 'parts': parts(lambda r, k=k: r['grid'][k])} for k in rs[0]['grid']}
+    return {'parts': parts(lambda r: (r['pnl'], r['how'])), 'grid': grid, 'alt': alt, 'n': len(rs), 'pred': sum(r['pct'] for r in rs) / len(rs), 'hit': sum(r['right'] for r in hit) / max(len(hit), 1),
             'neither': 1 - len(hit) / len(rs), 'tgt': med([r['tgt'] for r in rs]), 'stp': med([r['stp'] for r in rs]),
             'pnl': m, 't': m / sd * neff ** 0.5 if sd else 0}
 

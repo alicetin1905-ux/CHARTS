@@ -686,3 +686,33 @@ The same test with the 1-day reading (`--days 1`: targets within one day's expec
 | 70% | 3 days | 8152 | 80% | 30% | 3.5% / 9.1% | -0.11% | -0.05% (50%) |
 
 From 65%, coins with a positive trade: 4 of 17 on 1 day, 8 of 17 on 3 days. The 1-day reading comes true about as often (a little more at the top), but its targets are smaller and more often neither is reached in time; after cost it does no better.
+
+### Where the result goes, and your own take profit and stop
+
+From 65%, 3 days, all coins (21835 points). With the take profit at the more likely target and the stop at the other one:
+
+| Outcome | Share | Mean result | Contribution |
+|---|---|---|---|
+| Target reached (take profit) | 52% | +3.89% | +2.04% |
+| Other target reached (stop) | 16% | -8.71% | -1.40% |
+| Neither within 3 days (closed) | 32% | -2.22% | -0.70% |
+| **Total after cost** | | | **-0.07%** |
+
+Own take profit and stop as multiples of the distance to the more likely target (closed after 3 days if neither):
+
+| Take profit | Stop | Take profit hit | Stop hit | Closed at 3 days | Avg trade after cost | Coins positive |
+|---|---|---|---|---|---|---|
+| 0.5× | 0.5× | 50% | 49% | 0% | -0.07% | 4 of 17 |
+| 0.5× | 1.0× | 66% | 31% | 3% | -0.06% | 6 of 17 |
+| 0.5× | 1.5× | 71% | 21% | 8% | -0.07% | 7 of 17 |
+| 0.5× | 2.0× | 73% | 14% | 13% | -0.07% | 7 of 17 |
+| 0.75× | 0.5× | 40% | 59% | 1% | -0.06% | 6 of 17 |
+| 0.75× | 1.0× | 54% | 39% | 7% | -0.07% | 8 of 17 |
+| 0.75× | 1.5× | 59% | 26% | 14% | -0.08% | 8 of 17 |
+| 0.75× | 2.0× | 62% | 17% | 21% | -0.08% | 8 of 17 |
+| 1.0× | 0.5× | 33% | 64% | 3% | -0.04% | 6 of 17 |
+| 1.0× | 1.0× | 45% | 44% | 11% | -0.04% | 8 of 17 |
+| 1.0× | 1.5× | 50% | 29% | 21% | -0.06% | 9 of 17 |
+| 1.0× | 2.0× | 52% | 19% | 29% | -0.05% | 10 of 17 |
+
+Every combination lands between −0.04% and −0.08% after 0.1% cost: the share of winners follows the break-even rate stop ÷ (take profit + stop) set by the distances. The chance is (price − lower target) ÷ (upper − lower target), what a random walk gives, so the levels alone carry no edge; a filter the reading does not have (trend, entry, funding) would be needed.
