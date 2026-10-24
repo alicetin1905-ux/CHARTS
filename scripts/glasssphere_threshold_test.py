@@ -7,7 +7,7 @@ neither; 0.1% round-trip cost). Also from a minimum chance up (55%, 60%, ... 80%
 Other stops (alt): take profit at the more likely target with the stop at 0.5, 0.75, 1 or 1.5 x the target's distance
 instead of at the other target (closed after 3 days if neither; a candle touching both counts as the stop).
 
-    python3 scripts/glasssphere_threshold_test.py [cache_dir] --symbol BTCUSDT [--json OUT]
+    python3 scripts/glasssphere_threshold_test.py [cache_dir] --symbol BTCUSDT [--days 1|3|7] [--json OUT]
 Uses the archive cache of glasssphere_backtest_long.py; prints a table and, with --json, writes the numbers.
 """
 import json
@@ -18,7 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import glasssphere_backtest_long as L  # noqa: E402  (reads --symbol and the cache dir from the command line)
 import glasssphere_model as M  # noqa: E402
 
-DAYS, LO, STEP, FEE = 3, 0.3, 6, L.FEE
+DAYS = int(sys.argv[sys.argv.index('--days') + 1]) if '--days' in sys.argv else 3     # the reading's horizon
+LO, STEP, FEE = 0.3, 6, L.FEE
 STOPS = [0.5, 0.75, 1.0, 1.5]                      # stop distance as a multiple of the target distance
 BUCKETS = [(50, 55), (55, 60), (60, 65), (65, 70), (70, 75), (75, 80), (80, 101)]
 MINS = [55, 60, 65, 70, 75, 80]

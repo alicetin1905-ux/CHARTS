@@ -671,3 +671,18 @@ Instead of the stop at the other target: the stop at 0.5, 0.75, 1 or 1.5 × the 
 From 65%, coins with a positive result: stop 0.5× 6 of 17, stop 0.75× 7 of 17, stop 1.0× 8 of 17, stop 1.5× 9 of 17; the largest |t| is 1.9 (BTC, losing).
 
 With the stop as far as the target the trade wins half the time: the reading picks the nearer pool, which the price reaches first more often because it is nearer, not because the reading foresees the direction. No stop makes it pay after cost.
+
+### The 1-day reading against the 3-day reading
+
+The same test with the 1-day reading (`--days 1`: targets within one day's expected range, judged after 1 day). All coins pooled.
+
+| From | Reading | Points | Came true | Neither | Target / stop (median, mean of coins) | Trade after cost | Stop 1× (wins) |
+|---|---|---|---|---|---|---|---|
+| 60% | 1 day | 41895 | 73% | 42% | 2.8% / 5.5% | -0.10% | -0.12% (49%) |
+| 60% | 3 days | 42327 | 73% | 34% | 4.4% / 8.6% | -0.07% | -0.07% (50%) |
+| 65% | 1 day | 21822 | 78% | 38% | 2.6% / 5.7% | -0.08% | -0.10% (49%) |
+| 65% | 3 days | 21835 | 76% | 32% | 3.9% / 8.8% | -0.07% | -0.04% (50%) |
+| 70% | 1 day | 8170 | 82% | 35% | 2.3% / 6.0% | -0.07% | -0.11% (49%) |
+| 70% | 3 days | 8152 | 80% | 30% | 3.5% / 9.1% | -0.11% | -0.05% (50%) |
+
+From 65%, coins with a positive trade: 4 of 17 on 1 day, 8 of 17 on 3 days. The 1-day reading comes true about as often (a little more at the top), but its targets are smaller and more often neither is reached in time; after cost it does no better.
