@@ -716,3 +716,24 @@ Own take profit and stop as multiples of the distance to the more likely target 
 | 1.0× | 2.0× | 52% | 19% | 29% | -0.05% | 10 of 17 |
 
 Every combination lands between −0.04% and −0.08% after 0.1% cost: the share of winners follows the break-even rate stop ÷ (take profit + stop) set by the distances. The chance is (price − lower target) ÷ (upper − lower target), what a random walk gives, so the levels alone carry no edge; a filter the reading does not have (trend, entry, funding) would be needed.
+
+### Levels as take profit and stop
+
+The take profit at (1×) or just before (0.9×) the target cluster, the stop 0.2% beyond the nearest strong stop / liquidation cluster on the other side (pool weight at least 0.3, 0.6 or 1.0 of a maximum of 2, at least 0.15 × the expected range away). Order book walls cannot be tested: the archive has no order books.
+
+| From | Take profit | Stop behind cluster ≥ | Stop (median) | Take profit hit | Stop hit | Closed at 3 days | Avg trade after cost | Coins positive |
+|---|---|---|---|---|---|---|---|---|
+| 55% | 0.9× | 0.3 | 3.9% | 40% | 45% | 15% | -0.10% | 3 of 17 |
+| 55% | 0.9× | 0.6 | 6.1% | 43% | 33% | 23% | -0.10% | 3 of 17 |
+| 55% | 0.9× | 1.0 | 8.8% | 46% | 22% | 32% | -0.12% | 2 of 17 |
+| 55% | 1.0× | 0.3 | 3.9% | 37% | 46% | 17% | -0.09% | 4 of 17 |
+| 55% | 1.0× | 0.6 | 6.1% | 40% | 34% | 26% | -0.08% | 4 of 17 |
+| 55% | 1.0× | 1.0 | 8.8% | 42% | 22% | 35% | -0.11% | 3 of 17 |
+| 65% | 0.9× | 0.3 | 3.9% | 47% | 41% | 12% | -0.06% | 8 of 17 |
+| 65% | 0.9× | 0.6 | 6.4% | 51% | 29% | 20% | -0.06% | 8 of 17 |
+| 65% | 0.9× | 1.0 | 9.3% | 54% | 18% | 28% | -0.10% | 6 of 17 |
+| 65% | 1.0× | 0.3 | 3.9% | 45% | 42% | 13% | -0.04% | 8 of 17 |
+| 65% | 1.0× | 0.6 | 6.4% | 48% | 30% | 22% | -0.03% | 9 of 17 |
+| 65% | 1.0× | 1.0 | 9.3% | 51% | 18% | 31% | -0.08% | 8 of 17 |
+
+Between −0.03% and −0.12% after cost: placing the take profit and stop at the clusters does no better than fixed multiples. A take profit just before the cluster is slightly worse than at it.

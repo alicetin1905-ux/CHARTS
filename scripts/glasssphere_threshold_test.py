@@ -23,6 +23,9 @@ LO, STEP, FEE = 0.3, 6, L.FEE
 STOPS = [0.5, 0.75, 1.0, 1.5]                      # stop distance as a multiple of the target distance
 # your own take profit and stop, both as a multiple of the distance to the more likely target
 GRID = [(tp, sl) for tp in (0.5, 0.75, 1.0) for sl in (0.5, 1.0, 1.5, 2.0)]
+# levels as take profit and stop: the take profit just before the target cluster (tp x its distance), the stop 0.2% beyond
+# the nearest strong cluster on the other side (pool weight at least s, at least 0.15 x the expected range away)
+LEVELS = [(tp, sw) for tp in (0.9, 1.0) for sw in (0.3, 0.6, 1.0)]
 BUCKETS = [(50, 55), (55, 60), (60, 65), (65, 70), (70, 75), (75, 80), (80, 101)]
 MINS = [55, 60, 65, 70, 75, 80]
 
@@ -81,9 +84,22 @@ def points(candles, stats):
                     r = [tp * tgt, 'tp']; break
             r = r or [end * (1 if go_up else -1), 'time']
             grid[f'{tp}/{sl}'] = [r[0] - FEE, r[1]]
+        lv = {}
+        for tpf, sw in LEVELS:
+            opp = [q for q in pl if q[1] >= sw and ((q[0] < P - 0.15 * rh) if go_up else (q[0] > P + 0.15 * rh))]
+            sd = (abs(P - min(opp, key=lambda q: abs(q[0] - P))[0]) / P + 0.002) if opp else stp
+            r = None
+            for x in path:
+                fav, adv = (x[2] / P - 1, 1 - x[3] / P) if go_up else (1 - x[3] / P, x[2] / P - 1)
+                if adv >= sd:
+                    r = [-sd, 'sl']; break
+                if fav >= tpf * tgt:
+                    r = [tpf * tgt, 'tp']; break
+            r = r or [end * (1 if go_up else -1), 'time']
+            lv[f'{tpf}/{sw}'] = [r[0] - FEE, r[1], sd]
         how = 'tp' if first in ('up', 'down') and (first == 'up') == go_up else 'sl' if first else 'time'
         out.append({'pct': round(max(p_up, 1 - p_up) * 100), 'first': first, 'right': first in ('up', 'down') and (first == 'up') == go_up,
-                    'tgt': tgt, 'stp': stp, 'pnl': pnl - FEE, 'alt': alt, 'grid': grid, 'how': how})
+                    'tgt': tgt, 'stp': stp, 'pnl': pnl - FEE, 'alt': alt, 'grid': grid, 'lv': lv, 'how': how})
     return out
 
 
@@ -106,7 +122,9 @@ def stats_of(rs):
             out[h] = [len(xs) / len(rs), sum(xs) / len(xs) if xs else 0]
         return out
     grid = {k: {'pnl': sum(r['grid'][k][0] for r in rs) / len(rs), 'parts': parts(lambda r, k=k: r['grid'][k])} for k in rs[0]['grid']}
-    return {'parts': parts(lambda r: (r['pnl'], r['how'])), 'grid': grid, 'alt': alt, 'n': len(rs), 'pred': sum(r['pct'] for r in rs) / len(rs), 'hit': sum(r['right'] for r in hit) / max(len(hit), 1),
+    lvl = {k: {'pnl': sum(r['lv'][k][0] for r in rs) / len(rs), 'parts': parts(lambda r, k=k: r['lv'][k][:2]),
+               'sl': sorted(r['lv'][k][2] for r in rs)[len(rs) // 2]} for k in rs[0]['lv']}
+    return {'lvl': lvl, 'parts': parts(lambda r: (r['pnl'], r['how'])), 'grid': grid, 'alt': alt, 'n': len(rs), 'pred': sum(r['pct'] for r in rs) / len(rs), 'hit': sum(r['right'] for r in hit) / max(len(hit), 1),
             'neither': 1 - len(hit) / len(rs), 'tgt': med([r['tgt'] for r in rs]), 'stp': med([r['stp'] for r in rs]),
             'pnl': m, 't': m / sd * neff ** 0.5 if sd else 0}
 
