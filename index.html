@@ -101,6 +101,56 @@ main{display:grid;gap:12px;padding-block:12px 28px;padding-left:max(16px,env(saf
 /* a level the live price just reached flashes in its colour */
 .levels tr.hit td{animation:lv-hit 1.6s ease-out}
 @keyframes lv-hit{0%{background-color:color-mix(in srgb,var(--hc) 40%,transparent);color:#fff}100%{}}
+/* Alle niveaus in motion: rows near the price glow in their colour, their pill breathes; rows slide in and fade out;
+   a size that grew counts green, one that shrank red; the bars grow and shrink and a light runs over them now and then */
+.levels{position:relative}
+.levels tr[data-k] td{background-color:color-mix(in srgb,var(--hc) calc(var(--near,0) * 18%),transparent);transition:background-color .6s}
+.levels tr.near .pill{animation:lv-breathe 1.4s ease-in-out infinite}
+@keyframes lv-breathe{50%{box-shadow:0 0 16px 1px var(--hc);background:color-mix(in srgb,var(--hc) 22%,transparent)}}
+.levels tr.enter td{animation:lv-in .6s ease-out}
+@keyframes lv-in{from{opacity:0;transform:translateX(-16px)}}
+.levels tr.leave{opacity:0;transition:opacity .4s}
+.levels td.grow{animation:lv-grow 1.4s ease-out}
+.levels td.shrink{animation:lv-shrink 1.4s ease-out}
+@keyframes lv-grow{0%{color:var(--up);text-shadow:0 0 10px rgba(53,255,176,.8)}}
+@keyframes lv-shrink{0%{color:var(--dn);text-shadow:0 0 10px rgba(255,77,106,.8)}}
+.meter i{position:relative;overflow:hidden;transition:width .9s cubic-bezier(.2,.8,.2,1)}
+.meter i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
+  transform:translateX(-120%);animation:lv-sheen 4.5s ease-in-out infinite;animation-delay:var(--sd,0s)}
+@keyframes lv-sheen{0%,72%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+/* a level the price reaches, after its kind (as in the chart) */
+.levels tr.fx-bounce td{animation:fx-bounce .9s ease-out}
+@keyframes fx-bounce{12%{transform:translateX(-6px)}28%{transform:translateX(5px)}44%{transform:translateX(-3px)}60%{transform:translateX(2px)}76%{transform:translateX(-1px)}}
+.levels tr.fx-break td{animation:fx-break 1.1s ease-out}
+@keyframes fx-break{12%{opacity:.25;filter:blur(2px);transform:translateY(calc(var(--dir,1) * -4px))}}
+.levels tr.fx-liq td{animation:fx-jolt .5s ease-out}
+@keyframes fx-jolt{20%{transform:translateY(calc(var(--dir,1) * -3px))}}
+.lvfx{position:absolute;left:0;pointer-events:none;z-index:2}
+.lvfx b{position:absolute;left:var(--x);top:50%;width:4px;height:4px;margin-top:-2px;border-radius:50%;background:var(--hc);box-shadow:0 0 8px var(--hc);
+  animation:fx-spark 1.3s ease-out var(--d) both}
+.lvfx b:nth-child(3n){background:#fff}
+@keyframes fx-spark{from{transform:translate(0,0) scale(1.3);opacity:1}to{transform:translate(var(--dx),var(--dy)) scale(.3);opacity:0}}
+.lvfx-break b{width:18px;height:2px;margin-top:-1px;border-radius:1px;animation-name:fx-shard}
+@keyframes fx-shard{from{transform:translate(0,0) rotate(0);opacity:1}to{transform:translate(var(--dx),var(--dy)) rotate(var(--r));opacity:0}}
+.lvfx-liq{background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--hc) 55%,transparent) 40%,rgba(255,255,255,.85) 50%,color-mix(in srgb,var(--hc) 55%,transparent) 60%,transparent) no-repeat;
+  background-size:45% 100%;animation:fx-sweep 1.1s ease-out forwards}
+@keyframes fx-sweep{from{background-position:-80% 0}to{background-position:180% 0;opacity:.2}}
+.lvfx-stop::before{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:repeating-linear-gradient(90deg,var(--hc) 0 4px,transparent 4px 9px);
+  box-shadow:0 0 8px var(--hc);animation:fx-fuse 1.4s linear forwards}
+@keyframes fx-fuse{from{background-position:0 0}to{background-position:-180px 0;opacity:0}}
+.lvfx-stop::after{content:"";position:absolute;bottom:-3px;left:0;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 12px 3px var(--hc);
+  animation:fx-head 1.3s ease-out forwards}
+@keyframes fx-head{to{left:100%;opacity:0}}
+.lvfx-bounce::before{content:"";position:absolute;left:12px;top:50%;width:40px;height:20px;margin-top:-10px;border:1.5px solid var(--hc);border-radius:50%;
+  animation:fx-ring 1.2s ease-out forwards}
+@keyframes fx-ring{from{transform:scale(.3);opacity:1}to{transform:scale(4,1.6);opacity:0}}
+.lvfx-target::before{content:"";position:absolute;inset:0;background:radial-gradient(55% 100% at 25% 50%,color-mix(in srgb,var(--hc) 50%,transparent),transparent);
+  animation:fx-glow 2s ease-out forwards}
+@keyframes fx-glow{0%{opacity:0;transform:scaleY(.4)}20%{opacity:1;transform:scaleY(2.2)}100%{opacity:0;transform:scaleY(3)}}
+.lvfx .say{position:absolute;top:50%;transform:translateY(-50%);font:700 10px var(--mono);font-style:normal;white-space:nowrap;color:var(--hc);
+  background:rgba(7,10,9,.92);border:1px solid var(--hc);border-radius:999px;padding:2px 8px;box-shadow:0 0 12px -2px var(--hc);animation:fx-say 1.8s ease-out forwards}
+@keyframes fx-say{0%{opacity:0}12%,70%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.meter i::after,.levels tr.near .pill,.levels tr.enter td{animation:none}}
 #tip{position:absolute;pointer-events:none;z-index:5;background:rgba(14,20,18,.96);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;
   font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;color:var(--txt);min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 #tip .h{font-weight:700;margin-bottom:4px}
@@ -1058,21 +1108,43 @@ const lvFx = (() => {
       const key = type + ':' + L.p; if (now - (cool.get(key) ?? -1e9) < 20e3) continue; cool.set(key, now);   // once per 20 s
       if (!reduce.matches) list.push({ type, p: L.p, col: L.col, t0: now, dir: p > prev ? 1 : -1, seed: Math.random() * 100 });
     }
-    rows(prev, p);
+    table(prev, p);
     kick();
   }
-  // Alle niveaus: the % column and the price's row follow the price; a row the price passes flashes
-  function rows(prev, p) {
-    const tb = $('lv'), now = tb.querySelector('tr.now'); if (!now) return;
-    now.cells[0].textContent = fmtP(p);
-    let after = null;
-    for (const tr of tb.querySelectorAll('tr[data-p]')) {
-      const q = +tr.dataset.p; tr.cells[1].textContent = pct(q);
-      if ((prev - q) * (p - q) <= 0) { tr.classList.remove('hit'); void tr.offsetWidth; tr.classList.add('hit'); }
+  // Alle niveaus: the % column and the price's row follow the price, a row near it glows, and a row the price reaches
+  // reacts as its line in the chart does (on a layer over the table)
+  const rcool = new Map();
+  function table(prev, p) {
+    const tb = $('lv'), now = tb.querySelector('tr.now'); if (!now || !model) return;
+    const c0 = now.cells[0], was = c0.textContent; c0.textContent = fmtP(p); if (prev !== p && c0.textContent !== was) flash(c0, p > prev);
+    const zone = (model.hi - model.lo) * 0.03, tol = model.B * 0.6; let after = null;
+    for (const tr of tb.querySelectorAll('tr[data-p]:not(.leave)')) {
+      const q = +tr.dataset.p, k = tr.dataset.k; tr.cells[1].textContent = pct(q);
+      const near = Math.max(0, 1 - Math.abs(q - p) / zone);
+      tr.style.setProperty('--near', near.toFixed(2)); tr.classList.toggle('near', near > 0.45);
+      if (prev !== p) {
+        const crossed = (prev - q) * (p - q) <= 0, touched = !crossed && Math.abs(p - q) <= tol && Math.abs(prev - q) > tol;
+        if (crossed || (touched && k !== 'stop' && k !== 'liq')) rowFx(tr, k === 'bid' || k === 'ask' ? (crossed ? 'break' : 'bounce') : k, p > prev ? 1 : -1);
+      }
       if (q > p) after = tr;
     }
-    const want = after ? after.nextSibling : tb.firstChild;
+    const want = after ? after.nextElementSibling : tb.firstElementChild;
     if (want !== now) tb.insertBefore(now, want);
+  }
+  function rowFx(tr, type, dir) {
+    const key = type + tr.dataset.key, t = performance.now(); if (t - (rcool.get(key) ?? -1e9) < 20e3) return; rcool.set(key, t);
+    tr.classList.remove('hit'); void tr.offsetWidth; tr.classList.add('hit');
+    if (reduce.matches) return;
+    tr.style.setProperty('--dir', dir); tr.classList.add('fx-' + type); setTimeout(() => tr.classList.remove('fx-' + type), 1600);
+    const wrap = tr.closest('.levels'), wb = wrap.getBoundingClientRect(), rb = tr.getBoundingClientRect(), pb = tr.cells[2].firstChild.getBoundingClientRect();
+    const o = document.createElement('div'); o.className = 'lvfx lvfx-' + type;
+    o.style.cssText = `top:${rb.top - wb.top + wrap.scrollTop}px;height:${rb.height}px;width:${wrap.scrollWidth}px;--hc:${tr.style.getPropertyValue('--hc')}`;
+    const r = () => Math.random();
+    const bits = type === 'liq' ? 18 : type === 'break' ? 12 : 0;      // sparks the way the price went, or shards of the wall
+    o.innerHTML = Array.from({ length: bits }, () => `<b style="--x:${(r() * 92 + 4).toFixed(1)}%;--dx:${((r() - .5) * 70).toFixed(0)}px;` +
+      `--dy:${(-dir * (14 + r() * (type === 'liq' ? 46 : 24)) * (type === 'break' ? (r() < .5 ? -1 : 1) : 1)).toFixed(0)}px;--r:${((r() - .5) * 160).toFixed(0)}deg;--d:${(r() * .3).toFixed(2)}s"></b>`).join('') +
+      `<i class="say" style="left:${pb.right - wb.left + wrap.scrollLeft + 8}px">${SAY[type]}</i>`;
+    wrap.appendChild(o); setTimeout(() => o.remove(), 1900);
   }
   function line(y, x1, col, a, blur, w) {
     g.strokeStyle = alpha(col, Math.max(0, Math.min(1, a))); g.lineWidth = w; g.shadowColor = alpha(col, .9); g.shadowBlur = blur;
@@ -1163,7 +1235,7 @@ const lvFx = (() => {
     }
     if (list.length || near) raf = requestAnimationFrame(frame);
   }
-  return { kick, check };
+  return { kick, check, table };
 })();
 
 /* ---------- tooltip ---------- */
@@ -1238,21 +1310,58 @@ function renderLevels() {
   setRO('r-sl', model.liq, true, fmtUsd); setRO('r-ll', model.liq, false, fmtUsd);
   const C = { up: css('--up'), dn: css('--dn'), stop: css('--stop'), liq: css('--liq') };
   const kinds = [
-    ['Verkoopmuur', model.ask, true, C.dn, model.max.book, fmtUsd, true], ['Koopmuur', model.bid, false, C.up, model.max.book, fmtUsd, true],
-    ['Koopstops', model.stop, true, C.stop, model.max.stop, v => 'score ' + score(v)], ['Verkoopstops', model.stop, false, C.stop, model.max.stop, v => 'score ' + score(v)],
-    ['Short-liq.', model.liq, true, C.liq, model.max.liq, fmtUsd], ['Long-liq.', model.liq, false, C.liq, model.max.liq, fmtUsd],
+    ['Verkoopmuur', model.ask, true, C.dn, model.max.book, fmtUsd, 'ask'], ['Koopmuur', model.bid, false, C.up, model.max.book, fmtUsd, 'bid'],
+    ['Koopstops', model.stop, true, C.stop, model.max.stop, v => 'score ' + score(v), 'stop'], ['Verkoopstops', model.stop, false, C.stop, model.max.stop, v => 'score ' + score(v), 'stop'],
+    ['Short-liq.', model.liq, true, C.liq, model.max.liq, fmtUsd, 'liq'], ['Long-liq.', model.liq, false, C.liq, model.max.liq, fmtUsd, 'liq'],
   ];
   const rows = [];
-  for (const [name, arr, above, col, m, fmt, wall] of kinds)
-    for (const [j, v] of topBuckets(arr, above, 4)) rows.push({ p: model.lo + (j + .5) * model.B, name, col, v, rel: v / m, fmt, ps: wall ? model.persist(j) : undefined });
+  for (const [name, arr, above, col, m, fmt, k] of kinds)
+    for (const [j, v] of topBuckets(arr, above, 4)) rows.push({ p: model.lo + (j + .5) * model.B, name, col, v, rel: v / m, fmt, k,
+      ps: k === 'bid' || k === 'ask' ? model.persist(j) : undefined });
+  // the GlassSphere targets, with the chance each one comes first
+  const T = state.targets;
+  if (T?.prob != null) for (const [p, up] of [[T.up, true], [T.dn, false]]) {
+    if (p == null || p < model.lo || p > model.hi) continue;
+    const ch = p === T.first ? T.prob : 1 - T.prob;
+    rows.push({ p, name: up ? 'Doel ▲' : 'Doel ▼', col: up ? C.up : C.dn, v: ch, rel: ch, k: 'target',
+      fmt: v => (p === T.first ? 'eerst · ' : '') + Math.round(v * 100) + '%' });
+  }
   rows.push({ now: true, p: model.price });
   rows.sort((a, b) => b.p - a.p);
   const stab = ps => ps === undefined ? '' : ps === null ? '<span style="color:var(--faint)">—</span>'
     : `<span class="${ps[0] >= ps[1] - 1 ? 'up' : ps[0] <= 1 ? 'nt' : ''}">${ps[0]}/${ps[1]} u</span>`;
-  $('lv').innerHTML = rows.map(r => r.now
-    ? `<tr class="now"><td>${fmtP(r.p)}</td><td>0,00%</td><td>Huidige prijs</td><td></td><td></td><td></td></tr>`
-    : `<tr data-p="${r.p}" style="--hc:${r.col}"><td>${fmtP(r.p)}</td><td>${pct(r.p)}</td><td><span class="pill" style="color:${r.col};border-color:${alpha(r.col, .45)}">${r.name}</span></td><td>${r.fmt(r.v)}</td>` +
-      `<td><span class="meter"><i style="width:${Math.max(3, r.rel * 100).toFixed(0)}%;background:${r.col}"></i></span></td><td>${stab(r.ps)}</td></tr>`).join('');
+  // rows are kept from one refresh to the next (by kind and price), so a size that changed counts over, its bar
+  // grows or shrinks, a new level slides in and a gone one fades out
+  const tb = $('lv'), old = new Map([...tb.children].filter(tr => !tr.classList.contains('leave')).map(tr => [tr.dataset.key, tr]));
+  let at = tb.firstElementChild;
+  for (const r of rows) {
+    const key = r.now ? 'now' : r.name + '|' + r.p;
+    let tr = old.get(key), fresh = !tr;
+    if (tr) old.delete(key);
+    else {
+      tr = document.createElement('tr'); tr.dataset.key = key;
+      tr.innerHTML = r.now ? '<td></td><td>0,00%</td><td>Huidige prijs</td><td></td><td></td><td></td>'
+        : `<td></td><td></td><td><span class="pill">${r.name}</span></td><td></td><td><span class="meter"><i style="width:0"></i></span></td><td></td>`;
+      if (r.now) tr.className = 'now';
+      else { tr.className = 'enter'; tr.addEventListener('animationend', e => e.target === tr.cells[0] && tr.classList.remove('enter')); }
+    }
+    while (at && at.classList.contains('leave')) at = at.nextElementSibling;
+    if (tr === at) at = at.nextElementSibling; else tb.insertBefore(tr, at);
+    const c = tr.cells;
+    c[0].textContent = fmtP(r.p);
+    if (r.now) continue;
+    tr.dataset.p = r.p; tr.dataset.k = r.k; tr.style.setProperty('--hc', r.col);
+    const pill = c[2].firstChild; pill.style.color = r.col; pill.style.borderColor = alpha(r.col, .45);
+    c[1].textContent = pct(r.p); c[3].textContent = r.fmt(r.v); c[5].innerHTML = stab(r.ps);
+    if (!fresh && tr._v && Math.abs(r.v / tr._v - 1) > 0.03) {          // the size changed: green when it grew, red when it shrank
+      c[3].classList.remove('grow', 'shrink'); void c[3].offsetWidth; c[3].classList.add(r.v > tr._v ? 'grow' : 'shrink'); }
+    tr._v = r.v;
+    const bar = c[4].querySelector('i'); bar.style.background = r.col; bar.style.setProperty('--sd', (r.p % 7 / 2).toFixed(2) + 's');
+    if (fresh) void bar.offsetWidth;                                     // a new bar grows from nothing
+    bar.style.width = Math.max(3, r.rel * 100).toFixed(0) + '%';
+  }
+  for (const tr of old.values()) { tr.classList.add('leave'); setTimeout(() => tr.remove(), 450); }
+  lvFx.table(model.price, model.price);
 }
 
 /* ---------- reading ----------
@@ -1422,8 +1531,9 @@ function refresh() {
     ['r-bid', 'r-ask', 'r-bs', 'r-ss', 'r-sl', 'r-ll'].forEach(id => { $(id).textContent = '—'; $(id + '-s').textContent = ''; });
     $('lv').innerHTML = ''; return;
   }
-  buildModel(); renderExchanges(); renderLevels();
-  if (state.data) renderReading();
+  buildModel(); renderExchanges();
+  if (state.data) renderReading();     // first: the levels table lists the targets
+  renderLevels();
   draw();
 }
 new ResizeObserver(() => draw()).observe(cv);
